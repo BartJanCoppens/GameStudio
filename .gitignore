@@ -32,3 +32,8 @@ dist-ssr
 supabase/.temp
 supabase/.branches
 .env.supabase
+
+# Playwright
+/test-results
+/playwright-report
+e2e/.password

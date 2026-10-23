@@ -29,18 +29,18 @@ export function Workflow() {
   const advance = () => {
     const n = Math.min(s.stage + 1, STAGES.length);
     set({ stage: n });
-    toast(n === STAGES.length ?`Published v4 · allocated to ${reach} players` : `Moved to ${STAGES[n]} · logged 23 Oct`);
+    toast(n === STAGES.length ?`Published v4 · allocated to ${reach} players` : `Moved to ${STAGES[n]} · logged with your name and time`);
   };
 
   const versions: { v: string; note: string; meta: string; status: Status; label: string }[] = [
-    { v: 'v4', note: 'Level 3 edge cases rewritten · retry path added', meta: published ? 'Published 23 Oct' : 'In workflow', status: published ? 'accepted' : 'in-progress', label: published ? 'Live' : STAGES[s.stage] },
-    { v: 'v3', note: 'Timer added to level 1', meta: 'Published 2 Sep · 142 players', status: published ? 'na' : 'accepted', label: published ? 'Finishing' : 'Live' },
-    { v: 'v2', note: 'Circular 2024/C/12 added to domain', meta: 'Published 14 Jun', status: 'na', label: 'Archived' },
+    { v: 'v4', note: 'Reverse-charge and exemption invoices added · rule list reworded', meta: published ? 'Published just now' : 'In workflow', status: published ? 'accepted' : 'in-progress', label: published ? 'Live' : STAGES[s.stage] },
+    { v: 'v3', note: '15-minute clock for the whole run', meta: 'Published 2 Sep', status: published ? 'na' : 'accepted', label: published ? 'Finishing' : 'Live' },
+    { v: 'v2', note: 'Grounded in Invoice mandatory mentions.md', meta: 'Published 14 Jun', status: 'na', label: 'Archived' },
   ];
 
   return (
     <Screen label="Creator · Workflow & allocation">
-      <PageHead eyebrow="VAT rates ladder · v4" title="Workflow and allocation" actions={<Stepper steps={STAGES} current={s.stage} />} />
+      <PageHead eyebrow="Spot the invoice errors · v4" title="Workflow and allocation" actions={<Stepper steps={STAGES} current={s.stage} />} />
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ flex: '1 1 600px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {STAGE_CARDS.map((c, i) => {

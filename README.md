@@ -2,7 +2,7 @@
 
 Gamified learning platform for Meridian Tax Advisors: players play games grounded in a Content Domain (OKF bundles + background documents), game creators design them in an AI-assisted Studio and move them through Dev → Test → Review → Published, game administrators add live content per game, and platform admins manage users, roles and domains.
 
-Implemented from the Claude Design prototype `Game Studio.dc.html` (project "Game Studio Platform Design") with the TaxConnect design system. Sign-in, users, roles and permissions run on Supabase; the games themselves still use in-memory sample data.
+Implemented from the Claude Design prototype `Game Studio.dc.html` (project "Game Studio Platform Design") with the TaxConnect design system, as a proof of concept around **one working game, Spot the invoice errors**: 12 invoices, 7 planted errors against the Belgian mandatory invoice mentions, a 15-minute clock, feedback citing the source passage, and runs stored per player. Sign-in, users, roles, permissions and runs are on Supabase; the workflow, allocation and content-domain screens still show sample data. See [docs/demo-script.md](docs/demo-script.md) for a 5-minute walkthrough.
 
 ## Run
 
@@ -12,9 +12,11 @@ cp .env.example .env.local   # then fill in the Supabase URL and publishable key
 npm run dev      # http://localhost:5173
 npm run build    # typecheck + production build
 npm run lint
+npm test         # unit tests: content integrity and scoring
+npm run e2e      # Playwright, against the Supabase project in .env.local; uses throwaway e2e-* accounts
 ```
 
-Deep links (the prototype's `defaultRole` / `defaultScreen`): `?role=player|creator|gameadmin|admin` (only roles you hold), `?screen=blank|studio|workflow`.
+Every screen has its own URL (`#/library`, `#/console`, …); the back button works, and a screen outside your roles opens your home instead.
 
 ## Accounts and roles
 
@@ -33,7 +35,7 @@ All four share the password you choose as `SEED_PASSWORD` when seeding; it is ne
 
 ### Hosted project
 
-The app runs on the Supabase project **game-studio** (`izdjzxrsebssxzcmudxp`, West EU · Paris). Both migrations are applied, `admin-users` is deployed, auth settings come from `supabase/config.toml` (`supabase config push`), and the four demo accounts are seeded. Local, git-ignored files hold what's needed to work on it:
+The app runs on the Supabase project **game-studio** (`izdjzxrsebssxzcmudxp`, West EU · Paris). All migrations are applied, `admin-users` is deployed, auth settings come from `supabase/config.toml` (`supabase config push`), and the four demo accounts are seeded. Local, git-ignored files hold what's needed to work on it:
 
 | File | Holds |
 |---|---|
@@ -56,10 +58,12 @@ To set up a different project: create it with sign-ups off, then `supabase link 
 | `src/ds/` | TaxConnect design system: tokens (copied verbatim) and the components Game Studio uses, ported from `_ds_bundle.js` with values unchanged |
 | `src/auth/` | Supabase sign-in, the signed-in user's profile, roles and permissions, the login screen |
 | `src/lib/` | Supabase client and table row types |
-| `src/data/` | Sample game data lifted from the prototype, typed |
+| `src/game/` | The demo game: content (invoices, errors, rules, source passages), scoring, the invoice renderer, runs in Supabase |
+| `src/data/` | Navigation and the sample workflow/allocation data |
 | `src/app/` | App state (`AppProvider`) and the `useApp()` hook — one state object, as in the prototype |
 | `src/shell/` | Sidebar, header with the "View as" switcher (shown only when you hold several roles), shared layout bits |
 | `src/screens/{player,creator,gameadmin,admin}/` | One file per prototype screen; `admin/Users` and `admin/Roles` read and write Supabase |
-| `supabase/migrations/` | Tables, row level security, guard triggers and seed data for roles and permissions |
+| `supabase/migrations/` | Users, roles and permissions; the no-escalation rules; `game_runs` |
+| `e2e/` | Playwright tests; `global-setup` creates and `global-teardown` deletes the e2e-* accounts |
 | `supabase/functions/admin-users/` | Account operations that need the secret key: create, deactivate/reactivate, reset password |
 | `scripts/seed-users.mjs` | Creates or resets the four demo accounts |

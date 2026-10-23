@@ -1,37 +1,39 @@
 import { createContext, useContext } from 'react';
-import type { Cohort, DomainKey, Lang, Role, Screen } from '../data/shared';
-import type { Brief, ChatMessage, StudioGame } from '../data/creator';
-import type { LibFilter } from '../data/player';
+import type { Cohort, Lang, Role, Screen } from '../data/shared';
+import type { Flag, InvoiceAnswer } from '../game/scoring';
 
-/** The prototype's single component state, one field per piece of UI that remembers something. */
+/** A run of Spot the invoice errors in progress in this browser. */
+export interface ActiveRun {
+  id: string;
+  /** Client clock, for the countdown; the database keeps the authoritative times. */
+  startedAt: number;
+  answers: InvoiceAnswer[];
+  /** 0-based position in INVOICES. */
+  index: number;
+  /** Flags on the current invoice before it is submitted. */
+  flags: Flag[];
+  /** The field the player is choosing a rule for. */
+  choosing: string | null;
+  submitted: boolean;
+}
+
+/** UI state shared across screens, one field per piece of UI that remembers something. */
 export interface AppState {
   role: Role;
   screen: Screen;
   lang: Lang;
   toast: string | null;
   // player
-  qi: number;
-  picked: number | null;
-  score: number;
-  correct: number;
-  libFilter: LibFilter;
-  installOpen: string | null;
+  run: ActiveRun | null;
+  /** The run the Results screen shows; null = the player's latest finished run. */
+  resultsRunId: string | null;
   // creator
-  aiMode: 'draft' | 'assist';
-  studioView: 'structure' | 'canvas' | 'preview';
-  selQ: string;
-  draftText: string;
-  chat: ChatMessage[];
-  studioGame: StudioGame | null;
-  briefRound: 1 | 2;
-  brief: Brief;
+  studioInvoice: number;
+  studioView: 'key' | 'player';
   stage: number;
   cohorts: Record<Cohort, boolean>;
   // game admin
-  consoleTab: 'content' | 'players' | 'results';
-  pending: number;
-  // admin
-  domain: DomainKey;
+  consoleTab: 'invoices' | 'players' | 'results';
 }
 
 export type Patch = Partial<AppState> | ((s: AppState) => Partial<AppState>);
