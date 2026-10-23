@@ -1,0 +1,8 @@
+:root{
+  --motion-fast:.15s;   /* @kind other */ /* opacity / box-shadow on canvas nodes */
+  --motion-pop:.18s;    /* @kind other */ /* toast and popover entrance */
+  --ease-standard:ease; /* @kind other */
+}
+/* the only two animations in the product */
+@keyframes tc-toast{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes tc-pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}

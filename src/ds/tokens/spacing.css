@@ -1,0 +1,53 @@
+:root{
+  /* spacing — 2px base, dense UI */
+  --space-1:2px;  --space-2:4px;  --space-3:6px;  --space-4:8px;  --space-5:10px; --space-6:12px;
+  --space-7:14px; --space-8:16px; --space-9:18px; --space-10:20px; --space-11:22px; --space-12:24px;
+  --space-14:28px; --space-16:32px; --space-20:40px; --space-24:48px;
+
+  /* radii */
+  --radius-xs:3px;    /* pill-toggle container inner edge */
+  --radius-sm:4px;    /* pill-toggle segments, nav items, small source tags */
+  --radius-node:5px;  /* canvas nodes */
+  --radius-md:6px;    /* THE radius: cards, buttons, inputs, banners, toasts */
+  --radius-lg:8px;    /* dialogs */
+  --radius-pill:999px;
+  --radius-circle:50%;
+
+  /* control heights */
+  --control-xs:24px;  /* status chips, lang tabs in header, step circles are 22px */
+  --control-sm:26px;  /* lang tabs, scope pill */
+  --control-chip:28px;/* result chips, template picker */
+  --control-md:30px;  /* filter chips, compact buttons, header pills */
+  --control-base:32px;/* secondary toolbar buttons, header buttons, icon button */
+  --control-lg:34px;  /* row buttons, drawer actions, compact inputs */
+  --control-xl:36px;  /* section-page primary actions */
+  --control-2xl:40px; /* email CTA, continue buttons, underline tabs */
+  --control-3xl:42px; /* login inputs + button, "Generate my checklist" */
+
+  /* layout */
+  --sidebar-w:248px;
+  --header-h:60px;
+  --content-max:1180px;       /* client checklist */
+  --content-max-admin:1260px; /* admin pages */
+  --content-max-onboarding:920px;
+  --page-pad-x:32px;
+  --page-pad-top:26px;
+  --page-pad-bottom:140px;
+  --card-pad:14px 18px;       /* list rows, compact cards */
+  --card-pad-lg:18px 20px;    /* sidebar cards */
+  --card-pad-xl:20px 22px;    /* summary cards */
+  --dot:7px;                  /* status dot */
+  --dot-lg:8px;               /* banner / header dot */
+  --node-h:38px;              /* canvas node */
+  --node-w:198px;
+  --row-h:46px;               /* canvas row pitch */
+
+  /* shadows — flat UI; shadows only for things that float */
+  --shadow-toast:0 8px 24px rgba(0,0,0,.2);
+  --shadow-dialog:0 24px 64px rgba(0,0,0,.25);
+  --shadow-drawer:-12px 0 32px rgba(0,0,0,.12);
+  --shadow-drawer-soft:-12px 0 32px rgba(0,0,0,.08);
+  --shadow-popover:0 10px 30px rgba(0,0,0,.28);
+  --ring-selected:0 0 0 3px rgba(134,188,37,.45);
+  --focus-outline:2px solid var(--tc-green); /* with outline-offset:-1px */
+}

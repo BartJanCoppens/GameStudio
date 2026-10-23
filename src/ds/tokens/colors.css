@@ -1,0 +1,89 @@
+:root{
+  /* ---- Brand green (Deloitte-green family as used in TaxConnect) ---- */
+  --tc-green:#86BC25;            /* primary accent: primary buttons, active lang tab, progress, brand mark */
+  --tc-green-hover:#78aa1e;      /* primary button hover */
+  --tc-green-deep:#4c7a10;       /* text links, ghost buttons, highlighted canvas edges */
+  --tc-green-text:#3f6a0a;       /* text on light-green chips/banners */
+  --tc-green-mid:#5c8a12;        /* client-specific lane labels on the canvas */
+  --tc-green-ink:#10180a;        /* ink on green (primary button label, mark glyph) */
+  --tc-green-50:#fbfdf6;         /* client lane background */
+  --tc-green-100:#f6f9ef;        /* accent-outline button fill, "Ask a question" */
+  --tc-green-200:#eef7dc;        /* accepted / success chip + banner fill */
+  --tc-green-300:#c9e39a;        /* success banner border */
+  --tc-green-400:#b7d58a;        /* path-trace chip border */
+
+  /* ---- Ink & neutrals (warm, slightly green-tinted greys) ---- */
+  --tc-ink:#1a1d18;              /* body text, dark buttons, selected segments */
+  --tc-ink-hover:#2b2f29;        /* dark button hover */
+  --tc-ink-2:#555c54;            /* not-started chip text */
+  --tc-ink-3:#5a6058;            /* secondary text, eyebrows, table headers */
+  --tc-ink-4:#6b716a;            /* tertiary text, N/A chips, quoted reasons */
+  --tc-ink-5:#8b918a;            /* muted text, key labels, placeholders */
+  --tc-line-strong:#b9bfb5;      /* secondary button hover border, dashes */
+  --tc-line:#d5dacf;             /* control borders (inputs, secondary buttons, segments) */
+  --tc-line-soft:#e1e5dc;        /* card borders, header/sidebar dividers */
+  --tc-line-hair:#eef0ea;        /* inner dividers, table row lines */
+  --tc-line-faint:#f1f2ef;       /* faintest row separators, N/A chip fill */
+  --tc-surface:#ffffff;          /* cards, controls */
+  --tc-surface-raised:#fafbf8;   /* table header, row hover, inspector header */
+  --tc-surface-sunken:#f3f5f0;   /* page background, secondary button hover, assistant bubble */
+  --tc-surface-muted:#eef0ec;    /* not-started chip fill, progress track, outcome nodes */
+  --tc-surface-chip:#e9ece5;     /* pill-toggle container (language switch) */
+  --tc-surface-footer:#f8f9f6;   /* email footer */
+  --tc-dot-neutral:#a0a69d;      /* not-started dot */
+  --tc-dot-na:#c3c7bf;           /* not-applicable dot */
+  --tc-canvas-node:#c8cdc3;      /* canvas node border */
+  --tc-canvas-profile:#cfd4c9;   /* profile node border, dashed containers */
+  --tc-canvas-edge:#b3b8ae;      /* canvas edge stroke */
+
+  /* ---- Dark shell (sidebar, login hero, frozen banner) ---- */
+  --tc-shell:#171a16;
+  --tc-shell-text:#c9cec5;
+  --tc-shell-nav:#b5bbb1;
+  --tc-shell-sub:#a9afa5;
+  --tc-shell-muted:#858c82;
+  --tc-shell-fill-1:rgba(255,255,255,.05);
+  --tc-shell-fill-2:rgba(255,255,255,.08);
+  --tc-shell-fill-3:rgba(255,255,255,.10);
+  --tc-shell-line-1:rgba(255,255,255,.06);
+  --tc-shell-line-2:rgba(255,255,255,.08);
+  --tc-shell-line-3:rgba(255,255,255,.16);
+  --tc-shell-line-4:rgba(255,255,255,.25);
+  --tc-shell-active:rgba(134,188,37,.14);
+
+  /* ---- Status hues ---- */
+  --tc-amber:#e0a100;      --tc-amber-text:#7a5000;  --tc-amber-bg:#fdf3dc;  --tc-amber-bg-soft:#fdf7e6; --tc-amber-line:#f0dca3;
+  --tc-orange:#e2672a;     --tc-orange-text:#9a3d0c; --tc-orange-bg:#fdeae2;
+  --tc-blue:#2f7fc1;       --tc-blue-text:#1d5a8a;   --tc-blue-bg:#e6f0fa;   --tc-blue-line:#c5dbf0;
+  --tc-red:#d14537;        --tc-red-text:#9a2b22;    --tc-red-bg:#fbe9e7;    --tc-red-bg-soft:#fff6f5;
+
+  /* ---- Semantic aliases ---- */
+  --color-text:var(--tc-ink);
+  --color-text-secondary:var(--tc-ink-3);
+  --color-text-tertiary:var(--tc-ink-4);
+  --color-text-muted:var(--tc-ink-5);
+  --color-link:var(--tc-green-deep);
+  --color-on-accent:var(--tc-green-ink);
+  --color-on-dark:#ffffff;
+  --color-accent:var(--tc-green);
+  --color-accent-hover:var(--tc-green-hover);
+  --color-focus:var(--tc-green);
+  --surface-page:var(--tc-surface-sunken);
+  --surface-card:var(--tc-surface);
+  --surface-card-head:var(--tc-surface-raised);
+  --surface-shell:var(--tc-shell);
+  --border-card:var(--tc-line-soft);
+  --border-control:var(--tc-line);
+  --border-divider:var(--tc-line-hair);
+  --scrim:rgba(20,24,18,.5);
+  --scrim-light:rgba(20,24,18,.28);
+  --scrim-faint:rgba(20,24,18,.18);
+
+  /* status chips: fill / text / dot */
+  --status-not-started-bg:var(--tc-surface-muted); --status-not-started-fg:var(--tc-ink-2);     --status-not-started-dot:var(--tc-dot-neutral);
+  --status-in-progress-bg:var(--tc-amber-bg);      --status-in-progress-fg:var(--tc-amber-text); --status-in-progress-dot:var(--tc-amber);
+  --status-submitted-bg:var(--tc-blue-bg);         --status-submitted-fg:var(--tc-blue-text);    --status-submitted-dot:var(--tc-blue);
+  --status-clarification-bg:var(--tc-orange-bg);   --status-clarification-fg:var(--tc-orange-text); --status-clarification-dot:var(--tc-orange);
+  --status-accepted-bg:var(--tc-green-200);        --status-accepted-fg:var(--tc-green-text);    --status-accepted-dot:var(--tc-green);
+  --status-na-bg:var(--tc-line-faint);             --status-na-fg:var(--tc-ink-4);               --status-na-dot:var(--tc-dot-na);
+}
