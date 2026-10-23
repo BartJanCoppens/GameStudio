@@ -25,3 +25,9 @@ dist-ssr
 
 # Playwright MCP artifacts
 .playwright-mcp
+
+# Secrets and local Supabase state
+.env
+.env.seed
+supabase/.temp
+supabase/.branches

@@ -1,11 +1,29 @@
 import type { ReactNode } from 'react';
-import { Avatar, BrandMark, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
-import { LANG_OPTIONS, ME, NAV, NAV_GROUP, ROLE_OPTIONS, SCREEN_TITLES } from '../data/shared';
+import { Avatar, BrandMark, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
+import { LANG_OPTIONS, NAV, NAV_GROUP, ROLE_OPTIONS, SCREEN_TITLES } from '../data/shared';
 import { useApp } from '../app/useApp';
+import { useAuth, useSignedIn } from '../auth/useAuth';
+
+const initialsOf = (name: string, email: string) =>
+  (name.trim() ? name.trim().split(/\s+/).map(w => w[0]).join('') : email[0]).slice(0, 2).toUpperCase();
+
+function Account() {
+  const { profile, roles } = useSignedIn();
+  const { signOut } = useAuth();
+  return (
+    <div style={{ marginTop: 'auto', padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <Avatar initials={initialsOf(profile.full_name, profile.email)} tone="green" size={32} />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={profile.email}>{profile.full_name || profile.email}</div>
+        <div style={{ fontSize: 11.5, color: '#a9afa5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{roles.map(r => r.name).join(' · ')}</div>
+      </div>
+      <LinkButton tone="onDark" size={12} onClick={() => void signOut()}>Sign out</LinkButton>
+    </div>
+  );
+}
 
 function Sidebar() {
   const { s, go } = useApp();
-  const me = ME[s.role];
   return (
     <aside style={{ width: 248, flex: 'none', background: '#171a16', color: '#c9cec5', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
@@ -28,24 +46,24 @@ function Sidebar() {
           />
         ))}
       </nav>
-      <div style={{ marginTop: 'auto', padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Avatar initials={me.initials} tone="green" size={32} />
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#fff' }}>{me.name}</div>
-          <div style={{ fontSize: 11.5, color: '#a9afa5' }}>{me.title}</div>
-        </div>
-      </div>
+      <Account />
     </aside>
   );
 }
 
 function Header() {
-  const { s, set, setRole } = useApp();
+  const { s, set, roles, setRole } = useApp();
+  // Only roles the user holds; someone with a single role has nothing to switch.
+  const options = ROLE_OPTIONS.filter(o => roles.includes(o.value));
   return (
     <header style={{ height: 60, flex: 'none', position: 'sticky', top: 0, zIndex: 5, background: '#fff', borderBottom: '1px solid #e1e5dc', display: 'flex', alignItems: 'center', gap: 14, padding: '0 24px' }}>
       <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: '#5a6058', marginRight: 'auto' }}>{SCREEN_TITLES[s.screen]}</div>
-      <span style={{ fontSize: 12, color: '#8b918a' }}>View as</span>
-      <SegmentedControl options={ROLE_OPTIONS} value={s.role} onChange={setRole} size="sm" />
+      {options.length > 1 ? (
+        <>
+          <span style={{ fontSize: 12, color: '#8b918a' }}>View as</span>
+          <SegmentedControl options={options} value={s.role} onChange={setRole} size="sm" />
+        </>
+      ) : null}
       <PillToggle options={LANG_OPTIONS} value={s.lang} onChange={lang => set({ lang })} size="xs" />
     </header>
   );

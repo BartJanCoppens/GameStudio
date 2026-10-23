@@ -1,0 +1,68 @@
+import { useState, type CSSProperties, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+
+export function Field({ label, hint, size = 'md', children, style }: { label: ReactNode; hint?: ReactNode; size?: 'sm' | 'md'; children: ReactNode; style?: CSSProperties }) {
+  const sm = size === 'sm';
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: sm ? 4 : 6, fontSize: sm ? 12.5 : 13, fontWeight: 500, minWidth: 0, ...style }}>
+      {label}
+      {children}
+      {hint ? <span style={{ fontSize: 12, color: 'var(--tc-ink-5)', fontWeight: 400 }}>{hint}</span> : null}
+    </label>
+  );
+}
+
+const INPUT_HEIGHTS = { md: 30, lg: 34, '3xl': 42 };
+
+interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'style'> {
+  size?: keyof typeof INPUT_HEIGHTS;
+  invalid?: boolean;
+  style?: CSSProperties;
+}
+
+export function Input({ size = 'lg', invalid = false, style, onFocus, onBlur, ...rest }: InputProps) {
+  const [focus, setFocus] = useState(false);
+  const h = INPUT_HEIGHTS[size] ?? 34;
+  return (
+    <input
+      {...rest}
+      aria-invalid={invalid || undefined}
+      onFocus={e => { setFocus(true); onFocus?.(e); }}
+      onBlur={e => { setFocus(false); onBlur?.(e); }}
+      style={{
+        height: h, padding: `0 ${h >= 42 ? 12 : h >= 34 ? 10 : 8}px`, border: `1px solid ${invalid ? 'var(--tc-red)' : 'var(--tc-line)'}`, borderRadius: 6,
+        background: '#fff', fontFamily: 'inherit', fontSize: h >= 42 ? 14 : h >= 34 ? 13 : 12, fontWeight: 400, color: 'var(--tc-ink)', width: '100%',
+        minWidth: 0, boxSizing: 'border-box', outline: focus ? '2px solid var(--tc-green)' : 'none', outlineOffset: -1, ...style,
+      }}
+    />
+  );
+}
+
+interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'size' | 'style'> {
+  options: { value: string; label: string }[];
+  size?: 'md' | 'lg';
+  style?: CSSProperties;
+}
+
+export function Select({ options, size = 'lg', style, ...rest }: SelectProps) {
+  const h = size === 'md' ? 30 : 34;
+  return (
+    <select
+      {...rest}
+      style={{
+        height: h, padding: `0 ${h === 30 ? 6 : 8}px`, border: '1px solid var(--tc-line)', borderRadius: 6, background: '#fff', fontFamily: 'inherit',
+        fontSize: h === 30 ? 12 : 13, fontWeight: 400, color: 'var(--tc-ink)', minWidth: 0, ...style,
+      }}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  );
+}
+
+export function Checkbox({ checked = false, onChange, disabled, children, style }: { checked?: boolean; onChange?: (checked: boolean) => void; disabled?: boolean; children?: ReactNode; style?: CSSProperties }) {
+  return (
+    <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start', fontSize: 13.5, cursor: disabled ? 'default' : 'pointer', textWrap: 'pretty', opacity: disabled ? 0.5 : 1, ...style }}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange?.(e.target.checked)} style={{ width: 16, height: 16, margin: '2px 0 0', flex: 'none', accentColor: 'var(--tc-green)' }} />
+      <span>{children}</span>
+    </label>
+  );
+}

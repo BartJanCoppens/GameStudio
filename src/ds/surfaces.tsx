@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 
 export interface Column<R> {
   key: string;
@@ -135,6 +135,50 @@ export function Banner({ tone = 'success', title, children, actions, onDismiss, 
           ×
         </button>
       ) : null}
+    </div>
+  );
+}
+
+interface DialogProps {
+  open?: boolean;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClose?: () => void;
+  footer?: ReactNode;
+  width?: number;
+  children?: ReactNode;
+  style?: CSSProperties;
+}
+
+export function Dialog({ open = true, eyebrow, title, subtitle, onClose, footer, width = 540, children, style }: DialogProps) {
+  useEffect(() => {
+    if (!open || !onClose) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, background: 'var(--scrim)', zIndex: 40, display: 'grid', placeItems: 'center', padding: 24, overflowY: 'auto' }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={typeof title === 'string' ? title : undefined}
+        style={{ width: '100%', maxWidth: width, background: '#fff', borderRadius: 8, padding: '24px 26px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: 'var(--shadow-dialog)', animation: 'tc-pop .18s ease', ...style }}
+      >
+        <div>
+          {eyebrow ? <div style={{ fontSize: 12, color: 'var(--tc-ink-5)' }}>{eyebrow}</div> : null}
+          <div style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3, textWrap: 'pretty' }}>{title}</div>
+          {subtitle ? <div style={{ fontSize: 13, color: 'var(--tc-ink-3)', marginTop: 4 }}>{subtitle}</div> : null}
+        </div>
+        {children}
+        {footer ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{footer}</div> : null}
+      </div>
     </div>
   );
 }

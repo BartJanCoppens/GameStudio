@@ -24,17 +24,10 @@ export const NAV: Record<Role, [string, Screen, string?][]> = {
   player: [['Your games', 'library', '4'], ['Badges and results', 'results']],
   creator: [['My games', 'games', '6'], ['New game', 'blank'], ['Studio', 'studio'], ['Workflow & allocation', 'workflow'], ['Content domains', 'content']],
   gameadmin: [['VAT rates ladder', 'console']],
-  admin: [['Overview', 'dashboard'], ['Users', 'users', '214'], ['Roles & permissions', 'roles'], ['Content', 'content', '3'], ['Games', 'dashboard', '6']],
+  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['Content', 'content', '3'], ['Games', 'dashboard', '6']],
 };
 
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };
-
-export const ME: Record<Role, { initials: string; name: string; title: string }> = {
-  player: { initials: 'LP', name: 'Lena Peeters', title: 'Analyst · Indirect tax' },
-  creator: { initials: 'SC', name: 'Sofie Claes', title: 'Game creator · Senior manager' },
-  gameadmin: { initials: 'TV', name: 'Thomas Vermeulen', title: 'Game administrator' },
-  admin: { initials: 'AD', name: 'An De Smet', title: 'Platform admin' },
-};
 
 export const SCREEN_TITLES: Record<Screen, string> = {
   library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', games: 'Creator · My games', studio: 'Creator · Studio',

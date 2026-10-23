@@ -2,7 +2,6 @@ import { createContext, useContext } from 'react';
 import type { Cohort, DomainKey, Lang, Role, Screen } from '../data/shared';
 import type { Brief, ChatMessage, StudioGame } from '../data/creator';
 import type { LibFilter } from '../data/player';
-import type { UserFilter } from '../data/admin';
 
 /** The prototype's single component state, one field per piece of UI that remembers something. */
 export interface AppState {
@@ -32,7 +31,6 @@ export interface AppState {
   consoleTab: 'content' | 'players' | 'results';
   pending: number;
   // admin
-  userFilter: UserFilter;
   domain: DomainKey;
 }
 
@@ -41,6 +39,8 @@ export type Patch = Partial<AppState> | ((s: AppState) => Partial<AppState>);
 export interface AppApi {
   s: AppState;
   set: (patch: Patch) => void;
+  /** The app views the signed-in user holds a role for. */
+  roles: Role[];
   setRole: (role: Role) => void;
   go: (screen: Screen) => void;
   toast: (msg: string) => void;
