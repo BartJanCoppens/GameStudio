@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Banner, Button, Checkbox, Dialog, Field, Input, LinkButton, StatusChip } from '../../ds';
-import { adminUsers, errorMessage, supabase } from '../../lib/supabase';
+import { adminUsers, errorMessage, NOT_YOURS_TO_GRANT, supabase } from '../../lib/supabase';
 import type { RoleRow } from '../../lib/db';
 import { generatePassword, userStatus, type DirectoryUser } from './directory';
 
@@ -47,16 +47,19 @@ export function UserDialog({ user, roles, selfId, onClose, onSaved }: Props) {
     }
     const added = roleKeys.filter(k => !user.roleKeys.includes(k));
     const removed = user.roleKeys.filter(k => !roleKeys.includes(k));
-    const { error: profileError } = await supabase.from('profiles').update({ full_name: fullName.trim(), cohort: cohort.trim() }).eq('id', user.id);
+    // RLS skips rows it refuses without an error, so check that each write touched what it should.
+    const { data: updated, error: profileError } = await supabase.from('profiles').update({ full_name: fullName.trim(), cohort: cohort.trim() }).eq('id', user.id).select('id');
     if (profileError) throw profileError;
+    if (!updated?.length) throw new Error(NOT_YOURS_TO_GRANT);
     // Add before removing, so swapping someone's only admin role for another never leaves the platform without one.
     if (added.length) {
       const { error: addError } = await supabase.from('user_roles').insert(added.map(role_key => ({ user_id: user.id, role_key })));
       if (addError) throw addError;
     }
     if (removed.length) {
-      const { error: removeError } = await supabase.from('user_roles').delete().eq('user_id', user.id).in('role_key', removed);
+      const { data: gone, error: removeError } = await supabase.from('user_roles').delete().eq('user_id', user.id).in('role_key', removed).select('role_key');
       if (removeError) throw removeError;
+      if ((gone?.length ?? 0) < removed.length) throw new Error(NOT_YOURS_TO_GRANT);
     }
     return `Saved ${user.email}`;
   });

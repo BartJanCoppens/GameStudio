@@ -24,6 +24,10 @@ export async function adminUsers<T = unknown>(body: Record<string, unknown>): Pr
 
 /** Turns a Supabase/Postgres error into a sentence for a toast. */
 export function errorMessage(e: unknown): string {
+  // 42501: row level security refused the write, almost always the no-escalation rule.
+  if (e && typeof e === 'object' && 'code' in e && e.code === '42501') return NOT_YOURS_TO_GRANT;
   if (e && typeof e === 'object' && 'message' in e && typeof e.message === 'string') return e.message;
   return 'Something went wrong';
 }
+
+export const NOT_YOURS_TO_GRANT = 'You can only give out permissions, or change people holding permissions, that you hold yourself.';

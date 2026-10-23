@@ -79,9 +79,43 @@ as $$
   );
 $$;
 
+-- No escalation: you can only hand out, or act on someone holding, permissions you hold yourself.
+-- Without these, a custom role with "Manage users" could make its holder a platform admin.
+
+-- Every permission the role grants (level 1) is one the caller holds.
+create function private.can_grant_role(p_role text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select (select auth.uid()) is not null and not exists (
+    select 1 from public.role_permissions rp
+    where rp.role_key = p_role and rp.level = 1 and not private.has_permission(rp.permission_key)
+  );
+$$;
+
+-- Every permission the target user holds is one the caller holds.
+create function private.can_manage_user(p_user uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select (select auth.uid()) is not null and not exists (
+    select 1 from public.user_roles ur
+    join public.role_permissions rp on rp.role_key = ur.role_key
+    where ur.user_id = p_user and rp.level = 1 and not private.has_permission(rp.permission_key)
+  );
+$$;
+
 revoke all on function private.has_permission(text) from public, anon;
+revoke all on function private.can_grant_role(text) from public, anon;
+revoke all on function private.can_manage_user(uuid) from public, anon;
 grant usage on schema private to authenticated;
-grant execute on function private.has_permission(text) to authenticated;
+grant execute on function private.has_permission(text), private.can_grant_role(text), private.can_manage_user(uuid) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- Keep profiles in step with auth.users
@@ -231,34 +265,38 @@ create policy "Signed-in users read permissions" on public.permissions
 
 create policy "Signed-in users read the matrix" on public.role_permissions
   for select to authenticated using (true);
+-- A role editor can only grant permissions they hold themselves.
 create policy "Role editors grant permissions" on public.role_permissions
-  for insert to authenticated with check ((select private.has_permission('roles.manage')));
+  for insert to authenticated with check ((select private.has_permission('roles.manage')) and private.has_permission(permission_key));
 create policy "Role editors change grants" on public.role_permissions
   for update to authenticated
   using ((select private.has_permission('roles.manage')))
-  with check ((select private.has_permission('roles.manage')));
+  with check ((select private.has_permission('roles.manage')) and private.has_permission(permission_key));
 create policy "Role editors revoke permissions" on public.role_permissions
   for delete to authenticated using ((select private.has_permission('roles.manage')));
 
--- Profiles: you see yourself; user managers see everyone and edit names and cohorts.
--- Status changes go through the admin-users Edge Function, which also blocks sign-in.
+-- Profiles: you see yourself; user managers see everyone and edit names and cohorts of people
+-- who hold nothing they don't. Status changes go through the admin-users Edge Function, which also blocks sign-in.
 create policy "Users read their own profile" on public.profiles
   for select to authenticated using ((select auth.uid()) = id);
 create policy "User managers read all profiles" on public.profiles
   for select to authenticated using ((select private.has_permission('users.manage')));
 create policy "User managers edit profiles" on public.profiles
   for update to authenticated
-  using ((select private.has_permission('users.manage')))
-  with check ((select private.has_permission('users.manage')));
+  using ((select private.has_permission('users.manage')) and private.can_manage_user(id))
+  with check ((select private.has_permission('users.manage')) and private.can_manage_user(id));
 
+-- Assigning or removing a role needs every permission the role grants and every permission the person holds.
 create policy "Users read their own roles" on public.user_roles
   for select to authenticated using ((select auth.uid()) = user_id);
 create policy "User managers read all role assignments" on public.user_roles
   for select to authenticated using ((select private.has_permission('users.manage')));
 create policy "User managers assign roles" on public.user_roles
-  for insert to authenticated with check ((select private.has_permission('users.manage')));
+  for insert to authenticated
+  with check ((select private.has_permission('users.manage')) and private.can_grant_role(role_key) and private.can_manage_user(user_id));
 create policy "User managers remove roles" on public.user_roles
-  for delete to authenticated using ((select private.has_permission('users.manage')));
+  for delete to authenticated
+  using ((select private.has_permission('users.manage')) and private.can_grant_role(role_key) and private.can_manage_user(user_id));
 
 -- ---------------------------------------------------------------------------
 -- Seed: the four built-in roles, the permission list and the matrix from the design
