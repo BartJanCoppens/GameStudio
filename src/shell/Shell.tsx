@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Avatar, BrandMark, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
+import { Avatar, BrandMark, Button, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
 import { LANG_OPTIONS, NAV, NAV_GROUP, ROLE_OPTIONS, SCREEN_TITLES } from '../data/shared';
 import { useApp } from '../app/useApp';
 import { useAuth, useSignedIn } from '../auth/useAuth';
@@ -53,6 +53,8 @@ function Sidebar() {
 
 function Header() {
   const { s, set, roles, setRole } = useApp();
+  const { signOut } = useAuth();
+  const { profile } = useSignedIn();
   // Only roles the user holds; someone with a single role has nothing to switch.
   const options = ROLE_OPTIONS.filter(o => roles.includes(o.value));
   return (
@@ -65,6 +67,9 @@ function Header() {
         </>
       ) : null}
       <PillToggle options={LANG_OPTIONS} value={s.lang} onChange={lang => set({ lang })} size="xs" />
+      <span style={{ width: 1, height: 24, background: '#e1e5dc' }} aria-hidden="true" />
+      <span style={{ fontSize: 12, color: '#5a6058', whiteSpace: 'nowrap' }}>{profile.email}</span>
+      <Button variant="secondary" size="sm" onClick={() => void signOut()}>Sign out</Button>
     </header>
   );
 }
