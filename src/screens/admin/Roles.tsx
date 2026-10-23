@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import { Banner, Button, Dialog, LinkButton } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useAuth, useSignedIn } from '../../auth/useAuth';
-import { errorMessage, supabase } from '../../lib/supabase';
+import { errorMessage, NOT_YOURS_TO_GRANT, supabase } from '../../lib/supabase';
 import { LOCKED_ADMIN_PERMISSIONS, type GrantLevel, type PermissionRow, type RoleRow } from '../../lib/db';
 import { PageHead, Screen } from '../../shell/ui';
 import { useDirectory } from './directory';
@@ -38,11 +38,15 @@ export function Roles() {
     // Show the change at once; put it back if the database refuses it.
     const others = grants.filter(g => !(g.role_key === role.key && g.permission_key === perm.key));
     setData({ ...data, grants: to ? [...others, { role_key: role.key, permission_key: perm.key, level: to }] : others });
-    const { error: e } = to
-      ? await supabase.from('role_permissions').upsert({ role_key: role.key, permission_key: perm.key, level: to })
-      : await supabase.from('role_permissions').delete().eq('role_key', role.key).eq('permission_key', perm.key);
-    if (e) {
-      toast(errorMessage(e));
+    // Only a grant's level may be updated; RLS skips refused updates and deletes silently, so count what changed.
+    const grant = supabase.from('role_permissions');
+    const { data: changed, error: e } = from === 0
+      ? await grant.insert({ role_key: role.key, permission_key: perm.key, level: to }).select('level')
+      : to
+        ? await grant.update({ level: to }).eq('role_key', role.key).eq('permission_key', perm.key).select('level')
+        : await grant.delete().eq('role_key', role.key).eq('permission_key', perm.key).select('level');
+    if (e || !changed?.length) {
+      toast(e ? errorMessage(e) : NOT_YOURS_TO_GRANT);
       await reload();
       return;
     }
@@ -51,9 +55,10 @@ export function Roles() {
   };
 
   const remove = async (role: RoleRow) => {
-    const { error: e } = await supabase.from('roles').delete().eq('key', role.key);
+    const { data: gone, error: e } = await supabase.from('roles').delete().eq('key', role.key).select('key');
     setDeleting(null);
     if (e) toast(errorMessage(e));
+    else if (!gone?.length) toast(NOT_YOURS_TO_GRANT);
     else toast(`Deleted “${role.name}”`);
     await reload();
   };

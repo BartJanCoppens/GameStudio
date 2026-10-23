@@ -31,3 +31,4 @@ dist-ssr
 .env.seed
 supabase/.temp
 supabase/.branches
+.env.supabase

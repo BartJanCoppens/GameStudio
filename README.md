@@ -31,23 +31,23 @@ All four share the password you choose as `SEED_PASSWORD` when seeding; it is ne
 - **Roles & permissions** (needs *Edit roles and permissions*): click a cell to step it not granted → granted → partial; add, rename or delete custom roles. Custom roles carry permissions; screens still come from the four built-in roles.
 - The database enforces this, not just the screens: row level security checks the permission matrix on every write. Platform admin can never lose *Manage users* or *Edit roles*, the last active platform admin cannot be removed, and built-in roles cannot be deleted.
 
-### Connect a hosted Supabase project
+### Hosted project
 
-1. Create a project (EU region). Under **Authentication → Sign In / Providers**, turn off *Allow new users to sign up*; set the minimum password length to 10.
-2. Apply the schema and deploy the function, either with the CLI:
-   ```sh
-   supabase login
-   supabase link --project-ref <project-ref>
-   supabase db push
-   supabase functions deploy admin-users
-   ```
-   or in the dashboard: run `supabase/migrations/*_user_and_role_management.sql` in the SQL editor, and create an Edge Function named `admin-users` from `supabase/functions/admin-users/index.ts`.
-3. Seed the four accounts: copy `.env.seed.example` to `.env.seed`, fill in the URL, the **secret** key and a password, then `npm run seed:users`. Re-running resets their passwords.
-4. Point the app at the project: `.env.local` with the URL and the **publishable** key.
+The app runs on the Supabase project **game-studio** (`izdjzxrsebssxzcmudxp`, West EU · Paris). Both migrations are applied, `admin-users` is deployed, auth settings come from `supabase/config.toml` (`supabase config push`), and the four demo accounts are seeded. Local, git-ignored files hold what's needed to work on it:
+
+| File | Holds |
+|---|---|
+| `.env.local` | URL + publishable key for `npm run dev` |
+| `.env.seed` | URL, admin key and `SEED_PASSWORD` for `npm run seed:users` — the demo password is here |
+| `.env.supabase` | `SUPABASE_DB_PASSWORD`, for `supabase db push` |
+
+Schema changes: `supabase migration new <name>`, then `set -a; . ./.env.supabase; set +a; supabase db push`. Function changes: `supabase functions deploy admin-users`.
+
+To set up a different project: create it with sign-ups off, then `supabase link --project-ref <ref>`, `supabase db push`, `supabase config push`, `supabase functions deploy admin-users`, fill `.env.seed` and `.env.local` from `.env.seed.example` / `.env.example`, and `npm run seed:users`.
 
 ### Local Supabase
 
-`supabase start` runs the stack in Docker on ports 55421–55429 (moved off the defaults so it can run beside other projects). It applies the migration and serves the Edge Function; `supabase status` prints the local URL and keys for `.env.local` and `.env.seed`.
+`supabase start` runs the stack in Docker on ports 55421–55429 (moved off the defaults so it can run beside other projects), applying the migrations and serving the Edge Function. Put the keys from `supabase status` in `.env.localstack.local` (app) and `.env.seed.local` (seed), then `npm run seed:users:local` and `npm run dev:local`.
 
 ## Layout
 

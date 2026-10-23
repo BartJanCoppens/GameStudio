@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "seed:users": "node --env-file-if-exists=.env.seed scripts/seed-users.mjs"
+    "seed:users": "node --env-file-if-exists=.env.seed scripts/seed-users.mjs",
+    "dev:local": "vite --mode localstack",
+    "seed:users:local": "node --env-file-if-exists=.env.seed.local scripts/seed-users.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",
