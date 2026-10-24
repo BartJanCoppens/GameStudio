@@ -11,13 +11,15 @@ interface Row {
   content: GameContent;
   version: number;
   updated_at: string;
+  data_revision: number;
+  base_revision: number;
 }
 
 const fromRow = (row: Row | undefined): StoredContent | null =>
   row ? { content: { ...EMPTY_CONTENT, ...row.content }, version: row.version, updatedAt: row.updated_at } : null;
 
 async function fetchRows(gameKey: string): Promise<Row[]> {
-  const { data, error } = await supabase.from('game_content').select('stage, content, version, updated_at').eq('game_key', gameKey).returns<Row[]>();
+  const { data, error } = await supabase.from('game_content').select('stage, content, version, updated_at, data_revision, base_revision').eq('game_key', gameKey).returns<Row[]>();
   if (error) throw error;
   return data ?? [];
 }
@@ -72,6 +74,17 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     await reload();
   }, [rows, gameKey, reload]);
 
+  // A game admin added content to the live game after the draft was based on it.
+  const liveRow = rows?.find(r => r.stage === 'live');
+  const draftRow = rows?.find(r => r.stage === 'draft');
+  const draftBehind = !!liveRow && !!draftRow && draftRow.base_revision < liveRow.data_revision;
+
+  const takeInLive = useCallback(async () => {
+    const { error: e } = await supabase.rpc('take_in_live', { p_game_key: gameKey });
+    if (e) throw e;
+    await reload();
+  }, [gameKey, reload]);
+
   const publish = useCallback(async () => {
     const { error: e } = await supabase.rpc('publish_game', { p_game_key: gameKey });
     if (e) throw e;
@@ -83,6 +96,8 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     games: games ?? [],
     reloadGames,
     reloadContent: reload,
+    draftBehind,
+    takeInLive,
     published: live !== null,
     live,
     draft,
@@ -90,7 +105,7 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     error,
     saveDraft,
     publish,
-  }), [game, games, reloadGames, reload, live, draft, rows, gameKey, error, saveDraft, publish]);
+  }), [game, games, reloadGames, reload, draftBehind, takeInLive, live, draft, rows, gameKey, error, saveDraft, publish]);
 
   return <GameContentContext.Provider value={api}>{children}</GameContentContext.Provider>;
 }

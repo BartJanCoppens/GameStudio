@@ -16,6 +16,10 @@ export interface GameContentApi {
   reloadGames: () => Promise<void>;
   /** Fetch the selected game's draft and live content again. */
   reloadContent: () => Promise<void>;
+  /** A game admin added content to the live game after this draft was based on it: publishing is refused until it is taken in. */
+  draftBehind: boolean;
+  /** Replace the draft's content with the live content (the code stays). */
+  takeInLive: () => Promise<void>;
   /** Players can play it: it has a live version. */
   published: boolean;
   /** What players play; null until the game is published. */

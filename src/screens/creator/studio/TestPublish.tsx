@@ -17,7 +17,7 @@ interface Check {
 /** Check house rules, publish, export: the last step before players see the game. */
 export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: GameMeta; content: GameContent; draftUpdatedAt: string | null; onUndo: () => Promise<void> }) {
   const { permissions } = useSignedIn();
-  const { publish, published, live } = useGameContent();
+  const { publish, published, live, draftBehind, takeInLive } = useGameContent();
   const [check, setCheck] = useState<Check | null>(null);
   const [busy, setBusy] = useState<null | 'checking' | 'publishing'>(null);
   const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
@@ -59,6 +59,15 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
         {content.previous ? <Button variant="secondary" size="md" onClick={() => void onUndo()} disabled={!!busy}>Undo last change</Button> : null}
         <span style={{ fontSize: 12.5, color: 'var(--tc-ink-4)', marginLeft: 'auto' }}>{live_ ? 'Live: players have this version' : published ? 'Live: an earlier version' : 'Not published yet'}</span>
       </div>
+      {draftBehind ? (
+        <Banner
+          tone="info"
+          title="A game admin added content to the live game. Take it into your draft first."
+          actions={<Button variant="secondary" size="sm" disabled={!!busy} onClick={() => void takeInLive().then(() => setMessage({ tone: 'success', text: 'The live content is in your draft. Check it against the house rules, then publish.' }), e => setMessage({ tone: 'warning', text: errorMessage(e) }))}>Take in the live content</Button>}
+        >
+          This replaces your draft’s content (questions, levels, cases) with the live content; your code stays as it is.
+        </Banner>
+      ) : null}
       {check && !stale ? (
         check.passed
           ? <div style={{ fontSize: 13, color: 'var(--tc-green-text)', fontWeight: 600 }}>✓ Passed the house-rules check</div>

@@ -230,3 +230,24 @@ test('the creator hides and shows the chat, and views the design and the game fu
   await page.getByRole('button', { name: 'Exit full screen' }).click();
   await expect.poll(async () => (await page.locator('iframe[title="Game"]').boundingBox())!.width).toBeLessThan(viewport.width - 200);
 });
+
+test('a creator takes in content a game admin added', async ({ page }) => {
+  const title = `Behind ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } }, { publish: true });
+  // The creator changes their draft, then a game admin adds content to the live game.
+  const { client } = await (await import('./games')).userClient('creator');
+  const { data: draft } = await client.from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  await client.from('game_content').update({ content: { ...draft!.content, data: { questions: draft!.content.data.questions.map((q: { q: string }, i: number) => (i === 0 ? { ...q, q: `${q.q} (reworded)` } : q)) } } }).eq('game_key', key).eq('stage', 'draft');
+  const more = { questions: [...tiny.data.questions, { q: 'Added?', options: ['Yes', 'No'], answer: 0, source: 'p-number' }] };
+  const { error } = await adminClient().rpc('publish_live_content', { p_game_key: key, p_data: more, p_fingerprint: 'e2e', p_checked_by: null });
+  expect(error).toBeNull();
+
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByText('A game admin added content to the live game. Take it into your draft first.')).toBeVisible();
+  await page.getByRole('button', { name: 'Take in the live content' }).click();
+  await expect(page.getByRole('button', { name: 'Take in the live content' })).toHaveCount(0);
+  const { data: after } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  expect(after!.content.data.questions).toHaveLength(11);
+});
