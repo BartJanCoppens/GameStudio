@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scanGameFiles } from '../../supabase/functions/_shared/codeScan.ts';
+import { filesProblems, scanGameFiles } from '../../supabase/functions/_shared/codeScan.ts';
 
 const clean = { 'index.html': '<div id="app"></div>', 'game.js': 'GameStudio.ready();' };
 const withJs = (js: string) => scanGameFiles({ ...clean, 'game.js': js });
@@ -40,9 +40,10 @@ describe('scanGameFiles', () => {
     expect(scanGameFiles({ 'index.html': '<form><input></form>' }).join(' ')).toContain('submits a form');
   });
 
-  it('allows a web address inside a comment', () => {
-    expect(withJs('// docs: https://example.com\n/* see https://x.y */\nGameStudio.ready();')).toEqual([]);
-    expect(scanGameFiles({ 'index.html': '<!-- https://example.com --><div></div>' })).toEqual([]);
+  it('reports a web address even inside a comment (no comment parsing to trick)', () => {
+    expect(withJs('// docs: https://example.com\nGameStudio.ready();').join(' ')).toContain('contains a web address');
+    expect(scanGameFiles({ 'index.html': '<!-- https://example.com --><div></div>' }).join(' ')).toContain('contains a web address');
+    expect(withJs('const s = "/*"; const u = "//evil.example/x"; const e = "*/";').join(' ')).toContain('contains a web address');
   });
 
   it('reports a missing index.html', () => expect(scanGameFiles({ 'game.js': '1' }).join(' ')).toContain('has no index.html'));
@@ -57,5 +58,15 @@ describe('the e2e tiny game fixture', () => {
     const tiny = JSON.parse(readFileSync('e2e/fixtures/tiny-game.json', 'utf8'));
     expect(scanGameFiles(tiny.files)).toEqual([]);
     expect(conceptProblems(tiny.concept)).toEqual([]);
+  });
+});
+
+describe('filesProblems', () => {
+  it('accepts the known files as text', () => expect(filesProblems({ 'index.html': '<p></p>', 'game.js': '', 'style.css': '' })).toEqual([]));
+  it('rejects unknown file names', () => expect(filesProblems({ 'index.html': '<p></p>', 'evil.html': 'x' }).join(' ')).toContain('evil.html'));
+  it('rejects files that are not text', () => expect(filesProblems({ 'index.html': { toString: 'x' } }).join(' ')).toContain('index.html'));
+  it('rejects a missing or non-object files value', () => {
+    expect(filesProblems(null).join(' ')).toContain('no code');
+    expect(filesProblems('x').join(' ')).toContain('no code');
   });
 });

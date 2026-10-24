@@ -102,6 +102,11 @@ begin
   end;
   execute 'reset role';
 
+  -- (i) draft_for_check returns the content, the secret and their fingerprint from one read
+  select (d.fingerprint = md5(d.content::text || coalesce(d.ai::text, '')) and d.fingerprint = public.draft_fingerprint('sqltest-game'))
+    from public.draft_for_check('sqltest-game') d into ok;
+  results := array_append(results, case when ok then 'ok i' else 'FAIL i: draft_for_check fingerprint mismatch' end);
+
   -- (h) the demo game is gone
   select not exists (select 1 from public.games where key = 'invoice-errors') into ok;
   results := array_append(results, case when ok then 'ok h' else 'FAIL h: demo game still there' end);

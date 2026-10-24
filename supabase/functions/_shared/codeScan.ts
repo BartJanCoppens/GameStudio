@@ -18,25 +18,17 @@ const RULES: { what: string; pattern: RegExp }[] = [
 
 const URL_PATTERN = /\b(https?|wss?|ftp):\/\/|(^|[\s"'(=,`])\/\/[a-z0-9-]+\.[a-z]{2,}/i;
 
-/** The text without comments (JS/CSS block and line comments, HTML comments), keeping string literals intact. */
-export function withoutComments(text: string): string {
-  const src = text.replace(/<!--[\s\S]*?-->/g, ' ');
-  let out = '';
-  let quote: string | null = null;
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i], next = src[i + 1];
-    if (quote) {
-      out += c;
-      if (c === '\\') { out += next ?? ''; i++; } else if (c === quote) quote = null;
-      continue;
-    }
-    if (c === '"' || c === "'" || c === '`') { quote = c; out += c; continue; }
-    if (c === '/' && next === '*') { const end = src.indexOf('*/', i + 2); i = end < 0 ? src.length : end + 1; out += ' '; continue; }
-    // A line comment, but not the "//" of a web address such as "https://".
-    if (c === '/' && next === '/' && src[i - 1] !== ':') { const end = src.indexOf('\n', i); i = end < 0 ? src.length : end - 1; continue; }
-    out += c;
+const FILE_NAMES = ['index.html', 'game.js', 'style.css'];
+
+/** The files value must be an object of text under the known names: anything else could slip past the scan. */
+export function filesProblems(files: unknown): string[] {
+  if (!files || typeof files !== 'object' || Array.isArray(files)) return ['The game has no code yet'];
+  const p: string[] = [];
+  for (const [name, text] of Object.entries(files)) {
+    if (!FILE_NAMES.includes(name)) p.push(`Unexpected file ${name.slice(0, 40)}: a game has index.html, game.js and style.css only`);
+    else if (typeof text !== 'string') p.push(`${name} must be text`);
   }
-  return out;
+  return p;
 }
 
 /** Readable problems with a game's files; empty when the scan finds nothing. */
@@ -50,7 +42,8 @@ export function scanGameFiles(files: Record<string, string | undefined>): string
       const m = text.match(r.pattern);
       if (m) problems.push(`${name} ${r.what} (${m[0].trim().slice(0, 40)})`);
     }
-    const url = withoutComments(text).match(URL_PATTERN);
+    // Matched in the raw text, comments included: no comment parser for a game to trick.
+    const url = text.match(URL_PATTERN);
     if (url) problems.push(`${name} contains a web address (${url[0].trim().slice(0, 40)})`);
   }
   return problems;

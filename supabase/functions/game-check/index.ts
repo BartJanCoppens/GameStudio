@@ -9,7 +9,7 @@
 // Body: { game_key: string }
 import { askStructured, resolveAssistant } from '../_shared/llm.ts';
 import { finishQuota, takeQuota } from '../_shared/quota.ts';
-import { scanGameFiles } from '../_shared/codeScan.ts';
+import { filesProblems, scanGameFiles } from '../_shared/codeScan.ts';
 import { CHECK_SCHEMA, conceptProblems, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
@@ -34,20 +34,21 @@ Deno.serve(async req => {
     const game = await gameOf(admin, body?.game_key);
     requireEditable(c, game);
 
-    // The fingerprint is taken first, so an edit made while the check runs leaves this result for the old version.
-    const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: game.key });
-    if (!fingerprint) throw new HttpError(404, 'This game has no draft to check');
-    const { data: draft } = await admin.from('game_content').select('content').eq('game_key', game.key).eq('stage', 'draft').single();
-    const { data: secret } = await admin.from('game_secrets').select('ai').eq('game_key', game.key).eq('stage', 'draft').maybeSingle();
-    const content = draft!.content as GameContent;
+    // Content, secret and fingerprint come from one read, so the passed check belongs to exactly what was reviewed.
+    const { data: rows } = await admin.rpc('draft_for_check', { p_game_key: game.key });
+    const draft = (rows as { content: GameContent; ai: unknown; fingerprint: string }[] | null)?.[0];
+    if (!draft) throw new HttpError(404, 'This game has no draft to check');
+    const { content, fingerprint } = draft;
+    const secret = { ai: draft.ai };
 
     const record = async (passed: boolean, reasons: string[]) => {
       await admin.from('game_checks').insert({ game_key: game.key, fingerprint, passed, reasons, checked_by: c.id });
       return json(200, { passed, reasons, fingerprint });
     };
 
+    const fileIssues = filesProblems(content.files);
     const problems = [
-      ...(content.files ? scanGameFiles(content.files) : ['The game has no code yet']),
+      ...(fileIssues.length ? fileIssues : scanGameFiles(content.files as Record<string, string>)),
       ...conceptProblems(content.concept),
     ];
     if (problems.length) return await record(false, problems);
@@ -55,7 +56,7 @@ Deno.serve(async req => {
     callId = await takeQuota(admin, c.id, 'studio', game.key);
     const ai = await resolveAssistant(admin, game.key);
     const rules = houseRulesPrompt(await loadHouseRules(admin));
-    const review = `<game>\n${JSON.stringify({ concept: content.concept, data: content.data, ai_role_knowledge: secret?.ai ?? null, files: content.files })}\n</game>`;
+    const review = `<game>\n${JSON.stringify({ concept: content.concept, data: content.data, ai_role_knowledge: secret.ai ?? null, files: content.files })}\n</game>`;
     const reply = await askStructured(ai, SYSTEM(rules), [{ role: 'user', content: review }], CHECK_SCHEMA, 'house_rules_check', { effort: 'low', maxTokens: 2000 });
     await finishQuota(admin, callId, 'answer', reply.usage);
     callId = null;
