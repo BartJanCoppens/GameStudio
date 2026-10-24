@@ -29,3 +29,13 @@ describe('exportZipBytes', () => {
     expect(Object.keys(files)).not.toContain('ai.json');
   });
 });
+
+describe('exportZipBytes with awkward content', () => {
+  it('keeps the page intact when the content contains </script> or $&', () => {
+    const tricky = { ...(tiny as unknown as GameContent), data: { note: '</script><b>broken</b>', price: 'costs $& and $1' } };
+    const html = strFromU8(unzipSync(exportZipBytes({ key: 'tricky', title: 'Tricky' }, tricky))['index.html']);
+    expect(html).not.toContain('</script><b>broken');
+    expect(html).toContain('costs $& and $1');
+    expect(html).not.toContain('gamestudio-host');
+  });
+});

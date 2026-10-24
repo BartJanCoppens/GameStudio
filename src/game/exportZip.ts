@@ -1,5 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import { BRIDGE_API } from '../../supabase/functions/_shared/gameModel.ts';
+import { asData } from '../../supabase/functions/_shared/promptData.ts';
 import { buildSrcdoc } from './bridge/srcdoc';
 import { PASSAGES, type GameContent } from './content';
 
@@ -13,11 +14,11 @@ const localBridge = (data: unknown, sources: unknown) => `(() => {
   const goal = { total: 0 };
   window.GameStudio = {
     ready: async () => true,
-    getData: async () => ${JSON.stringify(data)},
+    getData: async () => ${asData(data)},
     getPlayer: async () => ({ name: 'Player' }),
     getLeaderboard: async () => scores.slice().sort((a, b) => b.score - a.score).slice(0, 10).map((s, i) => ({ rank: i + 1, name: s.name, score: s.score })),
     getGoal: async () => ({ ...(window.__goal || { description: '', target: 0, unit: '' }), total: goal.total }),
-    getSources: async () => ${JSON.stringify(sources)},
+    getSources: async () => ${asData(sources)},
     submitScore: async (score, details) => { scores.push({ name: 'Player', score, details }); return { saved: false }; },
     contribute: async amount => { goal.total += amount; return { counted: false }; },
     askAI: async () => ({ say: '(AI replies need the platform)', quotes: [], action: null, mood: null }),
@@ -58,7 +59,8 @@ export function exportZipBytes(game: { key: string; title: string }, content: Ga
   if (!c || !content.files?.['index.html']) throw new Error('Build the game before exporting it');
   const sources = PASSAGES.filter(p => c.sources.includes(p.id)).map(p => ({ id: p.id, heading: p.heading, loc: p.loc, text: p.text }));
   const page = buildSrcdoc(content.files, { fontsCss: '' })
-    .replace(/<script>\(\(\) => \{\n  let next = 1;[\s\S]*?\}\)\(\);<\/script>/, `<script>window.__goal = ${JSON.stringify(c.goal)};\n${localBridge(content.data ?? null, sources)}</script>`);
+    // A function replacement: "$&" and friends in the content must stay literal. asData escapes "<", so content can't close the script.
+    .replace(/<script>\(\(\) => \{\n  let next = 1;[\s\S]*?\}\)\(\);<\/script>/, () => `<script>window.__goal = ${asData(c.goal)};\n${localBridge(content.data ?? null, sources)}</script>`);
   const json = (v: unknown) => strToU8(JSON.stringify(v, null, 2));
   return zipSync({
     'index.html': strToU8(page),
