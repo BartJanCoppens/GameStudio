@@ -69,6 +69,9 @@ export function isPrivateIp(ip: string): boolean {
   const mapped = h.match(/^::(?:ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/);
   if (mapped) return isPrivateIp(mapped[1]);
   if (h === '::' || h === '::1') return true;
+  // Prefixes that translate to IPv4 and could reach a private IPv4 address: NAT64 (64:ff9b::/96,
+  // 64:ff9b:1::/48), 6to4 (2002::/16), Teredo (2001:0::/32); and documentation (2001:db8::/32).
+  if (/^64:ff9b:/.test(h) || /^2002:/.test(h) || /^2001:(0{0,4}:|db8:)/.test(h)) return true;
   const first = parseInt(h.split(':')[0] || '0', 16);
   return (first & 0xfe00) === 0xfc00 /* fc00::/7 */ || (first & 0xffc0) === 0xfe80 /* fe80::/10 */ || (first & 0xff00) === 0xff00 /* multicast */ || h.startsWith('::ffff:');
 }

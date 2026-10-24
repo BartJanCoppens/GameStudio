@@ -26,14 +26,25 @@ const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5';
 const FALLBACK_MODELS = ['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1'];
 const LIMITS = { perHour: 30, perDay: 150, history: 19, messageChars: 2000, draftChars: 120_000, replyChars: 1500, operations: 40 };
 
-async function requireQuota(admin: SupabaseClient, userId: string) {
+/**
+ * Records the call first, then counts, so parallel requests can't all slip under the cap: each one counts
+ * itself. A call over the cap removes its own record and is refused. Returns the record's id.
+ */
+async function takeQuota(admin: SupabaseClient, userId: string): Promise<number> {
+  const { data: call, error } = await admin.from('studio_ai_calls').insert({ user_id: userId, status: 'pending' }).select('id').single();
+  if (error || !call) throw new HttpError(500, 'Could not record the call');
   const since = (ms: number) => new Date(Date.now() - ms).toISOString();
   const [hour, day] = await Promise.all([
     admin.from('studio_ai_calls').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', since(3600_000)),
     admin.from('studio_ai_calls').select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('created_at', since(86_400_000)),
   ]);
-  if ((hour.count ?? 0) >= LIMITS.perHour) throw new HttpError(429, `You’ve used the AI ${LIMITS.perHour} times this hour. Try again later.`);
-  if ((day.count ?? 0) >= LIMITS.perDay) throw new HttpError(429, `You’ve used the AI ${LIMITS.perDay} times today. Try again tomorrow.`);
+  const over = (hour.count ?? 0) > LIMITS.perHour ? `You’ve used the AI ${LIMITS.perHour} times this hour. Try again later.`
+    : (day.count ?? 0) > LIMITS.perDay ? `You’ve used the AI ${LIMITS.perDay} times today. Try again tomorrow.` : null;
+  if (over) {
+    await admin.from('studio_ai_calls').delete().eq('id', call.id);
+    throw new HttpError(429, over);
+  }
+  return call.id;
 }
 
 interface Turn {
@@ -265,13 +276,12 @@ Deno.serve(async req => {
 
   const admin = adminClient();
   let chatId: string | null = null;
-  let userId: string | null = null;
+  let callId: number | null = null;
   try {
     const c = await caller(admin, req);
     requirePermission(c, 'games.create', 'Create a game in the Studio');
-    userId = c.id;
     const { chatId: requested, message, draft } = readBody(await req.json().catch(() => null));
-    await requireQuota(admin, c.id);
+    callId = await takeQuota(admin, c.id);
     const ai = await assistant(admin);
     const chat = await chatFor(admin, c.id, requested, message);
     chatId = chat.id;
@@ -285,14 +295,14 @@ Deno.serve(async req => {
 
     const { data: saved } = await admin.from('studio_chat_messages').insert({ chat_id: chat.id, role: 'assistant', text: answer.reply || '(no reply)', status: answer.status, provider: `${ai.def.id}:${ai.model}` }).select('id').single();
     await admin.from('studio_chats').update({ updated_at: new Date().toISOString() }).eq('id', chat.id);
-    await admin.from('studio_ai_calls').insert({ user_id: c.id, status: answer.status });
+    await admin.from('studio_ai_calls').update({ status: answer.status }).eq('id', callId);
     return json(200, { ...answer, chat_id: chat.id, message_id: saved?.id ?? null, model: `${ai.def.name} · ${ai.model}` });
   } catch (e) {
     const message = e instanceof HttpError ? e.message : 'Unexpected error';
     if (!(e instanceof HttpError)) console.error(e);
     // Keep the failure in the saved conversation so the history matches what the creator saw.
     if (chatId) await admin.from('studio_chat_messages').insert({ chat_id: chatId, role: 'assistant', text: message, status: 'error' });
-    if (userId && chatId) await admin.from('studio_ai_calls').insert({ user_id: userId, status: 'error' });
+    if (callId) await admin.from('studio_ai_calls').update({ status: 'error' }).eq('id', callId);
     return json(e instanceof HttpError ? e.status : 500, { error: message, chat_id: chatId });
   }
 });
