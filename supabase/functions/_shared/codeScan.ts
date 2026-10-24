@@ -9,7 +9,7 @@ export const MAX_FILE_BYTES = 300_000;
 
 const RULES: { what: string; pattern: RegExp }[] = [
   { what: 'contacts another website', pattern: /\bfetch\s*\(|XMLHttpRequest|\bWebSocket\b|\bEventSource\b|sendBeacon|RTCPeerConnection/ },
-  { what: 'loads code from elsewhere', pattern: /\bimport\s*\(|importScripts|<script\b[^>]*\bsrc\s*=|<link\b|@import|<iframe\b|<object\b|<embed\b/i },
+  { what: 'loads code from elsewhere', pattern: /\bimport\s*\(|importScripts|<script\b[^>]*\bsrc\s*=|<link\b|@import|<i?frame\b|<object\b|<embed\b|createElement\s*\(\s*['"`](i?frame|object|embed)['"`]/i },
   { what: 'leaves the page', pattern: /window\.open\s*\(|\blocation\s*\.\s*(href\s*=(?!=)|assign\s*\(|replace\s*\()|\b(top|parent|document|window)\s*\.\s*location\s*=(?!=)|(^|[^.\w])location\s*=(?!=)|<meta\b[^>]*http-equiv|<a\b[^>]*\btarget\s*=/i },
   { what: 'submits a form', pattern: /<form\b|\.submit\s*\(|requestSubmit/i },
   { what: 'uses browser storage', pattern: /document\s*\.\s*cookie|\blocalStorage\b|\bsessionStorage\b|\bindexedDB\b|\bcaches\s*\./ },

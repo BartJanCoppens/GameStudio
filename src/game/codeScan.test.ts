@@ -69,3 +69,8 @@ describe('filesProblems', () => {
     expect(filesProblems('x').join(' ')).toContain('no code');
   });
 });
+
+describe('nested frames', () => {
+  it.each([["document.createElement('iframe')"], ['document.createElement("frame")'], ['document.createElement(`object`)'], ["document.createElement('embed')"]])('reports %s', js =>
+    expect(scanGameFiles({ 'index.html': '<p></p>', 'game.js': js }).join(' ')).toContain('loads code from elsewhere'));
+});

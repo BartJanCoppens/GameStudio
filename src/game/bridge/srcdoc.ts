@@ -5,7 +5,7 @@ import { BRIDGE_SCRIPT } from './bridgeScript';
 // The page a game runs as: its files inlined, the bridge before its code, and a content security policy
 // that allows no network, no forms, no outside fonts or images. The frame's sandbox does the rest.
 
-export const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'";
+export const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'; webrtc 'block'";
 
 /** Text inside <script> or <style> can't close its own element. */
 const inScript = (code: string) => code.replace(/<\/(script)/gi, '<\\/$1').replace(/<!--/g, '<\\!--');

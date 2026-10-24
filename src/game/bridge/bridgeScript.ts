@@ -18,7 +18,17 @@ export const BRIDGE_SCRIPT = `(() => {
   });
   // A game never opens windows: there is nowhere for it to go.
   try { window.open = () => null; } catch (_) {}
-  // WebRTC can reach the internet and the content security policy doesn't cover it: remove it before the game runs.
+  // A child frame would bring fresh copies of what is removed below: frames a game inserts are taken out at once.
+  try {
+    const FRAMES = ['IFRAME', 'FRAME', 'OBJECT', 'EMBED'];
+    new MutationObserver(records => {
+      for (const r of records) for (const node of r.addedNodes) {
+        if (FRAMES.includes(node.nodeName)) node.remove();
+        else if (node.querySelectorAll) for (const f of node.querySelectorAll('iframe, frame, object, embed')) f.remove();
+      }
+    }).observe(document.documentElement, { childList: true, subtree: true });
+  } catch (_) {}
+  // WebRTC can reach the internet and not every browser's content security policy covers it: remove it before the game runs.
   for (const name of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCSessionDescription', 'RTCIceCandidate']) {
     try { delete window[name]; } catch (_) {}
     try { window[name] = undefined; } catch (_) {}

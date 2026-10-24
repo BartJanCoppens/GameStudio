@@ -11,3 +11,19 @@ describe('the injected bridge', () => {
     expect(fake.GameStudio).toBeDefined();
   });
 });
+
+describe('nested frames at runtime', () => {
+  it('removes frames a game inserts', () => {
+    let callback: ((records: { addedNodes: unknown[] }[]) => void) | null = null;
+    const removed: string[] = [];
+    const fake: Record<string, unknown> = {
+      addEventListener: () => {}, parent: { postMessage: () => {} }, document: { documentElement: {} },
+      MutationObserver: class { constructor(cb: typeof callback) { callback = cb; } observe() {} },
+    };
+    new Function('window', 'document', 'MutationObserver', BRIDGE_SCRIPT)(fake, fake.document, fake.MutationObserver);
+    const frame = { nodeName: 'IFRAME', remove: () => removed.push('iframe'), querySelectorAll: () => [] };
+    const div = { nodeName: 'DIV', remove: () => removed.push('div'), querySelectorAll: () => [{ nodeName: 'EMBED', remove: () => removed.push('embed') }] };
+    callback!([{ addedNodes: [frame, div] }]);
+    expect(removed).toEqual(['iframe', 'embed']);
+  });
+});

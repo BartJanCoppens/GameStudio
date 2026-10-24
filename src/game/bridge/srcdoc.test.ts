@@ -51,3 +51,7 @@ describe('buildSrcdoc with hostile markup', () => {
     expect(doc.match(/http-equiv/gi)).toHaveLength(1);
   });
 });
+
+describe('the content security policy', () => {
+  it('blocks WebRTC where browsers support it', () => expect(CSP).toContain("webrtc 'block'"));
+});
