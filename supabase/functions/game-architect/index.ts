@@ -16,6 +16,7 @@ import { CONCEPT_SCHEMA, QUESTION_SCHEMA, conceptProblems, normalizeConcept, typ
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
+import { asData, inTag } from '../_shared/promptData.ts';
 
 const LIMITS = { turns: 40, turnChars: 2000, request: 2000, questions: 6, mockupChars: 40_000, conceptChars: 20_000 };
 
@@ -103,7 +104,7 @@ Deno.serve(async req => {
     callId = await takeQuota(admin, c.id, 'studio', game.key);
     const ai = await resolveAssistant(admin, game.key);
     const rules = houseRulesPrompt(await loadHouseRules(admin));
-    const brief = `<brief>\n${transcript(body.brief)}\n</brief>`;
+    const brief = inTag('brief', transcript(body.brief));
 
     if (body.mode === 'ask') {
       const asked = body.brief.filter(t => t.role === 'ai').length;
@@ -121,7 +122,7 @@ Deno.serve(async req => {
     }
 
     const content = body.mode === 'revise'
-      ? `${brief}\n\n<current_concept>\n${JSON.stringify(body.concept)}\n</current_concept>\n\n<request>\n${body.request}\n</request>\n\nRevise the concept and mock-up as requested.`
+      ? `${brief}\n\n<current_concept>\n${asData(body.concept)}\n</current_concept>\n\n${inTag('request', body.request)}\n\nRevise the concept and mock-up as requested.`
       : `${brief}\n\nPropose the game.`;
     const reply = await askStructured(ai, DESIGN(rules), [{ role: 'user', content }], CONCEPT_SCHEMA, 'game_concept', { effort: 'medium', maxTokens: 16000 });
     await finishQuota(admin, callId, 'answer', reply.usage);

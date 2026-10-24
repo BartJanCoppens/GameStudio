@@ -4,6 +4,7 @@ import { callFunction, supabase } from '../../lib/supabase';
 import { PASSAGES, type GameContent } from '../content';
 import { contribute, goalTotal } from '../goal';
 import { finishRun, leaderboardOf, type RunRow } from '../runs';
+import { limitedQueue } from './limiter';
 import { firstNameInitial, parseBridgeRequest, type BridgeRequest } from './protocol';
 
 export interface BridgeContext {
@@ -32,8 +33,10 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
   const latest = useRef(ctx);
   useEffect(() => { latest.current = ctx; });
   const submitted = useRef<number | null>(null);
+  // Contributions go one at a time, at most 50 per run (the database enforces the same).
+  const contributions = useRef(limitedQueue(50));
 
-  useEffect(() => { submitted.current = null; }, [ctx.runId]);
+  useEffect(() => { submitted.current = null; contributions.current = limitedQueue(50); }, [ctx.runId]);
 
   useEffect(() => {
     const respond = (res: { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string }) => frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', ...res }, '*');
@@ -55,7 +58,7 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
         case 'contribute':
           if (concept?.mode !== 'common_goal') throw new Error('This game has no common goal');
           if (!c.runId || c.test) return { counted: false };
-          await contribute(c.gameKey, c.runId, req.amount, req.note);
+          await contributions.current(() => contribute(c.gameKey, c.runId!, req.amount, req.note));
           return { counted: true };
         case 'submitScore':
           if (submitted.current !== null) throw new Error('The score was already submitted');

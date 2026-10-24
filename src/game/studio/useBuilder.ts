@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameContent, GameFiles } from '../content';
 import { useGameContent } from '../useGameContent';
 import { streamFunction } from './sse';
+import { jsSyntaxProblem } from './syntax';
 
 export type StepId = 'data' | 'screens' | 'logic';
 export type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
@@ -42,6 +43,8 @@ export function useBuilder() {
   const [changeError, setChangeError] = useState<string | null>(null);
   const parts = useRef<Partial_>({});
   const started = useRef<string | null>(null);
+  /** Steps in flight: a retry joins a running step instead of starting it again. */
+  const inflight = useRef<Partial<Record<StepId, Promise<boolean>>>>({});
 
   const patch = (id: StepId, p: Partial<BuildStep>) => setSteps(s => s.map(x => (x.id === id ? { ...x, ...p } : x)));
 
@@ -57,7 +60,12 @@ export function useBuilder() {
       }, d => { text += d; setLive({ step: id, text }); }) as Record<string, unknown>;
       if (id === 'data') { p.data = result.data; p.notes = String(result.notes ?? ''); }
       if (id === 'screens') p.html = String(result.content);
-      if (id === 'logic') p.js = String(result.content);
+      if (id === 'logic') {
+        // A file that doesn't even parse never becomes the game.
+        const problem = jsSyntaxProblem(String(result.content));
+        if (problem) throw new Error(problem);
+        p.js = String(result.content);
+      }
       patch(id, { status: 'done', seconds: Math.round((Date.now() - t0) / 1000) });
       return true;
     } catch (e) {
@@ -66,20 +74,28 @@ export function useBuilder() {
     }
   }, [game]);
 
+  const once = useCallback((id: StepId, content: GameContent) => {
+    const running = inflight.current[id];
+    if (running) return running;
+    const started_ = runStep(id, content).finally(() => { delete inflight.current[id]; });
+    inflight.current[id] = started_;
+    return started_;
+  }, [runStep]);
+
   /** Runs whatever isn't done yet; saves the game once every step has succeeded. */
   const build = useCallback(async () => {
     const content = draft!.content;
     const p = parts.current;
     const first = await Promise.all([
-      p.data === undefined ? runStep('data', content) : Promise.resolve(true),
-      p.html === undefined ? runStep('screens', content) : Promise.resolve(true),
+      p.data === undefined ? once('data', content) : Promise.resolve(true),
+      p.html === undefined ? once('screens', content) : Promise.resolve(true),
     ]);
     if (!first.every(Boolean)) return;
-    if (p.js === undefined && !(await runStep('logic', content))) return;
+    if (p.js === undefined && !(await once('logic', content))) return;
     const files: GameFiles = { 'index.html': p.html!, 'game.js': p.js! };
     await saveDraft({ ...content, files, data: p.data ?? null, phase: 'ready' });
     setLive(null);
-  }, [draft, runStep, saveDraft]);
+  }, [draft, once, saveDraft]);
 
   /** Retry a failed step: it and the logic (which depends on both) run again. */
   const retry = useCallback((id: StepId) => {
@@ -101,12 +117,15 @@ export function useBuilder() {
       const result = await streamFunction('game-builder', {
         game_key: game!.key, step: 'change', concept: content.concept, files: content.files, data: content.data, instruction,
       }, d => { text += d; setLive({ step: 'change', text }); }) as { reply: string; files: GameFiles; data?: unknown };
+      const broken = result.files?.['game.js'] !== undefined ? jsSyntaxProblem(result.files['game.js']) : null;
+      if (broken) throw new Error(`${broken}. Nothing was changed; try asking again.`);
       const changedFiles = Object.keys(result.files ?? {}).length;
       const reply = result.reply || (changedFiles ? 'Changed.' : 'Nothing changed.');
       // The request and the answer join the conversation; the files and content change together.
       await saveDraft({
         ...content,
         brief: [...content.brief, { role: 'creator', text: instruction }, { role: 'ai', text: reply }],
+        previous: { files: content.files, data: content.data },
         files: { ...content.files, ...result.files },
         ...(result.data !== undefined ? { data: result.data } : {}),
       });
@@ -129,5 +148,12 @@ export function useBuilder() {
     void build();
   }, [phase, game, build]);
 
-  return { steps, live, build, retry, change, changing, changeError };
+  /** Back to the files and content before the last change. */
+  const undo = useCallback(async () => {
+    const content = draft!.content;
+    if (!content.previous) return;
+    await saveDraft({ ...content, files: content.previous.files, data: content.previous.data, previous: null, brief: [...content.brief, { role: 'ai', text: 'Undid the last change.' }] });
+  }, [draft, saveDraft]);
+
+  return { steps, live, build, retry, change, undo, changing, changeError };
 }

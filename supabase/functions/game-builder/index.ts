@@ -19,6 +19,7 @@ import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { sseResponse } from '../_shared/stream.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
+import { asData, inTag } from '../_shared/promptData.ts';
 
 const LIMITS = { dataChars: 120_000, aiChars: 60_000, instruction: 2000, maxTokens: 12_000 };
 type Step = 'data' | 'screens' | 'logic' | 'change';
@@ -27,13 +28,14 @@ const SANDBOX = `The game is one web page running in a sealed-off frame:
 - Plain HTML, CSS and JavaScript only. No libraries, no modules, no imports.
 - No network of any kind: no fetch, XMLHttpRequest, WebSocket, no web addresses anywhere (not even in comments), no external images, fonts, sounds or scripts. Draw with CSS, emoji, inline SVG or canvas.
 - No storage (no cookies, localStorage, sessionStorage, indexedDB), no forms, no window.open, no navigation (never assign location), no eval or new Function.
+- No pop-up dialogs (alert, confirm, prompt): they are blocked in the frame. Ask and confirm inside the page instead.
 - It runs in a frame from 700 to 1400 px wide and 500 to 900 px high: a fluid layout that adapts to the width, and a page that scrolls when content is taller (never fix the body height or hide overflow). It must feel polished: clear layout, readable text, satisfying feedback, small transitions.`;
 
 const conceptText = (c: GameConcept) => {
   const sources = PASSAGES.filter(p => c.sources.includes(p.id));
   const fonts = (id: string) => FONTS.find(f => f.id === id)?.family ?? id;
   return `<concept>
-${JSON.stringify({ ...c, look: undefined }, null, 1)}
+${asData({ ...c, look: undefined })}
 </concept>
 Look: ${c.look.name}. Colours: accent ${c.look.tokens.accent} (text on it ${c.look.tokens.accentInk}), text ${c.look.tokens.ink}, secondary text ${c.look.tokens.muted}, page ${c.look.tokens.page}, cards ${c.look.tokens.surface}, borders ${c.look.tokens.line}. Corner radius ${c.look.tokens.radius}px. Fonts: body '${fonts(c.look.tokens.bodyFont)}', headings '${fonts(c.look.tokens.headingFont)}' (provided; use the family names only).
 ${sources.length ? `Source passages (${SOURCE_DOCUMENT}) the game rests on:\n${sources.map(p => `- [${p.id}] ${p.heading} (${p.loc}): ${p.text}`).join('\n')}` : 'The game is not grounded in source material.'}`;
@@ -168,7 +170,7 @@ Deno.serve(async req => {
         if (problems.length) throw new HttpError(422, `The screens broke a platform rule (${problems[0]}). Try again.`);
         send('done', { file: 'index.html', content: html });
       } else if (body.step === 'logic') {
-        const turns: Turn[] = [{ role: 'user', content: `${concept}\n\n<data_notes>\n${body.notes}\n</data_notes>\n\n<index_html>\n${body.files['index.html']}\n</index_html>\n\nWrite game.js.` }];
+        const turns: Turn[] = [{ role: 'user', content: `${concept}\n\n${inTag('data_notes', body.notes)}\n\n${inTag('index_html', body.files['index.html'])}\n\nWrite game.js.` }];
         const out = await streamText(ai, LOGIC(rules), turns, opts, delta);
         usage = out.usage;
         const js = unfence(out.text);
@@ -176,7 +178,7 @@ Deno.serve(async req => {
         if (problems.length) throw new HttpError(422, `The game logic broke a platform rule (${problems[0]}). Try again.`);
         send('done', { file: 'game.js', content: js });
       } else {
-        const turns: Turn[] = [{ role: 'user', content: `${concept}\n\n<files>\n${JSON.stringify(body.files)}\n</files>\n\n<data>\n${JSON.stringify(body.data ?? null)}\n</data>\n\n<request>\n${body.instruction}\n</request>` }];
+        const turns: Turn[] = [{ role: 'user', content: `${concept}\n\n<files>\n${asData(body.files)}\n</files>\n\n<data>\n${asData(body.data ?? null)}\n</data>\n\n${inTag('request', body.instruction)}` }];
         const out = await streamText(ai, CHANGE(rules), turns, { ...opts, maxTokens: 16_000, schema: CHANGE_SCHEMA }, delta);
         usage = out.usage;
         const parsed = parseJson(out.text, 'change', 400_000) as { reply?: string; files?: { name: string; content: string }[]; data_json?: string | null };

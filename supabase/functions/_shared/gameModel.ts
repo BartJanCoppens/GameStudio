@@ -59,6 +59,8 @@ export interface GameContent {
   files: GameFiles | null;
   /** The game's own content (levels, questions, cases, story set-up), read by the game through the bridge. */
   data: unknown;
+  /** The files and content before the last change request, so it can be undone. */
+  previous?: { files: GameFiles | null; data: unknown } | null;
 }
 
 export const EMPTY_CONTENT: GameContent = { phase: 'questions', brief: [], concept: null, mockup: null, files: null, data: null };

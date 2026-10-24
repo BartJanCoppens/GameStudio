@@ -52,6 +52,8 @@ export function parseBridgeRequest(raw: unknown): BridgeRequest | null {
 
 /** What a game may show of a person: "Bart Jan Coppens" → "Bart C.". */
 export function firstNameInitial(fullName: string): string {
+  // Some players have only an email as their name: never hand that to a game.
+  if (fullName.includes('@')) return 'Player';
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return 'Player';
   return parts.length === 1 ? parts[0] : `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;

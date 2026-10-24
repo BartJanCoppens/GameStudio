@@ -13,6 +13,7 @@ import { filesProblems, scanGameFiles } from '../_shared/codeScan.ts';
 import { CHECK_SCHEMA, conceptProblems, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
+import { asData } from '../_shared/promptData.ts';
 
 const SYSTEM = (rules: string) => `You review learning games before they are published on Game Studio, a platform for professionals.
 
@@ -56,7 +57,7 @@ Deno.serve(async req => {
     callId = await takeQuota(admin, c.id, 'studio', game.key);
     const ai = await resolveAssistant(admin, game.key);
     const rules = houseRulesPrompt(await loadHouseRules(admin));
-    const review = `<game>\n${JSON.stringify({ concept: content.concept, data: content.data, ai_role_knowledge: secret.ai ?? null, files: content.files })}\n</game>`;
+    const review = `<game>\n${asData({ concept: content.concept, data: content.data, ai_role_knowledge: secret.ai ?? null, files: content.files })}\n</game>`;
     const reply = await askStructured(ai, SYSTEM(rules), [{ role: 'user', content: review }], CHECK_SCHEMA, 'house_rules_check', { effort: 'low', maxTokens: 2000 });
     await finishQuota(admin, callId, 'answer', reply.usage);
     callId = null;

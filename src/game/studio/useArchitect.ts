@@ -20,17 +20,20 @@ export function useArchitect() {
   const [since, setSince] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const asked = useRef<string | null>(null);
+  /** The AI step that failed, to run again as is (the creator's message is already saved). */
+  const failed = useRef<(() => Promise<void>) | null>(null);
 
   const call = useCallback((c: GameContent, mode: 'ask' | 'propose' | 'revise', request = '') =>
     callFunction<Answer>('game-architect', { game_key: game!.key, brief: c.brief.map(t => ({ role: t.role, text: t.text })), concept: c.concept, request, mode }), [game]);
 
   const withTurn = (c: GameContent, turn: BriefTurn): GameContent => ({ ...c, brief: [...c.brief, turn] });
 
-  const run = useCallback(async (kind: 'asking' | 'designing', work: () => Promise<void>) => {
+  const run = useCallback(async (kind: 'asking' | 'designing', work: () => Promise<void>, again: () => Promise<void> = work) => {
     setBusy(kind);
     setSince(Date.now());
     setError(null);
-    try { await work(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(null); }
+    failed.current = null;
+    try { await work(); } catch (e) { failed.current = again; setError(errorMessage(e)); } finally { setBusy(null); }
   }, []);
 
   const propose = useCallback(async (c: GameContent) => {
@@ -49,18 +52,21 @@ export function useArchitect() {
   }, [call, saveDraft, propose]);
 
   /** A creator message: an answer in the Questions phase, a change request in the Design phase. */
-  const send = useCallback((text: string) => run('asking', async () => {
+  const send = useCallback((text: string) => {
     const c = draft!.content;
     const next = withTurn(c, { role: 'creator', text });
-    await saveDraft(next);
-    if (c.phase === 'questions') await ask(next);
-    else if (c.phase === 'design') {
-      setBusy('designing');
-      const a = await call(next, 'revise', text);
-      if (a.kind === 'concept') await saveDraft({ ...withTurn(next, { role: 'ai', text: a.reply }), concept: a.concept, mockup: a.mockup_html });
-      else if (a.kind === 'declined') await saveDraft(withTurn(next, { role: 'ai', text: a.reply, declined: true }));
-    }
-  }), [draft, saveDraft, ask, call, run]);
+    // What follows the saved message; Try again repeats only this part.
+    const answer = async () => {
+      if (c.phase === 'questions') await ask(next);
+      else if (c.phase === 'design') {
+        setBusy('designing');
+        const a = await call(next, 'revise', text);
+        if (a.kind === 'concept') await saveDraft({ ...withTurn(next, { role: 'ai', text: a.reply }), concept: a.concept, mockup: a.mockup_html });
+        else if (a.kind === 'declined') await saveDraft(withTurn(next, { role: 'ai', text: a.reply, declined: true }));
+      }
+    };
+    return run('asking', async () => { await saveDraft(next); await answer(); }, answer);
+  }, [draft, saveDraft, ask, call, run]);
 
   const proposeNow = useCallback(() => run('designing', () => propose(draft!.content)), [draft, propose, run]);
 
@@ -87,5 +93,11 @@ export function useArchitect() {
     void run('asking', () => ask(content));
   }, [content, key, last, busy, error, ask, run]);
 
-  return { busy, since, error, send, proposeNow, approveDesign, setLook, retry: () => { setError(null); asked.current = null; } };
+  const retry = useCallback(() => {
+    const again = failed.current;
+    if (again) void run('designing', again);
+    else { setError(null); asked.current = null; }
+  }, [run]);
+
+  return { busy, since, error, send, proposeNow, approveDesign, setLook, retry };
 }

@@ -15,7 +15,7 @@ interface Check {
 }
 
 /** Check house rules, publish, export: the last step before players see the game. */
-export function TestPublish({ game, content, draftUpdatedAt }: { game: GameMeta; content: GameContent; draftUpdatedAt: string | null }) {
+export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: GameMeta; content: GameContent; draftUpdatedAt: string | null; onUndo: () => Promise<void> }) {
   const { permissions } = useSignedIn();
   const { publish, published, live } = useGameContent();
   const [check, setCheck] = useState<Check | null>(null);
@@ -56,6 +56,7 @@ export function TestPublish({ game, content, draftUpdatedAt }: { game: GameMeta;
           {busy === 'publishing' ? 'Publishing…' : 'Publish to players'}
         </Button>
         {permissions.has('users.manage') ? <Button variant="secondary" size="md" onClick={() => exportGame(game, content)} disabled={!!busy}>Export code</Button> : null}
+        {content.previous ? <Button variant="secondary" size="md" onClick={() => void onUndo()} disabled={!!busy}>Undo last change</Button> : null}
         <span style={{ fontSize: 12.5, color: 'var(--tc-ink-4)', marginLeft: 'auto' }}>{live_ ? 'Live: players have this version' : published ? 'Live: an earlier version' : 'Not published yet'}</span>
       </div>
       {check && !stale ? (

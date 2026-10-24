@@ -52,7 +52,8 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
   const game = games?.find(g => g.key === gameKey) ?? null;
   const canEdit = game ? canEditGame(game, profile.id, permissions) : false;
   const live = useMemo(() => fromRow(rows?.find(r => r.stage === 'live')), [rows]);
-  const draft = useMemo(() => (canEdit ? fromRow(rows?.find(r => r.stage === 'draft')) ?? { content: EMPTY_CONTENT, version: 0, updatedAt: null } : null), [rows, canEdit]);
+  // No draft until the rows are loaded: an empty stand-in would let the Studio act on (and save over) the wrong content.
+  const draft = useMemo(() => (canEdit && rows ? fromRow(rows.find(r => r.stage === 'draft')) ?? { content: EMPTY_CONTENT, version: 0, updatedAt: null } : null), [rows, canEdit]);
 
   const saveDraft = useCallback(async (content: GameContent) => {
     const problems = contentProblems(content);

@@ -96,3 +96,100 @@ test('publishing is refused after the draft changes', async ({ page }) => {
   await page.getByRole('button', { name: 'Publish to players' }).click();
   await expect(page.getByText(/The game changed since the house-rules check/)).toBeVisible();
 });
+
+test('game logic with a syntax error is refused and can be retried', async ({ page }) => {
+  const title = `Syntax ${Date.now()}`;
+  const key = await approvedGame(title);
+  let logicCalls = 0;
+  await page.route('**/functions/v1/game-builder', async (route: Route) => {
+    const body = route.request().postDataJSON() as { step: string };
+    const tiny = tinyGame();
+    const events: [string, unknown][] =
+      body.step === 'data' ? [['done', { data: tiny.data, notes: 'questions[]' }]]
+        : body.step === 'screens' ? [['done', { file: 'index.html', content: tiny.files['index.html'] }]]
+          : [['done', { file: 'game.js', content: logicCalls++ === 0 ? '(async () => { const x = [1, 2,' : tiny.files['game.js'] }]];
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' }, body: sse(events) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByRole('listitem', { name: 'Writing the game logic: failed' })).toContainText('syntax error');
+  const { data } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  expect(data!.content.files).toBeNull();
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByRole('button', { name: 'Play test' })).toBeVisible({ timeout: 30_000 });
+});
+
+test('a change with broken code changes nothing, and a good change can be undone', async ({ page }) => {
+  const title = `Undo ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  let changeCalls = 0;
+  await page.route('**/functions/v1/game-builder', async (route: Route) => {
+    const broken = changeCalls++ === 0;
+    const files = { 'game.js': broken ? 'function ( {' : `${tiny.files['game.js']}\n// changed` };
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' }, body: sse([['done', { reply: 'Made it harder.', files }]]) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  const input = page.getByRole('textbox', { name: 'Message the AI about this game' });
+  await input.fill('Make it harder');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByText(/syntax error/)).toBeVisible();
+  const before = (await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single()).data!.content;
+  expect(before.files['game.js']).toBe(tiny.files['game.js']);
+
+  await input.fill('Make it harder');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Undo last change' })).toBeVisible();
+  await page.getByRole('button', { name: 'Undo last change' }).click();
+  await expect(page.getByRole('button', { name: 'Undo last change' })).toHaveCount(0);
+  const after = (await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single()).data!.content;
+  expect(after.files['game.js']).toBe(tiny.files['game.js']);
+});
+
+test('Try again re-runs a failed design change without repeating the message', async ({ page }) => {
+  const title = `Revise ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, phase: 'design', files: null, data: null, mockup: '<main>mock</main>', concept: { ...tiny.concept, title } });
+  let calls = 0;
+  await page.route('**/functions/v1/game-architect', async (route: Route) => {
+    const body = route.request().postDataJSON() as { mode: string; request: string };
+    if (calls++ === 0) return route.fulfill({ status: 502, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'The design wasn’t valid (The AI role needs a description). Try again.' }) });
+    expect(body.mode).toBe('revise');
+    expect(body.request).toBe('Make it film noir');
+    await route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'concept', reply: 'Now in noir.', concept: { ...tiny.concept, title: `${title} noir` }, mockup_html: '<main>noir</main>' }) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await page.getByRole('textbox', { name: 'Message the AI about this game' }).fill('Make it film noir');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByText('The design wasn’t valid')).toBeVisible();
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await expect(page.getByRole('region', { name: 'Concept' }).getByRole('heading')).toHaveText(`${title} noir`);
+  const { data } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  expect(data!.content.brief.filter((t: { text: string }) => t.text === 'Make it film noir')).toHaveLength(1);
+});
+
+test('Retry while the other step is still running doesn’t start it twice', async ({ page }) => {
+  const title = `Inflight ${Date.now()}`;
+  const key = await approvedGame(title);
+  const calls: Record<string, number> = { data: 0, screens: 0, logic: 0 };
+  await page.route('**/functions/v1/game-builder', async (route: Route) => {
+    const body = route.request().postDataJSON() as { step: string };
+    calls[body.step]++;
+    const tiny = tinyGame();
+    if (body.step === 'screens') await new Promise(r => setTimeout(r, 4000));
+    const events: [string, unknown][] =
+      body.step === 'data' ? (calls.data === 1 ? [['error', { error: 'The content wasn’t valid JSON. Try again.' }]] : [['done', { data: tiny.data, notes: 'questions[]' }]])
+        : body.step === 'screens' ? [['done', { file: 'index.html', content: tiny.files['index.html'] }]]
+          : [['done', { file: 'game.js', content: tiny.files['game.js'] }]];
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' }, body: sse(events) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByRole('listitem', { name: 'Writing the game’s content: failed' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('listitem', { name: 'Building the screens: running' })).toBeVisible();
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByRole('button', { name: 'Play test' })).toBeVisible({ timeout: 30_000 });
+  expect(calls).toEqual({ data: 2, screens: 1, logic: 1 });
+});

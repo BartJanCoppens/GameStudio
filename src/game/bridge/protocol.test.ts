@@ -29,3 +29,7 @@ describe('firstNameInitial', () => {
   it('keeps a single name', () => expect(firstNameInitial('Madonna')).toBe('Madonna'));
   it('falls back to Player', () => expect(firstNameInitial('  ')).toBe('Player'));
 });
+
+describe('firstNameInitial with an email for a name', () => {
+  it('never hands an email address to a game', () => expect(firstNameInitial('jane.doe@deloitte.com')).toBe('Player'));
+});

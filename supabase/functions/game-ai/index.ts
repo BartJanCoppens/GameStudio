@@ -15,6 +15,7 @@ import { AI_REPLY_SCHEMA, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
+import { asData } from '../_shared/promptData.ts';
 
 const LIMITS = { messages: 20, messageChars: 1000, stateChars: 4000, sayChars: 1200 };
 
@@ -51,7 +52,7 @@ Deno.serve(async req => {
     const stage = run.test ? 'draft' : 'live';
 
     const messages = readMessages(body.messages);
-    const state = JSON.stringify(body.state ?? null);
+    const state = asData(body.state ?? null);
     if (state.length > LIMITS.stateChars) throw new HttpError(400, 'The game state is too large');
 
     const { data: stored } = await admin.from('game_content').select('content').eq('game_key', game.key).eq('stage', stage).maybeSingle();
@@ -74,7 +75,7 @@ Your role (${role.kind === 'opponent' ? 'the opponent the player plays against' 
 ${role.kind === 'opponent' ? `Your moves: choose action from exactly these: ${role.actions.join(', ')}. Use null when no move is due.` : 'action: always null.'}
 
 <hidden_knowledge>
-${JSON.stringify(secret?.ai ?? {})}
+${asData(secret?.ai ?? {})}
 </hidden_knowledge>
 Use the hidden knowledge to play your part; reveal it only the way your role would.
 

@@ -38,11 +38,13 @@ function Conversation({ content, architect, builder }: { content: GameContent; a
   const error = content.phase === 'ready' ? builder.changeError : architect.error;
   const last = content.brief[content.brief.length - 1];
   const asking = content.phase === 'questions' && last?.role === 'ai' && !last.declined && !!last.choices?.length;
+  // A question on screen means the call that asked it is done; its busy state may lag a moment behind.
+  const blocked = !!busy && !asking;
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [content.brief.length, busy]);
 
   const send = (t: string) => {
     const msg = t.trim();
-    if (!msg || busy) return;
+    if (!msg || blocked) return;
     setText('');
     if (content.phase === 'ready') { setChangeSince(Date.now()); builder.change(msg).catch(() => {}); } else void architect.send(msg);
   };
@@ -54,7 +56,7 @@ function Conversation({ content, architect, builder }: { content: GameContent; a
       <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--tc-line-hair)', fontWeight: 600 }}>Design with AI</div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {content.brief.map((t, i) => {
-          if (t === last && asking) return <QuestionCard key={i} turn={t} disabled={!!busy} onAnswer={send} />;
+          if (t === last && asking) return <QuestionCard key={i} turn={t} disabled={blocked} onAnswer={send} />;
           if (t.declined) return <div key={i} role="status" aria-label="Declined"><Banner tone="warning">{t.text}</Banner></div>;
           return <ChatBubble key={i} role={t.role === 'creator' ? 'user' : 'assistant'}>{t.text}</ChatBubble>;
         })}
@@ -143,7 +145,7 @@ function Stage({ game, content, draftUpdatedAt, architect, builder, onLook }: { 
   if (builder.live) return <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} />;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <TestPublish game={game} content={content} draftUpdatedAt={draftUpdatedAt} />
+      <TestPublish game={game} content={content} draftUpdatedAt={draftUpdatedAt} onUndo={builder.undo} />
       <TestPlay gameKey={gameKey} content={content} />
     </div>
   );
@@ -165,6 +167,7 @@ export function Studio() {
       </Screen>
     );
   }
+  if (!draft && loading) return <Screen label="Creator · Studio"><div style={{ color: 'var(--tc-ink-5)' }}>Loading…</div></Screen>;
   if (!draft) {
     return (
       <Screen label="Creator · Studio">

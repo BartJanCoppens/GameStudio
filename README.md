@@ -11,7 +11,7 @@ Implemented from the Claude Design prototype `Game Studio.dc.html` with the TaxC
 3. **Code** (`game-builder`, streamed): the content and the screens are written side by side, then the logic. Each step is scanned before it is accepted; a failed step can be retried on its own.
 4. **Test & publish**: play-test (never counted), **Check house rules** (`game-check`), **Publish to players** (the database's `publish_game` refuses any version whose fingerprint didn't pass the check), **Export code** for platform admins.
 
-Players play in an `<iframe sandbox="allow-scripts">` with a strict content security policy: no network, storage, forms or outside resources. A game reaches the platform only through `window.GameStudio` (data, score, leaderboard, common goal, AI role), and the app validates every message. A game that navigates away is stopped. Known limit: a game can still send data out by navigating, so games only get first names with an initial.
+Players play in an `<iframe sandbox="allow-scripts">` with a strict content security policy: no network, storage, forms or outside resources. A game reaches the platform only through `window.GameStudio` (data, score, leaderboard, common goal, AI role), and the app validates every message. A game that navigates away is stopped. Known limits: a game can still send data out by navigating (the frame is then closed), and WebRTC isn't covered by the content security policy (the bridge removes it before game code runs, best effort), so games only get first names with an initial.
 
 ## Run
 

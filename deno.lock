@@ -8,6 +8,7 @@
     "npm:@types/react-dom@^19.3.0": "19.3.0_@types+react@19.3.0",
     "npm:@types/react@^19.3.0": "19.3.0",
     "npm:@vitejs/plugin-react@^6.1.2": "6.1.2_vite@8.3.5__@types+node@24.19.2_@types+node@24.19.2",
+    "npm:acorn@8.15.0": "8.15.0",
     "npm:fflate@0.8.2": "0.8.2",
     "npm:oxlint@^1.88.0": "1.89.0",
     "npm:react-dom@^19.3.1": "19.3.1_react@19.3.1",
@@ -325,6 +326,10 @@
     },
     "@vitest/spy@5.0.3": {
       "integrity": "sha512-XhFysQTB8AZ+P4gMi+Lpo99vg2AZi0qKpaB9yXQl37+CaMEAPO3iH/wGVnSyL5MPERiLezpqTVtrR6UZH5GCXg=="
+    },
+    "acorn@8.15.0": {
+      "integrity": "sha512-NZyJarBfL7nWwIq+FDL6Zp/yHEhePMNnnJ0y3qfieCrmNvYct8uvtiV41UvlSe6apAfk0fY1FbWx+NwfmpvtTg==",
+      "bin": true
     },
     "assertion-error@2.0.1": {
       "integrity": "sha512-Izi8RQcffqCeNVgFigKli1ssklIbpHnCYc6AknXGYoB6grJqyeby7jv12JUQgmTAnIDnbck1uxksT4dzN3PWBA=="
@@ -649,6 +654,7 @@
         "npm:@types/react-dom@^19.3.0",
         "npm:@types/react@^19.3.0",
         "npm:@vitejs/plugin-react@^6.1.2",
+        "npm:acorn@8.15.0",
         "npm:fflate@0.8.2",
         "npm:oxlint@^1.88.0",
         "npm:react-dom@^19.3.1",

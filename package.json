@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.3",
+    "acorn": "8.15.0",
     "fflate": "0.8.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

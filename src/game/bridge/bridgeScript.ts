@@ -18,6 +18,11 @@ export const BRIDGE_SCRIPT = `(() => {
   });
   // A game never opens windows: there is nowhere for it to go.
   try { window.open = () => null; } catch (_) {}
+  // WebRTC can reach the internet and the content security policy doesn't cover it: remove it before the game runs.
+  for (const name of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel', 'RTCSessionDescription', 'RTCIceCandidate']) {
+    try { delete window[name]; } catch (_) {}
+    try { window[name] = undefined; } catch (_) {}
+  }
   window.GameStudio = Object.freeze({
     ready: () => call('ready'),
     getData: () => call('getData'),
