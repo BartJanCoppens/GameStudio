@@ -144,6 +144,16 @@ begin
   results := array_append(results, case when ok then 'ok l' else 'FAIL l: can_play wrong for a listed player' end);
   execute 'reset role';
 
+  -- (m) someone with no role at all reads no contributions, even of an open game
+  update public.games set access = 'everyone' where key = 'sqltest3-game';
+  insert into auth.users (id, email, aud, role) values ('00000000-0000-4000-8000-0000000000aa', 'sqltest3-norole@example.com', 'authenticated', 'authenticated');
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-4000-8000-0000000000aa', 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) = 0 from public.game_contributions where game_key = 'sqltest3-game' into ok;
+  results := array_append(results, case when ok then 'ok m' else 'FAIL m: a user without a role read contributions' end);
+  execute 'reset role';
+  update public.games set access = 'restricted' where key = 'sqltest3-game';
+
   -- (h) a player can't call publish_live_content
   perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
   execute as_user;

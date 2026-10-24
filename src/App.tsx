@@ -19,13 +19,14 @@ import { Users } from './screens/admin/Users';
 import { Roles } from './screens/admin/Roles';
 import { AiServicesScreen } from './screens/admin/AiServices';
 import { HouseRules } from './screens/admin/HouseRules';
+import { Groups } from './screens/admin/Groups';
 import { Content } from './screens/admin/Content';
 
 const SCREENS: Record<Screen, ComponentType> = {
   library: Library, play: Play, results: Results,
   games: MyGames, studio: Studio,
   console: Console,
-  dashboard: Dashboard, users: Users, roles: Roles, ai: AiServicesScreen, rules: HouseRules, content: Content,
+  dashboard: Dashboard, users: Users, groups: Groups, roles: Roles, ai: AiServicesScreen, rules: HouseRules, content: Content,
 };
 
 function CurrentScreen() {

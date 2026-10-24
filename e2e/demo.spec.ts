@@ -196,3 +196,21 @@ test('a platform admin deletes any game from the overview', async ({ page }) => 
   await page.getByRole('dialog', { name: `Delete “${title}”?` }).getByRole('button', { name: 'Delete for good' }).click();
   await expect(page.getByRole('row').filter({ hasText: title })).toHaveCount(0);
 });
+
+test('a platform admin creates a group and manages its members', async ({ page }) => {
+  const name = `E2E Analysts ${Date.now()}`;
+  await signIn(page, 'admin');
+  await page.getByRole('button', { name: 'Groups' }).click();
+  await page.getByRole('button', { name: 'New group' }).click();
+  await page.getByRole('dialog').getByLabel('Name').fill(name);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create group' }).click();
+  const detail = page.getByRole('region', { name });
+  await detail.getByLabel('Add a member').selectOption({ label: 'E2E player' });
+  await expect(detail.getByRole('row').filter({ hasText: 'E2E player' })).toBeVisible();
+  await expect(page.getByRole('button', { name: new RegExp(`${name}.*1 member`) })).toBeVisible();
+  await detail.getByRole('row').filter({ hasText: 'E2E player' }).getByRole('button', { name: 'Remove' }).click();
+  await expect(detail.getByRole('row').filter({ hasText: 'E2E player' })).toHaveCount(0);
+  await detail.getByRole('button', { name: 'Delete group' }).click();
+  await page.getByRole('dialog', { name: `Delete “${name}”?` }).getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByRole('button', { name: new RegExp(name) })).toHaveCount(0);
+});

@@ -24,6 +24,7 @@ export async function deleteE2eAccounts() {
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
   if (error) throw error;
   const users = data.users.filter(x => x.email?.startsWith(PREFIX));
+  await admin.from('user_groups').delete().like('name', 'E2E %');
   if (users.length) {
     const { error: ge } = await admin.from('games').delete().in('created_by', users.map(u => u.id));
     if (ge) throw ge;
