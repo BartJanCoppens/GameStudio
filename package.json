@@ -13,6 +13,7 @@
     "seed:users:local": "node --env-file-if-exists=.env.seed.local scripts/seed-users.mjs",
     "demo:reset": "node --env-file-if-exists=.env.seed scripts/demo-reset.mjs",
     "test": "vitest run",
+    "test:sql": "scripts/test-sql.sh",
     "e2e": "playwright test"
   },
   "dependencies": {
