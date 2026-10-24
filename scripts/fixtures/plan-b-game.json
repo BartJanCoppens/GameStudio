@@ -1,0 +1,426 @@
+{
+ "title": "The Rain Ledger",
+ "description": "A rainy night in Brussels, a stack of suspect invoices and a bookkeeper who swears every one is in order. As a junior VAT auditor, use your limited questions to expose the missing and faulty mandatory mentions before he walks out the door.",
+ "content": {
+  "data": {
+   "intro": "You are a junior VAT auditor. You have 8 question tokens. Press Victor on any field, check it against the rulebook, then flag the fields that break a mandatory mention. Each flag must name the right rule.",
+   "rules": [
+    {
+     "id": "p-number",
+     "name": "Invoice number",
+     "text": "Every invoice carries a sequential number that identifies it uniquely within one or more series. The same number may never be used for two invoices.",
+     "source": "p-number"
+    },
+    {
+     "id": "p-dates",
+     "name": "Dates",
+     "text": "The invoice states its date of issue and, where it differs, the date on which the supply of goods or services took place or was completed.",
+     "source": "p-dates"
+    },
+    {
+     "id": "p-supplier",
+     "name": "Supplier",
+     "text": "Name, address and VAT identification number. A Belgian VAT number is BE + the ten-digit enterprise number; the last two digits equal 97 minus (first eight digits mod 97).",
+     "source": "p-supplier"
+    },
+    {
+     "id": "p-customer",
+     "name": "Customer",
+     "text": "Name and address. For an exempt intra-Community supply or a reverse charge, the customer's VAT number must be stated too.",
+     "source": "p-customer"
+    },
+    {
+     "id": "p-goods",
+     "name": "Goods and services",
+     "text": "The invoice describes the quantity and nature of the goods, or the extent and nature of the services.",
+     "source": "p-goods"
+    },
+    {
+     "id": "p-amounts",
+     "name": "Amounts per rate",
+     "text": "For each rate: taxable amount, rate applied and VAT due. VAT = taxable amount × rate, rounded to the cent.",
+     "source": "p-amounts"
+    }
+   ],
+   "title": "The Rain Ledger",
+   "tokens": 8,
+   "endings": {
+    "win": "Victor sighs and misses his train. Most of the ledger is exposed, but a few flaws remain in the dark.",
+    "full": "Victor sets down his coat. 'All six. Very well, I'll reissue them tonight.' The rain eases.",
+    "lose": "Victor tips his hat and steps into the rain. 'Everything in order, as I said.' The ledger leaves with him."
+   },
+   "scoring": {
+    "falseFlag": -60,
+    "correctFlag": 100,
+    "unusedToken": 20,
+    "winAccuracy": 0.7
+   },
+   "setting": "Brussels, 23:40. Rain drums on the window of a cramped back office at Quai Noir Imports SRL, a fictional importer of homeware. Victor Maes buttons his coat. 'Three invoices, all in order. I have a train at midnight.'",
+   "invoices": [
+    {
+     "id": "inv1",
+     "fields": [
+      {
+       "id": "inv1-number",
+       "flaw": null,
+       "field": "number",
+       "label": "Invoice no.",
+       "value": "2024-0117",
+       "answer": "Sequential and, on this invoice, unremarkable.",
+       "source": "p-number"
+      },
+      {
+       "id": "inv1-dates",
+       "flaw": null,
+       "field": "dates",
+       "label": "Dates",
+       "value": "Issued 14/03/2024 · Supplied 14/03/2024",
+       "answer": "Issue and supply on the same day: nothing missing.",
+       "source": "p-dates"
+      },
+      {
+       "id": "inv1-supplier",
+       "flaw": null,
+       "field": "supplier",
+       "label": "Supplier",
+       "value": "Quai Noir Imports SRL, Rue des Pluies 12, 1000 Brussels · BE 0812.345.603",
+       "answer": "Check: 8123456 mod 97 = 94; 97 − 94 = 03. Valid.",
+       "source": "p-supplier"
+      },
+      {
+       "id": "inv1-customer",
+       "flaw": null,
+       "field": "customer",
+       "label": "Customer",
+       "value": "Café Lanterne SRL, Place du Brouillard 3, 1050 Ixelles",
+       "answer": "Domestic sale with Belgian VAT charged: name and address are enough.",
+       "source": "p-customer"
+      },
+      {
+       "id": "inv1-goods",
+       "flaw": "p-goods",
+       "field": "goods",
+       "label": "Goods",
+       "value": "Assorted homeware items",
+       "answer": "No quantity and only a vague nature. The invoice must state the quantity and nature of the goods.",
+       "source": "p-goods"
+      },
+      {
+       "id": "inv1-amounts",
+       "flaw": "p-amounts",
+       "field": "amounts",
+       "label": "VAT totals",
+       "value": "Taxable €1,240.00 · Rate 21% · VAT €254.40",
+       "answer": "€1,240.00 × 21% = €260.40, not €254.40.",
+       "source": "p-amounts"
+      }
+     ],
+     "exhibit": "Exhibit A"
+    },
+    {
+     "id": "inv2",
+     "fields": [
+      {
+       "id": "inv2-number",
+       "flaw": "p-number",
+       "field": "number",
+       "label": "Invoice no.",
+       "value": "2024-0117",
+       "answer": "Same number as Exhibit A. A number may never be used for two invoices.",
+       "source": "p-number"
+      },
+      {
+       "id": "inv2-dates",
+       "flaw": null,
+       "field": "dates",
+       "label": "Dates",
+       "value": "Issued 21/03/2024 · Supplied 19/03/2024",
+       "answer": "Supply date differs and is stated. Compliant.",
+       "source": "p-dates"
+      },
+      {
+       "id": "inv2-supplier",
+       "flaw": "p-supplier",
+       "field": "supplier",
+       "label": "Supplier",
+       "value": "Quai Noir Imports SRL, Rue des Pluies 12, 1000 Brussels · BE 0812.345.630",
+       "answer": "Check digits should be 97 − (8123456 mod 97) = 03, not 30. The VAT number is invalid.",
+       "source": "p-supplier"
+      },
+      {
+       "id": "inv2-customer",
+       "flaw": null,
+       "field": "customer",
+       "label": "Customer",
+       "value": "Hôtel Grisaille SA, Avenue Bruine 88, 1180 Uccle",
+       "answer": "Domestic sale: name and address suffice.",
+       "source": "p-customer"
+      },
+      {
+       "id": "inv2-goods",
+       "flaw": null,
+       "field": "goods",
+       "label": "Goods",
+       "value": "12 × linen tablecloths, 150 × 250 cm",
+       "answer": "Quantity and nature both stated.",
+       "source": "p-goods"
+      },
+      {
+       "id": "inv2-amounts",
+       "flaw": null,
+       "field": "amounts",
+       "label": "VAT totals",
+       "value": "Taxable €850.00 · Rate 6% · VAT €51.00",
+       "answer": "€850.00 × 6% = €51.00. Correct.",
+       "source": "p-amounts"
+      }
+     ],
+     "exhibit": "Exhibit B"
+    },
+    {
+     "id": "inv3",
+     "note": "Stamped margin note: 'Goods left the warehouse 02/04, CMR attached.'",
+     "fields": [
+      {
+       "id": "inv3-number",
+       "flaw": null,
+       "field": "number",
+       "label": "Invoice no.",
+       "value": "2024-0118",
+       "answer": "Next in sequence, unique.",
+       "source": "p-number"
+      },
+      {
+       "id": "inv3-dates",
+       "flaw": "p-dates",
+       "field": "dates",
+       "label": "Dates",
+       "value": "Issued 30/04/2024 · Supply date: —",
+       "answer": "The goods were supplied on 02/04, a different date from issue, so the supply date must be stated.",
+       "source": "p-dates"
+      },
+      {
+       "id": "inv3-supplier",
+       "flaw": null,
+       "field": "supplier",
+       "label": "Supplier",
+       "value": "Quai Noir Imports SRL, Rue des Pluies 12, 1000 Brussels · BE 0812.345.603",
+       "answer": "Valid check digits (03).",
+       "source": "p-supplier"
+      },
+      {
+       "id": "inv3-customer",
+       "flaw": "p-customer",
+       "field": "customer",
+       "label": "Customer",
+       "value": "Mistkade BV, Regenstraat 7, Rotterdam, Netherlands · VAT no.: —",
+       "answer": "An exempt intra-Community supply requires the customer's VAT identification number.",
+       "source": "p-customer"
+      },
+      {
+       "id": "inv3-goods",
+       "flaw": null,
+       "field": "goods",
+       "label": "Goods",
+       "value": "40 × cast-iron umbrella stands",
+       "answer": "Quantity and nature stated.",
+       "source": "p-goods"
+      },
+      {
+       "id": "inv3-amounts",
+       "flaw": null,
+       "field": "amounts",
+       "label": "VAT totals",
+       "value": "Taxable €3,600.00 · 0%, exempt intra-Community supply · VAT €0.00",
+       "answer": "0% × €3,600.00 = €0.00. The rate, base and VAT are all shown.",
+       "source": "p-amounts"
+      }
+     ],
+     "exhibit": "Exhibit C"
+    }
+   ]
+  },
+  "brief": [
+   {
+    "role": "creator",
+    "text": "A detective game where the player interrogates an AI suspect about a VAT fraud case, grounded in the Belgian invoice rules"
+   },
+   {
+    "role": "ai",
+    "text": "Nice premise! Who should be sitting in the player's chair as the investigator?",
+    "multi": false,
+    "choices": [
+     "Junior VAT auditor, new to invoices",
+     "Experienced tax inspector",
+     "Mixed levels, with hints available",
+     "Forensic accountant hunting patterns"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Junior VAT auditor, new to invoices"
+   },
+   {
+    "role": "ai",
+    "text": "Should the investigators work solo, or team up toward a shared goal?",
+    "multi": false,
+    "choices": [
+     "Solo investigator",
+     "Whole team cracks one case together",
+     "Solo, but cases build on each other",
+     "Teams split roles (interrogator, document checker)"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Solo investigator"
+   },
+   {
+    "role": "ai",
+    "text": "Should solo investigators compete on a leaderboard?",
+    "multi": false,
+    "choices": [
+     "Yes, ranked by accuracy",
+     "Yes, ranked by speed",
+     "Yes, accuracy and speed combined",
+     "No leaderboard"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Yes, ranked by accuracy"
+   },
+   {
+    "role": "ai",
+    "text": "How should the AI suspect behave during the interrogation?",
+    "multi": false,
+    "choices": [
+     "Slippery suspect who bluffs and hides flaws",
+     "Nervous bookkeeper who slips up under pressure",
+     "Charming CEO who deflects with jargon",
+     "Cooperative but clueless small business owner",
+     "Suspect who changes story when confronted with evidence"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Slippery suspect who bluffs and hides flaws"
+   },
+   {
+    "role": "ai",
+    "text": "Which parts of the Belgian invoice rules should the investigator's case be built on?",
+    "multi": true,
+    "choices": [
+     "Core mandatory mentions (§1–6)",
+     "Reduced renovation rate",
+     "Exempt supplies",
+     "Reverse charge",
+     "All of the source material"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Core mandatory mentions (§1–6)"
+   },
+   {
+    "role": "ai",
+    "text": "Last one: what look and tone should the case have?",
+    "multi": false,
+    "choices": [
+     "Classic noir, rainy Brussels",
+     "Light and witty, cozy mystery",
+     "Sleek corporate thriller",
+     "Retro case-file with stamps and folders",
+     "Playful cartoon audit office"
+    ]
+   },
+   {
+    "role": "creator",
+    "text": "Classic noir, rainy Brussels"
+   },
+   {
+    "role": "ai",
+    "text": "The Rain Ledger is an interrogation noir: you sit across from a slippery bookkeeper, check his invoices line by line against the Belgian mandatory mentions, and decide which flaws are real before the questions run out. The fun comes from the bluffing. The suspect's confident answers sound right, so you learn the rules by catching him in a lie, and the leaderboard rewards sharp, accurate calls over wild accusations."
+   }
+  ],
+  "files": {
+   "game.js": "(function () {\n  const $ = id => document.getElementById(id);\n  const FIELDS = ['number', 'dates', 'supplier', 'customer', 'goods', 'amounts'];\n  const FIELD_NAMES = { number: 'Number', dates: 'Dates', supplier: 'Supplier', customer: 'Customer', goods: 'Goods', amounts: 'Amounts' };\n  const ACTION_TAGS = {\n    bluff: '🎭 bluffing', deflect: '↪️ deflecting', partial_admit: '😬 partial admission',\n    produce_document: '📄 produces a document', misquote_rule: '📕 quoting \"the rules\"',\n    stall: '⏳ stalling', confess: '💧 confessing'\n  };\n  let data = null, player = { name: 'Auditor' }, sources = {}, S = null, submitted = false, practice = false, closeArmed = null;\n\n  const style = document.createElement('style');\n  style.textContent = `\n  .inv-head{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #1d1a14;padding-bottom:8px;margin-bottom:10px;gap:10px;flex-wrap:wrap}\n  .inv-head b{font-family:'Merriweather',serif;font-size:17px}\n  .inv-note{font-style:italic;font-size:13px;margin:0 0 10px;color:#4a4436}\n  .inv-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}\n  .fblock{padding:8px 10px;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s,transform .1s}\n  .fblock:hover{background:rgba(0,0,0,.05)}\n  .fblock.sel{border-color:#9c7a22;background:rgba(224,180,76,.22)}\n  .fblock.wide{grid-column:1/-1}\n  .fblock.caught{background:rgba(127,183,126,.3);outline:1px dashed #3f7a3e}\n  .fblock small{display:block;text-transform:uppercase;letter-spacing:1px;font-size:11px;color:#6b6352;font-weight:600}\n  .fblock .val{white-space:pre-wrap;font-family:'IBM Plex Sans',sans-serif}\n  .fblock .stamp{float:right;font-size:11px;font-weight:700}\n  .dialogue p.sys{background:transparent;color:var(--muted);font-size:13px;font-style:italic;padding:2px 4px}\n  .dialogue p.good{border-left:3px solid var(--good)}\n  .dialogue p.bad{border-left:3px solid var(--bad)}\n  .tag{display:inline-block;font-size:11px;color:var(--accent);border:1px solid rgba(224,180,76,.4);border-radius:4px;padding:0 6px;margin-left:6px}\n  .cite{display:block;font-size:12px;color:var(--muted);margin-top:4px}\n  .rule-card .src{font-size:12px;color:var(--muted);margin-top:8px}\n  .lb{margin-top:16px}.lb li{display:flex;justify-content:space-between;gap:10px}\n  .end-actions{display:flex;flex-direction:column;gap:10px;align-items:stretch}\n  @media (max-width:760px){.inv-grid{grid-template-columns:1fr}}`;\n  document.head.appendChild(style);\n\n  const esc = s => String(s == null ? '' : s).replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]));\n  const show = id => ['start-screen', 'play-screen', 'end-screen'].forEach(s => $(s).classList.toggle('hidden', s !== id));\n  const sc = () => Object.assign({ correctFlag: 100, falseFlag: 60, unusedToken: 20, winAccuracy: 0.7 }, data.scoring || {});\n  const winAcc = () => { const w = Number(sc().winAccuracy); return w > 1 ? w / 100 : w; };\n  const invoice = () => data.invoices[S.inv];\n  const fieldOf = (inv, type) => (inv.fields || []).find(f => f.field === type);\n  const ruleById = id => (data.rules || []).find(r => r.id === id);\n  const ruleFor = type => (data.rules || []).find(r => r.id === type || r.id === 'p-' + type || r.source === 'p-' + type) || (data.rules || [])[FIELDS.indexOf(type)];\n  const flagFor = (invId, fid) => S.flags.find(f => f.invId === invId && f.fieldId === fid);\n  const totalFlaws = () => data.invoices.reduce((n, inv) => n + inv.fields.filter(f => f.flaw).length, 0);\n\n  function citeText(srcId) {\n    const s = sources[srcId];\n    return s ? `📖 ${s.heading}${s.loc ? ' · ' + s.loc : ''}` : '';\n  }\n\n  function feedback(msg, kind) {\n    const fb = $('feedback');\n    fb.className = 'feedback' + (kind ? ' ' + kind : '');\n    fb.textContent = msg;\n  }\n\n  function say(who, text, opts = {}) {\n    const p = document.createElement('p');\n    p.className = (who === 'you' ? 'you' : who === 'sys' ? 'sys' : '') + (opts.kind ? ' ' + opts.kind : '');\n    let html = who === 'victor' ? `<b>Victor:</b> ${esc(text)}` : who === 'you' ? `<b>${esc(player.name || 'You')}:</b> ${esc(text)}` : esc(text);\n    if (opts.tag) html += `<span class=\"tag\">${esc(opts.tag)}</span>`;\n    (opts.cites || []).forEach(c => { if (c) html += `<span class=\"cite\">${esc(c)}</span>`; });\n    p.innerHTML = html;\n    $('dialogue').appendChild(p);\n    $('dialogue').scrollTop = $('dialogue').scrollHeight;\n  }\n\n  function currentScore() {\n    const c = sc();\n    return S.flags.reduce((n, f) => n + (f.correct ? c.correctFlag : -Math.abs(c.falseFlag)), 0);\n  }\n\n  function renderHud() {\n    $('tokens').textContent = S.tokens;\n    $('flags-count').textContent = S.flags.length;\n    $('score').textContent = currentScore();\n  }\n\n  function renderTabs() {\n    const box = $('exhibit-tabs');\n    box.innerHTML = '';\n    data.invoices.forEach((inv, i) => {\n      const b = document.createElement('button');\n      b.className = 'btn';\n      b.setAttribute('aria-pressed', String(i === S.inv));\n      const n = S.flags.filter(f => f.invId === inv.id).length;\n      b.textContent = (inv.exhibit || 'Exhibit ' + (i + 1)) + (n ? ` · ${n}🚩` : '');\n      b.onclick = () => { S.inv = i; S.field = null; hideRules(); renderAll(); feedback(''); };\n      box.appendChild(b);\n    });\n  }\n\n  function renderInvoice() {\n    const inv = invoice();\n    const box = $('invoice');\n    box.style.opacity = 0;\n    const order = ['number', 'dates', 'supplier', 'customer', 'goods', 'amounts'];\n    let html = `<div class=\"inv-head\"><b>INVOICE</b><span>${esc(inv.exhibit || inv.id)}</span></div>`;\n    if (inv.note) html += `<p class=\"inv-note\">${esc(inv.note)}</p>`;\n    html += '<div class=\"inv-grid\">';\n    order.forEach(type => {\n      const f = fieldOf(inv, type);\n      if (!f) return;\n      const fl = flagFor(inv.id, f.id);\n      const cls = ['fblock', type === 'goods' || type === 'amounts' ? 'wide' : '', S.field === type ? 'sel' : '', fl ? (fl.correct ? 'caught' : 'flagged') : ''].join(' ');\n      const stamp = fl ? `<span class=\"stamp\">${fl.correct ? '✔ CAUGHT' : '✘ DISPUTED'}</span>` : '';\n      html += `<div class=\"${cls}\" data-f=\"${type}\" tabindex=\"0\" role=\"button\">${stamp}<small>${esc(f.label || FIELD_NAMES[type])}</small><div class=\"val\">${esc(f.value)}</div></div>`;\n    });\n    box.innerHTML = html + '</div>';\n    box.querySelectorAll('.fblock').forEach(el => {\n      const pick = () => selectField(el.dataset.f);\n      el.onclick = pick;\n      el.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };\n    });\n    requestAnimationFrame(() => { box.style.opacity = 1; });\n  }\n\n  function renderFieldButtons() {\n    const box = $('field-buttons');\n    box.innerHTML = '';\n    FIELDS.forEach(type => {\n      const b = document.createElement('button');\n      b.className = 'btn';\n      b.textContent = FIELD_NAMES[type];\n      b.setAttribute('aria-pressed', String(S.field === type));\n      b.disabled = !fieldOf(invoice(), type);\n      b.onclick = () => selectField(type);\n      box.appendChild(b);\n    });\n  }\n\n  function renderRuleCard() {\n    const card = $('rule-card');\n    if (!S.field) {\n      card.innerHTML = '<h3>Rulebook</h3><p class=\"muted\" style=\"margin:0\">Select a field on the invoice to open the matching page of the rulebook.</p>';\n      return;\n    }\n    const r = ruleFor(S.field);\n    if (!r) { card.innerHTML = '<h3>Rulebook</h3><p class=\"muted\">No rule card for this field.</p>'; return; }\n    const src = sources[r.source];\n    card.innerHTML = `<h3>Rulebook</h3><h2 style=\"font-size:16px\">${esc(r.name)}</h2><p style=\"margin:0\">${esc(r.text || (src && src.text))}</p>` +\n      (src ? `<div class=\"src\">📖 ${esc(src.heading)}${src.loc ? ' · ' + esc(src.loc) : ''}</div>` : '');\n  }\n\n  function renderActions() {\n    const f = S.field && fieldOf(invoice(), S.field);\n    const flagged = f && flagFor(invoice().id, f.id);\n    $('ask-btn').disabled = !f || S.busy || S.tokens <= 0;\n    $('flag-btn').disabled = !f || S.busy || !!flagged;\n    $('ask-btn').textContent = S.busy ? 'Victor is answering…' : 'Ask (1 token)';\n  }\n\n  function renderAll() { renderHud(); renderTabs(); renderInvoice(); renderFieldButtons(); renderRuleCard(); renderActions(); }\n\n  function selectField(type) {\n    if (!fieldOf(invoice(), type)) return;\n    S.field = type;\n    hideRules();\n    renderInvoice(); renderFieldButtons(); renderRuleCard(); renderActions();\n  }\n\n  function hideRules() { $('rule-select').classList.add('hidden'); $('rule-select').innerHTML = ''; }\n\n  function setMood(text) { $('suspect-mood').textContent = text ? '🕴️ ' + text : ''; }\n\n  async function ask() {\n    const inv = invoice(), f = fieldOf(inv, S.field);\n    if (!f || S.busy || S.tokens <= 0) return;\n    S.busy = true; S.tokens--;\n    renderHud(); renderActions();\n    const q = `About ${inv.exhibit || inv.id}, the ${f.label || FIELD_NAMES[f.field]} field (\"${f.value}\"): explain why this is in order.`;\n    say('you', q);\n    S.history.push({ role: 'player', text: q });\n    const state = {\n      invoice: inv.id, exhibit: inv.exhibit, field: f.field, fieldId: f.id, label: f.label, value: f.value,\n      tokensLeft: S.tokens, flagsPlaced: S.flags.length, caught: S.flags.filter(x => x.correct).length\n    };\n    try {\n      const r = await GameStudio.askAI({ messages: S.history.slice(-6), state });\n      const text = (r && r.say) || '…He adjusts his cufflinks and says nothing.';\n      const cites = ((r && r.quotes) || []).map(qt => `📖 ${qt.heading || ''}${qt.loc ? ' · ' + qt.loc : ''}`);\n      say('victor', text, { tag: r && ACTION_TAGS[r.action], cites });\n      S.history.push({ role: 'ai', text });\n      if (r && r.action === 'produce_document') say('sys', 'He slides a \"corrected\" copy across the table. Compare it with the exhibit before trusting it.');\n      if (r && r.action === 'misquote_rule') say('sys', 'Check his version of the rule against the rulebook card.');\n      if (r && r.action === 'confess') setMood(r.mood || 'Shoulders sagging. He has run out of stories.');\n      else setMood(r && r.mood);\n      feedback(S.tokens > 0 ? `${S.tokens} question${S.tokens === 1 ? '' : 's'} left.` : 'Out of questions. Victor reaches for his coat. Place your final flags and file the report.', S.tokens > 0 ? '' : 'bad');\n    } catch (e) {\n      S.tokens++;\n      S.history.pop();\n      say('sys', 'Victor glances at the rain and does not answer. (Connection issue: your token was returned.)');\n      feedback('Could not reach Victor. Try again.', 'bad');\n    }\n    S.busy = false;\n    renderHud(); renderActions();\n  }\n\n  function openRules() {\n    const f = S.field && fieldOf(invoice(), S.field);\n    if (!f) return;\n    const box = $('rule-select');\n    if (!box.classList.contains('hidden')) { hideRules(); return; }\n    box.innerHTML = '<div class=\"muted\" style=\"width:100%;font-size:13px\">Which mandatory mention does this field breach?</div>';\n    (data.rules || []).forEach(r => {\n      const b = document.createElement('button');\n      b.className = 'btn';\n      b.textContent = r.name;\n      b.onclick = () => flag(f, r);\n      box.appendChild(b);\n    });\n    const cancel = document.createElement('button');\n    cancel.className = 'btn';\n    cancel.textContent = 'Cancel';\n    cancel.onclick = hideRules;\n    box.appendChild(cancel);\n    box.classList.remove('hidden');\n  }\n\n  function flag(f, rule) {\n    const inv = invoice();\n    if (flagFor(inv.id, f.id)) return;\n    const correct = f.flaw === rule.id;\n    S.flags.push({ invId: inv.id, exhibit: inv.exhibit || inv.id, fieldId: f.id, label: f.label || FIELD_NAMES[f.field], ruleId: rule.id, ruleName: rule.name, correct });\n    hideRules();\n    const c = sc();\n    say('you', `I'm flagging the ${f.label || FIELD_NAMES[f.field]} on ${inv.exhibit || inv.id}: it breaches \"${rule.name}\".`);\n    if (correct) {\n      say('victor', `…Fine. ${f.answer || 'You have me there.'}`, { kind: 'good', tag: '💧 cracks', cites: [citeText(f.source || rule.source)] });\n      feedback(`✔ Correct flag: ${rule.name}. +${c.correctFlag}`, 'good');\n      setMood('A bead of sweat. The smile has slipped.');\n    } else {\n      const why = f.flaw ? 'There is something off here, but not under that rule.' : 'This field meets the requirement.';\n      say('victor', `With respect, auditor, that is simply not what the rule says. ${why}`, { kind: 'bad', tag: '🧥 alibi grows', cites: [citeText(rule.source)] });\n      feedback(`✘ False accusation. −${Math.abs(c.falseFlag)}`, 'bad');\n      setMood('Smug. He straightens his tie and checks his watch.');\n    }\n    S.history.push({ role: 'player', text: `I flag ${f.field} under ${rule.name}. ${correct ? 'Correct.' : 'Incorrect.'}` });\n    renderAll();\n    if (S.flags.filter(x => x.correct).length === totalFlaws()) {\n      say('sys', 'Every flaw is on the table. Victor puts down his umbrella. Filing the report…');\n      setTimeout(endGame, 1400);\n    }\n  }\n\n  function closeCase() {\n    if (S.ended) return;\n    const btn = $('close-btn');\n    if (!closeArmed) {\n      btn.textContent = 'Confirm: file report?';\n      btn.classList.add('primary');\n      closeArmed = setTimeout(() => { closeArmed = null; btn.textContent = 'Close case & file report'; btn.classList.remove('primary'); }, 3000);\n      return;\n    }\n    clearTimeout(closeArmed); closeArmed = null;\n    btn.textContent = 'Close case & file report'; btn.classList.remove('primary');\n    endGame();\n  }\n\n  function li(list, text) { const x = document.createElement('li'); x.textContent = text; $(list).appendChild(x); }\n\n  async function endGame() {\n    if (S.ended) return;\n    S.ended = true;\n    const c = sc();\n    const correct = S.flags.filter(f => f.correct).length;\n    const wrong = S.flags.length - correct;\n    const total = totalFlaws();\n    const missed = total - correct;\n    const denom = S.flags.length + missed;\n    const accuracy = denom ? correct / denom : 0;\n    const score = correct * c.correctFlag - wrong * Math.abs(c.falseFlag) + S.tokens * c.unusedToken;\n    const endings = data.endings || {};\n    let title, summary;\n    if (correct === total && wrong === 0) { title = 'Full confession'; summary = endings.full; }\n    else if (accuracy >= winAcc()) { title = 'Case closed'; summary = endings.win; }\n    else { title = 'He walked into the rain'; summary = endings.lose; }\n    $('end-title').textContent = title;\n    $('final-score').textContent = score;\n    $('final-accuracy').textContent = Math.round(accuracy * 100) + '%';\n    ['caught-list', 'missed-list', 'false-list'].forEach(id => { $(id).innerHTML = ''; });\n    S.flags.filter(f => f.correct).forEach(f => li('caught-list', `${f.exhibit}: ${f.label} (${f.ruleName})`));\n    data.invoices.forEach(inv => inv.fields.forEach(f => {\n      const fl = flagFor(inv.id, f.id);\n      if (f.flaw && !(fl && fl.correct)) {\n        const r = ruleById(f.flaw);\n        li('missed-list', `${inv.exhibit || inv.id}: ${f.label || FIELD_NAMES[f.field]} (${r ? r.name : f.flaw}). ${f.answer || ''}`);\n      }\n    }));\n    S.flags.filter(f => !f.correct).forEach(f => li('false-list', `${f.exhibit}: ${f.label} (accused under ${f.ruleName})`));\n    ['caught-list', 'missed-list', 'false-list'].forEach(id => { if (!$(id).children.length) li(id, 'None'); });\n    const base = `${summary || ''} You flagged ${correct} of ${total} flaws with ${wrong} false accusation${wrong === 1 ? '' : 's'} and kept ${S.tokens} question${S.tokens === 1 ? '' : 's'} in reserve.`;\n    $('end-summary').textContent = base;\n    show('end-screen');\n    window.scrollTo(0, 0);\n    const finishBtn = ensureFinish();\n    finishBtn.disabled = true;\n    if (practice) {\n      $('end-summary').textContent = base + ' Practice round: this score was not submitted.';\n      finishBtn.disabled = false;\n      return;\n    }\n    try {\n      await GameStudio.submitScore(score, { accuracy: Math.round(accuracy * 1000) / 10, correct, falseFlags: wrong, missed, tokensLeft: S.tokens });\n      submitted = true;\n    } catch (e) {\n      $('end-summary').textContent = base + ' (Your score could not be submitted.)';\n    }\n    finishBtn.disabled = false;\n    showLeaderboard();\n  }\n\n  function ensureFinish() {\n    let b = $('finish-btn');\n    if (b) return b;\n    const holder = $('replay-btn').parentNode;\n    holder.classList.add('end-actions');\n    b = document.createElement('button');\n    b.id = 'finish-btn';\n    b.className = 'btn primary';\n    b.textContent = 'Finish';\n    b.onclick = async () => {\n      b.disabled = true;\n      try { await GameStudio.finish(); } catch (e) { b.disabled = false; $('end-summary').textContent += ' Could not finish right now; please try again.'; }\n    };\n    holder.insertBefore(b, $('replay-btn'));\n    $('replay-btn').classList.remove('primary');\n    return b;\n  }\n\n  async function showLeaderboard() {\n    let box = $('lb-box');\n    if (!box) {\n      box = document.createElement('div');\n      box.id = 'lb-box';\n      box.className = 'card lb';\n      $('end-screen').appendChild(box);\n    }\n    box.innerHTML = '<h3>Case board: top auditors</h3><p class=\"muted\">Loading…</p>';\n    try {\n      const rows = await GameStudio.getLeaderboard();\n      box.innerHTML = '<h3>Case board: top auditors</h3>' + (rows && rows.length\n        ? '<ol style=\"margin:0;padding-left:20px\">' + rows.map(r => `<li><span>${esc(r.rank)}. ${esc(r.name)}</span><b>${esc(r.score)}</b></li>`).join('') + '</ol>'\n        : '<p class=\"muted\">No entries yet.</p>');\n    } catch (e) {\n      box.innerHTML = '<h3>Case board</h3><p class=\"muted\">Leaderboard unavailable.</p>';\n    }\n  }\n\n  function newGame() {\n    S = { tokens: data.tokens || 8, inv: 0, field: null, flags: [], history: [], busy: false, ended: false };\n    $('dialogue').innerHTML = '';\n    hideRules();\n    feedback('Select a field, then ask about it or flag it.');\n    say('sys', data.setting || 'Rain streaks the office window. The case file lies open on the desk.');\n    say('victor', `Good evening, ${player.name || 'auditor'}. Every invoice here is in perfect order, I assure you. But please, ask away. I do have a train to catch.`);\n    setMood('Calm, polite, one eye on the clock.');\n    renderAll();\n    show('play-screen');\n    window.scrollTo(0, 0);\n  }\n\n  $('play-btn').onclick = () => { if (data) newGame(); };\n  $('ask-btn').onclick = ask;\n  $('flag-btn').onclick = openRules;\n  $('close-btn').onclick = closeCase;\n  $('replay-btn').onclick = () => {\n    if (submitted || !practice) practice = true;\n    const lb = $('lb-box'); if (lb) lb.remove();\n    newGame();\n    feedback('Practice round: your submitted score stays as it is.');\n  };\n\n  (async function init() {\n    try { await GameStudio.ready(); } catch (e) { }\n    $('play-btn').disabled = true;\n    try {\n      data = await GameStudio.getData();\n      if (!data || !Array.isArray(data.invoices) || !data.invoices.length) throw new Error('bad data');\n    } catch (e) {\n      data = null;\n      const p = document.createElement('p');\n      p.className = 'feedback bad';\n      p.textContent = 'The case file could not be loaded. Please reload the game.';\n      $('play-btn').after(p);\n      return;\n    }\n    try { (await GameStudio.getSources() || []).forEach(s => { sources[s.id] = s; }); } catch (e) { }\n    try { const p = await GameStudio.getPlayer(); if (p && p.name) player = p; } catch (e) { }\n    if (data.intro) document.querySelector('#start-screen .tagline').textContent = data.intro;\n    if (data.title) document.querySelector('#start-screen h1').textContent = data.title;\n    $('play-btn').disabled = false;\n  })();\n})();",
+   "index.html": "<!-- ids: start-screen (start view), play-btn (starts the game), play-screen (playing view), tokens (remaining question tokens), score (current score), flags-count (number of flags placed), exhibit-tabs (buttons to switch between the 3 invoices), invoice (current invoice exhibit content), field-buttons (buttons to choose a field: number, dates, supplier, customer, goods, amounts), rule-card (rulebook card quoting the selected rule), dialogue (conversation log with Victor Maes), suspect-mood (short status line on Victor's demeanour), ask-btn (spend a token to question on the selected field), flag-btn (flag the selected field as a violation), rule-select (container of rule choice buttons when flagging), feedback (short feedback message after an action), close-btn (close the case and file the report), end-screen (end view), end-title (result headline), end-summary (summary text), final-score (final score), final-accuracy (accuracy percentage), caught-list (flaws caught), missed-list (flaws missed), false-list (false accusations), replay-btn (restart the game) -->\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>The Rain Ledger</title>\n<style>\n:root{--accent:#E0B44C;--on-accent:#14110A;--text:#ECE7DA;--muted:#A9A497;--page:#0F1216;--card:#1C2128;--border:#343C47;--good:#7FB77E;--bad:#D9776A;--r:4px}\n*{box-sizing:border-box}\nbody{margin:0;min-height:100vh;background:var(--page);color:var(--text);font:15px/1.55 'IBM Plex Sans',sans-serif;background-image:repeating-linear-gradient(105deg,transparent 0 14px,rgba(169,164,151,.035) 14px 15px)}\nh1,h2,h3{font-family:'Merriweather',serif;margin:0 0 .5em;font-weight:700}\nh1{font-size:clamp(30px,5vw,48px);color:var(--accent);letter-spacing:.5px}\nh2{font-size:20px}h3{font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:'IBM Plex Sans',sans-serif}\n.screen{max-width:1200px;margin:0 auto;padding:28px clamp(16px,3vw,36px);animation:fade .4s ease}\n.hidden{display:none!important}\n@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}\n.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px}\n.btn{font:600 14px 'IBM Plex Sans',sans-serif;padding:10px 18px;border-radius:var(--r);border:1px solid var(--border);background:transparent;color:var(--text);cursor:pointer;transition:background .15s,border-color .15s,transform .1s}\n.btn:hover{border-color:var(--accent)}.btn:active{transform:translateY(1px)}\n.btn:disabled{opacity:.4;cursor:not-allowed}\n.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}\n.btn.primary:hover{filter:brightness(1.08)}\n.btn.selected,.btn[aria-pressed=true]{border-color:var(--accent);color:var(--accent);background:rgba(224,180,76,.08)}\n.muted{color:var(--muted)}\n.start-wrap{display:grid;grid-template-columns:1.2fr 1fr;gap:24px;align-items:start;margin-top:4vh}\n.tagline{font-size:17px;color:var(--muted);max-width:56ch}\nol.steps{padding-left:20px;margin:0}ol.steps li{margin-bottom:8px}\n.scene{font-size:64px;line-height:1;margin-bottom:12px}\n.hud{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}\n.stats{display:flex;gap:10px;flex-wrap:wrap}\n.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:6px 14px;font-size:13px;color:var(--muted)}\n.stat b{color:var(--accent);font-size:18px;margin-left:6px}\n.board{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}\n.tabs,.fields,.rules{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}\n.invoice{background:#E9E3D3;color:#1d1a14;border-radius:var(--r);padding:20px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.4);min-height:260px;transition:opacity .2s}\n.invoice table{width:100%;border-collapse:collapse;margin-top:8px}\n.invoice td,.invoice th{border-bottom:1px solid #c9c1ad;padding:4px 6px;text-align:left}\n.invoice .flagged{background:rgba(217,119,106,.25);outline:1px dashed var(--bad)}\n.side{display:flex;flex-direction:column;gap:16px}\n.rule-card{border-left:3px solid var(--accent);font-size:14px}\n.dialogue{max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}\n.dialogue p{margin:0;padding:8px 12px;border-radius:var(--r);background:#242a33;animation:fade .3s ease}\n.dialogue p.you{align-self:flex-end;background:rgba(224,180,76,.12);border:1px solid rgba(224,180,76,.3)}\n.mood{font-style:italic;color:var(--muted);font-size:13px;margin-top:8px}\n.actions{display:flex;gap:8px;flex-wrap:wrap}\n.feedback{min-height:24px;font-weight:600;margin-top:10px;transition:color .2s}\n.feedback.good{color:var(--good)}.feedback.bad{color:var(--bad)}\n.end-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}\n.big{font:700 40px 'Merriweather',serif;color:var(--accent)}\n.lists ul{margin:0;padding-left:18px}.lists li{margin-bottom:6px}\n.caught h3{color:var(--good)}.missed h3{color:var(--accent)}.false h3{color:var(--bad)}\n@media (max-width:900px){.start-wrap,.board{grid-template-columns:1fr}.end-grid{grid-template-columns:1fr}}\n</style>\n</head>\n<body>\n<section id=\"start-screen\" class=\"screen\">\n  <div class=\"start-wrap\">\n    <div>\n      <div class=\"scene\" aria-hidden=\"true\">🌧️🧾</div>\n      <h1>The Rain Ledger</h1>\n      <p class=\"tagline\">A rainy night in Brussels, a stack of suspect invoices and a bookkeeper who swears every one is in order. As a junior VAT auditor, use your limited questions to expose the missing and faulty mandatory mentions before he walks out the door.</p>\n      <button id=\"play-btn\" class=\"btn primary\">Open the case file</button>\n    </div>\n    <div class=\"card\">\n      <h3>How to play</h3>\n      <ol class=\"steps\">\n        <li>Open the case file: each of the 3 invoices is an exhibit with a supplier block, customer block, line items and VAT totals.</li>\n        <li>Spend your 8 question tokens to press the suspect on a specific field (number, dates, supplier, customer, goods, amounts). He may bluff, deflect or produce a \"corrected\" document.</li>\n        <li>Compare his story with the invoice and the rulebook card, which quotes the relevant mandatory-mention rule.</li>\n        <li>Flag a field as a violation and name the rule it breaks. A correct flag makes him crack; a wrong one adds to his alibi.</li>\n        <li>When the tokens run out or you close the case, file your report and see which flaws you caught and which ones slipped away.</li>\n      </ol>\n      <p class=\"muted\">+100 per correct flag · −60 per false accusation · +20 per unused token. Reach 70% accuracy to close the case.</p>\n    </div>\n  </div>\n</section>\n\n<section id=\"play-screen\" class=\"screen hidden\">\n  <div class=\"hud\">\n    <h2>Interview: Victor Maes</h2>\n    <div class=\"stats\">\n      <span class=\"stat\">Tokens<b id=\"tokens\"></b></span>\n      <span class=\"stat\">Flags<b id=\"flags-count\"></b></span>\n      <span class=\"stat\">Score<b id=\"score\"></b></span>\n      <button id=\"close-btn\" class=\"btn\">Close case &amp; file report</button>\n    </div>\n  </div>\n  <div class=\"board\">\n    <div>\n      <div id=\"exhibit-tabs\" class=\"tabs\"></div>\n      <div id=\"invoice\" class=\"invoice\"></div>\n    </div>\n    <div class=\"side\">\n      <div class=\"card\">\n        <h3>Field under scrutiny</h3>\n        <div id=\"field-buttons\" class=\"fields\"></div>\n        <div class=\"actions\">\n          <button id=\"ask-btn\" class=\"btn primary\">Ask (1 token)</button>\n          <button id=\"flag-btn\" class=\"btn\">Flag violation</button>\n        </div>\n        <div id=\"rule-select\" class=\"rules hidden\" style=\"margin-top:12px\"></div>\n        <div id=\"feedback\" class=\"feedback\" role=\"status\"></div>\n      </div>\n      <div id=\"rule-card\" class=\"card rule-card\"></div>\n      <div class=\"card\">\n        <h3>Interrogation</h3>\n        <div id=\"dialogue\" class=\"dialogue\" aria-live=\"polite\"></div>\n        <div id=\"suspect-mood\" class=\"mood\"></div>\n      </div>\n    </div>\n  </div>\n</section>\n\n<section id=\"end-screen\" class=\"screen hidden\">\n  <h1 id=\"end-title\"></h1>\n  <p id=\"end-summary\" class=\"tagline\"></p>\n  <div class=\"end-grid\">\n    <div class=\"card\"><h3>Final score</h3><div id=\"final-score\" class=\"big\"></div></div>\n    <div class=\"card\"><h3>Accuracy</h3><div id=\"final-accuracy\" class=\"big\"></div></div>\n    <div class=\"card\" style=\"display:flex;align-items:center;justify-content:center\"><button id=\"replay-btn\" class=\"btn primary\">Reopen the case</button></div>\n  </div>\n  <div class=\"end-grid lists\">\n    <div class=\"card caught\"><h3>Flaws caught</h3><ul id=\"caught-list\"></ul></div>\n    <div class=\"card missed\"><h3>Flaws missed</h3><ul id=\"missed-list\"></ul></div>\n    <div class=\"card false\"><h3>False accusations</h3><ul id=\"false-list\"></ul></div>\n  </div>\n</section>\n</body>\n</html>"
+  },
+  "phase": "ready",
+  "mockup": "<div class='rl'><style>.rl{font-family:'IBM Plex Sans',sans-serif;background:#0F1216;color:#ECE7DA;padding:18px;border-radius:4px;position:relative;overflow:hidden;max-width:960px}.rl:before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(105deg,rgba(236,231,218,.04) 0 1px,transparent 1px 14px);pointer-events:none}.rl h1,.rl h2{font-family:'Merriweather',serif;margin:0}.rl h1{font-size:22px;letter-spacing:1px}.top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #343C47;padding-bottom:10px;margin-bottom:14px}.stats{display:flex;gap:14px;font-size:13px;color:#A9A497}.stats b{color:#E0B44C}.grid{display:grid;grid-template-columns:1.05fr 1fr;gap:14px}.card{background:#1C2128;border:1px solid #343C47;border-radius:4px;padding:14px}.card h2{font-size:15px;margin-bottom:8px}.inv{font-size:12.5px}.row{display:flex;justify-content:space-between;padding:6px 8px;border:1px dashed #343C47;margin-bottom:6px;border-radius:4px}.row span:first-child{color:#A9A497}.row.flag{border:1px solid #E0B44C}.row.flag:after{content:'🔍';margin-left:6px}.tbl{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}.tbl td{border-top:1px solid #343C47;padding:5px 4px}.chat{display:flex;flex-direction:column;gap:8px;font-size:13px}.msg{padding:9px 11px;border-radius:4px;max-width:88%;line-height:1.4}.sus{background:#262C35;border-left:3px solid #A9A497}.you{background:#E0B44C;color:#14110A;align-self:flex-end}.who{font-size:11px;color:#A9A497;margin-bottom:2px}.tag{display:inline-block;font-size:10.5px;border:1px solid #343C47;padding:1px 6px;border-radius:4px;color:#A9A497;margin-top:4px}.qs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.q{background:transparent;border:1px solid #343C47;color:#ECE7DA;padding:6px 10px;border-radius:4px;font-size:12px;font-family:'IBM Plex Sans',sans-serif}.act{display:flex;gap:8px;margin-top:12px}.btn{background:#E0B44C;color:#14110A;border:0;padding:9px 14px;border-radius:4px;font-weight:600;font-size:13px}.ghost{background:#1C2128;color:#ECE7DA;border:1px solid #343C47}.rule{margin-top:10px;font-size:12px;color:#A9A497;border-top:1px solid #343C47;padding-top:8px}</style><div class='top'><h1>☔ THE RAIN LEDGER</h1><div class='stats'><span>Exhibit <b>2 / 3</b></span><span>Questions <b>5</b> left</span><span>Flags <b>2 ✓ · 0 ✗</b></span><span>Score <b>200</b></span></div></div><div class='grid'><div class='card inv'><h2>📄 Exhibit B — Invoice</h2><div class='row'><span>Invoice no.</span><span>2024-0117</span></div><div class='row flag'><span>Issue date</span><span>— (blank)</span></div><div class='row'><span>Supplier</span><span>Maes Import BV · Rue Haute 12, Brussels · BE 0XXX.XXX.XXX</span></div><div class='row'><span>Customer</span><span>Atelier Noord · Gent · <i>VAT no. missing</i></span></div><table class='tbl'><tr><td>'Goods as agreed'</td><td>1</td><td>€ 4 200,00</td></tr><tr><td>Taxable amount</td><td></td><td>€ 4 200,00</td></tr><tr><td>VAT</td><td>?</td><td>€ 882,00</td></tr><tr><td><b>Total</b></td><td></td><td><b>€ 5 082,00</b></td></tr></table></div><div class='card'><h2>🕵️ Interrogation — Victor Maes</h2><div class='chat'><div class='msg you'>The line just says 'goods as agreed'. What was actually delivered?</div><div><div class='who'>Victor Maes</div><div class='msg sus'>Detective, the client knows what he bought. The total is right there. Nobody itemises between friends.<br><span class='tag'>bluff</span></div></div><div class='msg you'>And the VAT rate? I see an amount but no percentage.</div><div><div class='who'>Victor Maes</div><div class='msg sus'>The amount is what matters for the treasury, surely… Let's talk about the invoice number instead. Perfectly sequential, you'll find.<br><span class='tag'>deflect</span></div></div></div><div class='qs'><button class='q'>Press: dates</button><button class='q'>Press: customer</button><button class='q'>Press: goods</button><button class='q'>Press: amounts per rate</button></div><div class='act'><button class='btn'>🚩 Flag field + cite rule</button><button class='btn ghost'>Close case</button></div><div class='rule'>📘 Rulebook: Amounts per rate (§ 6) · Goods and services (§ 5)</div></div></div></div>",
+  "concept": {
+   "goal": null,
+   "look": {
+    "name": "Rainy Brussels Noir",
+    "tokens": {
+     "ink": "#ECE7DA",
+     "line": "#343C47",
+     "page": "#0F1216",
+     "muted": "#A9A497",
+     "accent": "#E0B44C",
+     "radius": 4,
+     "surface": "#1C2128",
+     "bodyFont": "ibm-plex-sans",
+     "accentInk": "#14110A",
+     "headingFont": "merriweather"
+    }
+   },
+   "mode": "solo",
+   "pitch": "A rainy night in Brussels, a stack of suspect invoices and a bookkeeper who swears every one is in order. As a junior VAT auditor, use your limited questions to expose the missing and faulty mandatory mentions before he walks out the door.",
+   "title": "The Rain Ledger",
+   "aiRole": {
+    "kind": "opponent",
+    "actions": [
+     "bluff",
+     "deflect",
+     "partial_admit",
+     "produce_document",
+     "misquote_rule",
+     "stall",
+     "confess"
+    ],
+    "description": "Victor Maes, a fictional smooth-talking bookkeeper for a small Brussels import firm. He is polite, unflappable and evasive. He answers questions with half-truths, confidently misstates the invoice rules when the player seems unsure, and changes the subject toward fields that are actually correct. He only gives ground when the player cites the precise mandatory mention that is breached. Every rule-based fact he reveals when cornered must match the source passages."
+   },
+   "scoring": "+100 for each correctly flagged flaw with the right rule, −60 for each false accusation, +20 for each unused question token. The leaderboard ranks players by accuracy (correct flags as a share of all flags plus missed flaws), with the final score used as a tiebreaker.",
+   "sources": [
+    "p-number",
+    "p-dates",
+    "p-supplier",
+    "p-customer",
+    "p-goods",
+    "p-amounts"
+   ],
+   "howToPlay": [
+    "Open the case file: each of the 3 invoices is an exhibit with a supplier block, customer block, line items and VAT totals.",
+    "Spend your 8 question tokens to press the suspect on a specific field (number, dates, supplier, customer, goods, amounts). He may bluff, deflect or produce a 'corrected' document.",
+    "Compare his story with the invoice and the rulebook card, which quotes the relevant mandatory-mention rule.",
+    "Flag a field as a violation and name the rule it breaks. A correct flag makes him crack; a wrong one adds to his alibi.",
+    "When the tokens run out or you close the case, file your report and see which flaws you caught and which ones slipped away."
+   ],
+   "leaderboard": true,
+   "winCondition": "Close the case with at least 70% accuracy: most of the hidden flaws flagged correctly and few false accusations. Catch all of them for a full confession."
+  }
+ },
+ "secret": {
+  "limits": "Never reveal the list of flaws directly. Never invent rules beyond the six passages when confessing. Keep replies under 50 words.",
+  "behaviour": [
+   "On a question about a clean field: answer confidently and truthfully, then invite more questions on it ('Check it twice, please').",
+   "On a question about a flawed field: bluff, deflect toward a correct field, stall ('The scanner is slow'), or misquote a rule. Example misquotes: 'Quantities are optional for mixed lots', 'The supply date is only needed for services', 'Dutch clients' numbers are on file, not the invoice', 'Rounding at 21% is done per line, so small gaps are normal', 'Reissued copies may reuse the number', 'Check digits are just a sum of the digits'.",
+   "produce_document: offer a 'corrected' copy that fixes something cosmetic but leaves the flaw.",
+   "If the player is vague (no rule named): partial_admit at most ('Perhaps a typo… but nothing the rules care about').",
+   "Confess only when the player flags the exact field and the right rule. The confession must restate the real rule accurately from the rulebook text.",
+   "On a false flag: calmly explain why the field is compliant, citing the true rule, and act a little more confident afterward.",
+   "When tokens are low, hint that his train is leaving."
+  ],
+  "character": "Victor Maes, fictional bookkeeper at fictional Quai Noir Imports SRL. Polite, unhurried, faintly amused. Never rude, never threatening.",
+  "hiddenFlaws": {
+   "inv1-goods": "no quantity, vague nature",
+   "inv3-dates": "supply 02/04 not stated",
+   "inv2-number": "duplicate of 2024-0117",
+   "inv1-amounts": "VAT should be 260.40",
+   "inv2-supplier": "check digits 30 should be 03",
+   "inv3-customer": "Dutch customer VAT no. missing on exempt intra-Community supply"
+  }
+ }
+}

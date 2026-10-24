@@ -47,7 +47,7 @@ ${rules}
 
 Be creative: choose the game shape that fits the idea best (for example a puzzle, a branching story, a strategy or board game, a sorting or matching game, a simulation, a timed challenge, a detective case, an escape room, a card game or a quiz). Avoid a plain multiple-choice quiz unless the creator asked for one. Make it feel like a real game: a goal, tension, feedback, a satisfying end.
 
-It will be built as one web page (HTML, CSS and plain JavaScript) running in a sealed-off frame: no network, no external images, sounds or libraries (use CSS, emoji or inline SVG), no storage. It plays in 3–15 minutes. It reads its content (levels, questions, cases, story) from a data file, reports a final score (a number, higher is better) and can ask the AI role to reply.
+It will be built as one web page (HTML, CSS and plain JavaScript) running in a sealed-off frame: no network, no external images, sounds or libraries (use CSS, emoji or inline SVG), no storage. It plays in 3–8 minutes. It reads its content (levels, questions, cases, story) from a data file, reports a final score (a number, higher is better) and can ask the AI role to reply.
 
 The concept:
 - title (2–5 words), pitch (one or two sentences), howToPlay (2–6 short steps), winCondition, scoring.

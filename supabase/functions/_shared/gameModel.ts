@@ -168,12 +168,6 @@ export const CONCEPT_SCHEMA = {
   properties: { kind: { enum: ['concept', 'declined'] }, reply: { type: 'string' }, concept: nullable(CONCEPT_FIELDS_SCHEMA), mockup_html: nullable({ type: 'string' }) },
 };
 
-/** The game's own content and the AI role's hidden knowledge, as JSON text (free-form objects can't be schema-closed). */
-export const DATA_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['data_json', 'ai_json', 'notes'],
-  properties: { data_json: { type: 'string' }, ai_json: { type: 'string' }, notes: { type: 'string' } },
-};
-
 /** A change request after the build: whole replacement files. */
 export const CHANGE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['reply', 'files', 'data_json'],
