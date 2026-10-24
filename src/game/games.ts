@@ -16,11 +16,13 @@ export interface GameMeta {
   liveVersion: number | null;
   /** Archived: hidden from players and can't be started; results stay. */
   archived_at: string | null;
+  /** everyone, or only the groups and people its game admins listed. */
+  access?: 'everyone' | 'restricted';
 }
 
 async function fetchGames(): Promise<GameMeta[]> {
   const [games, live] = await Promise.all([
-    supabase.from('games').select('key, title, description, created_by, created_at, archived_at').order('created_at'),
+    supabase.from('games').select('key, title, description, created_by, created_at, archived_at, access').order('created_at'),
     supabase.from('game_content').select('game_key, version').eq('stage', 'live'),
   ]);
   if (games.error) throw games.error;

@@ -2,7 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { existsSync, readFileSync } from 'node:fs';
 
 // Throwaway accounts for one test session: e2e-<role>@deloitte.com, one per built-in role.
-export const ROLES = ['player', 'creator', 'gameadmin', 'admin'] as const;
+export const ROLES = ['player', 'player2', 'creator', 'gameadmin', 'admin'] as const;
+/** The built-in role each e2e account holds (player2 is a second player, outside test groups). */
+export const roleOf = (role: E2eRole) => (role === 'player2' ? 'player' : role);
 export type E2eRole = (typeof ROLES)[number];
 export const emailFor = (role: E2eRole) => `e2e-${role}@deloitte.com`;
 export const PREFIX = 'e2e-';

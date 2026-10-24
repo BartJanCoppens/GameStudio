@@ -8,6 +8,9 @@ import { useGameContent } from '../../game/useGameContent';
 import { PageHead, Screen } from '../../shell/ui';
 import { card, cardHead, flush } from '../../shell/styles';
 import { AiServicesPanel } from '../admin/AiServices';
+import { AccessTab } from './AccessTab';
+import { ContentTab } from './ContentTab';
+import { useEffect } from 'react';
 
 interface PlayerRow {
   userId: string;
@@ -47,6 +50,8 @@ export function Console() {
   const current = game && published.includes(game) ? game : published[0] ?? null;
   const { runs, error } = useFinishedRuns(current?.key);
   const concept = current?.key === game?.key ? live?.content.concept : null;
+  // The selected game drives the live content the tabs show.
+  useEffect(() => { if (current && current.key !== game?.key) set({ gameKey: current.key }); }, [current, game?.key, set]);
   const { total } = useGoal(concept?.mode === 'common_goal' ? current?.key : undefined);
   const all = runs ?? [];
 
@@ -65,19 +70,23 @@ export function Console() {
       {error ? <Banner tone="warning" title="Could not load the results.">{error}</Banner> : null}
       <Tabs
         tabs={[
-          { value: 'players', label: `Players · ${playersOf(all).length}` },
-          { value: 'results', label: 'Results' },
+          ...(permissions.has('allocation.manage') ? [{ value: 'access' as const, label: current.access === 'restricted' ? 'Access · restricted' : 'Access · everyone' }] : []),
+          ...(permissions.has('live.edit') ? [{ value: 'content' as const, label: 'Content' }] : []),
+          { value: 'players', label: `Players & results · ${playersOf(all).length}` },
           ...(permissions.has('ai.game') ? [{ value: 'ai' as const, label: 'AI services' }] : []),
         ]}
         value={s.consoleTab}
         onChange={consoleTab => set({ consoleTab })}
       />
+      {s.consoleTab === 'access' && permissions.has('allocation.manage') ? <AccessTab key={current.key} game={current} /> : null}
+      {s.consoleTab === 'content' && permissions.has('live.edit') && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
       {s.consoleTab === 'players' ? (
         <div style={card}>
+          <div style={cardHead}>Players</div>
           {all.length ? <Table columns={playerColumns} rows={playersOf(all)} rowKey="userId" compact style={flush} /> : <div style={{ padding: 18, color: 'var(--tc-ink-5)' }}>Nobody has finished this game yet.</div>}
         </div>
       ) : null}
-      {s.consoleTab === 'results' ? (
+      {s.consoleTab === 'players' ? (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ ...card, flex: '1 1 420px' }}>
             <div style={cardHead}>Leaderboard · best game per player</div>

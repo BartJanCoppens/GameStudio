@@ -154,6 +154,20 @@ begin
   execute 'reset role';
   update public.games set access = 'restricted' where key = 'sqltest3-game';
 
+  -- (n) people who manage access get the list of players; players don't
+  perform set_config('request.jwt.claims', json_build_object('sub', gadmin, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) >= 3 from public.players_for_access() into ok;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    perform * from public.players_for_access();
+    ok := false;
+  exception when others then null; end;
+  execute 'reset role';
+  results := array_append(results, case when ok then 'ok n' else 'FAIL n: players_for_access wrong' end);
+
   -- (h) a player can't call publish_live_content
   perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
   execute as_user;

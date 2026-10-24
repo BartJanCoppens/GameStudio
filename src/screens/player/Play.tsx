@@ -23,7 +23,7 @@ export function Play() {
     return (
       <Screen label="Player · In game">
         <BackLink onClick={() => go('library')}>← Back to your games</BackLink>
-        <Banner tone="info">{loading ? 'Loading…' : 'This game isn’t published yet.'}</Banner>
+        <Banner tone="info">{loading ? 'Loading…' : 'This game isn’t available.'}</Banner>
       </Screen>
     );
   }

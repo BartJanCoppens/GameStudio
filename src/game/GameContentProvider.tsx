@@ -82,6 +82,7 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     game,
     games: games ?? [],
     reloadGames,
+    reloadContent: reload,
     published: live !== null,
     live,
     draft,
@@ -89,7 +90,7 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     error,
     saveDraft,
     publish,
-  }), [game, games, reloadGames, live, draft, rows, gameKey, error, saveDraft, publish]);
+  }), [game, games, reloadGames, reload, live, draft, rows, gameKey, error, saveDraft, publish]);
 
   return <GameContentContext.Provider value={api}>{children}</GameContentContext.Provider>;
 }

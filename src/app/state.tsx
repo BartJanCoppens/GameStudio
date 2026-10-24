@@ -5,7 +5,7 @@ import { AppContext, type AppApi, type AppState, type Patch } from './useApp';
 
 const INITIAL_STATE: AppState = {
   role: 'player', screen: 'library', lang: 'EN', toast: null, gameKey: '',
-  resultsRunId: null, studioChatOpen: true, navOpen: true, consoleTab: 'players',
+  resultsRunId: null, studioChatOpen: true, navOpen: true, consoleTab: 'access',
 };
 
 /** `#/console?game=key` → that screen, the first of the user's roles it belongs to, and the game; anything else → null. */

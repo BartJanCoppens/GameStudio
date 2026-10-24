@@ -17,7 +17,7 @@ export interface AppState {
   /** The sidebar menu is open (else folded to a rail). */
   navOpen: boolean;
   // game admin
-  consoleTab: 'players' | 'results' | 'ai';
+  consoleTab: 'access' | 'content' | 'players' | 'ai';
 }
 
 export type Patch = Partial<AppState> | ((s: AppState) => Partial<AppState>);

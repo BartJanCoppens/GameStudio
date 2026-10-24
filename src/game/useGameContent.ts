@@ -14,6 +14,8 @@ export interface GameContentApi {
   /** Every game the user can see, oldest first. */
   games: GameMeta[];
   reloadGames: () => Promise<void>;
+  /** Fetch the selected game's draft and live content again. */
+  reloadContent: () => Promise<void>;
   /** Players can play it: it has a live version. */
   published: boolean;
   /** What players play; null until the game is published. */

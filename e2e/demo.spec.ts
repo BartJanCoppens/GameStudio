@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { emailFor, password, type E2eRole } from './accounts';
+import { adminClient, emailFor, password, type E2eRole } from './accounts';
 import { seedGame, tinyGame } from './games';
 
 async function signIn(page: Page, role: E2eRole) {
@@ -213,4 +213,55 @@ test('a platform admin creates a group and manages its members', async ({ page }
   await detail.getByRole('button', { name: 'Delete group' }).click();
   await page.getByRole('dialog', { name: `Delete “${name}”?` }).getByRole('button', { name: 'Delete' }).click();
   await expect(page.getByRole('button', { name: new RegExp(name) })).toHaveCount(0);
+});
+
+test('a game admin restricts a game to a group', async ({ page, browser }) => {
+  const title = `Restricted quiz ${Date.now()}`;
+  const key = await seedGame(title, quiz(title), { publish: true });
+  const admin = adminClient();
+  const { data: group } = await admin.from('user_groups').insert({ name: `E2E access ${Date.now()}` }).select('id, name').single();
+  const { data: users } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  await admin.from('group_members').insert({ group_id: group!.id, user_id: users.users.find(u => u.email === emailFor('player'))!.id });
+
+  await signIn(page, 'gameadmin');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('tab', { name: 'Access' }).click();
+  await page.getByRole('radio', { name: 'Selected groups and people' }).check();
+  await page.getByRole('checkbox', { name: group!.name }).check();
+  await expect(page.getByText('1 player can play this game')).toBeVisible();
+
+  const outsider = await browser.newPage();
+  await signIn(outsider, 'player2');
+  await expect(outsider.getByText(title, { exact: true })).toHaveCount(0);
+  await outsider.goto(`/#/play?game=${key}`);
+  await expect(outsider.getByText('This game isn’t available.')).toBeVisible();
+
+  const member = await browser.newPage();
+  await signIn(member, 'player');
+  await expect(member.getByText(title, { exact: true })).toBeVisible();
+});
+
+test('a game admin previews and publishes content added with AI', async ({ page }) => {
+  const title = `Growing quiz ${Date.now()}`;
+  const game = quiz(title);
+  await seedGame(title, game, { publish: true });
+  const more = { questions: [...game.data.questions, { q: 'Extra one?', options: ['Yes', 'No'], answer: 0, source: 'p-reverse' }, { q: 'Extra two?', options: ['Yes', 'No'], answer: 1, source: 'p-reverse' }] };
+  await page.route('**/functions/v1/game-builder', route => route.fulfill({
+    status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' },
+    body: `event: delta\ndata: "{\\"data\\":"\n\nevent: done\ndata: ${JSON.stringify({ data: more, reply: 'Added two questions on reverse charge.' })}\n\n`,
+  }));
+  await page.route('**/functions/v1/game-content', route => route.fulfill({
+    status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ passed: true, reasons: [], version: 2 }),
+  }));
+  await signIn(page, 'gameadmin');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('tab', { name: 'Content' }).click();
+  await expect(page.getByText('questions · 10 items')).toBeVisible();
+  await page.getByLabel('What should be added?').fill('Two questions on reverse charge');
+  await page.getByRole('button', { name: 'Generate' }).click();
+  await expect(page.getByText('Added two questions on reverse charge.')).toBeVisible();
+  await expect(page.getByText('questions · 10 → 12')).toBeVisible();
+  await expect(page.locator('iframe[title="Game"]')).toBeVisible();
+  await page.getByRole('button', { name: 'Check and publish' }).click();
+  await expect(page.getByText('Published · players get the new content in their next game')).toBeVisible();
 });
