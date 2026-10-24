@@ -121,3 +121,13 @@ test('a game admin sees results and sets AI services for one game', async ({ pag
   await page.getByRole('button', { name: 'Remove' }).click();
   await expect(page.getByRole('button', { name: 'HeyGen: Use own key…' })).toBeVisible();
 });
+
+test('a platform admin exports a game’s code', async ({ page }) => {
+  const title = `Exportable quiz ${Date.now()}`;
+  const key = await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'admin');
+  const row = page.getByRole('row').filter({ hasText: title });
+  const download = page.waitForEvent('download');
+  await row.getByRole('button', { name: 'Export' }).click();
+  expect((await download).suggestedFilename()).toBe(`${key}.zip`);
+});

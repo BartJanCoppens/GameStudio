@@ -1,76 +1,83 @@
-# Pitch demo · A creator builds a game from scratch (about 6 minutes)
+# Pitch demo · From an idea to a published game (about 8 minutes)
 
-The story: a creator describes a game in one sentence, the AI builds it, the creator refines it, gives it a look and publishes it, and a player plays it straight away.
+The story: a creator describes a game in one sentence. The AI asks a few questions, shows a design and builds the game while everyone watches. The game is checked against the house rules and published, and a player plays it straight away, with the AI playing a part in it.
 
-Proof of concept: every game is an invoice audit game grounded in *Invoice mandatory mentions.md* (Belgian VAT). The AI writes new invoices and plants new errors, but the rules, scoring and source document are fixed, and the content isn't reviewed by a VAT specialist. Say so if asked.
+Proof of concept: games are built by the AI from the creator's answers. When a game links to the source material (*Invoice mandatory mentions.md*, Belgian VAT), its facts and feedback come from it, but nothing has been reviewed by a specialist. Say so if asked.
 
 ## The day before
 
-1. `npm run demo:reset -- --plan-b` removes rehearsal games and AI-made looks. It also adds the draft **Business travel expenses** for `creator@deloitte.com` as a fallback (see *If the AI is slow*).
-2. Check the AI is ready: sign in as `admin@deloitte.com` → **AI services** → Claude → **Test**. Check the credit balance in the Claude Console: a full run-through costs about $0.30–0.40 (the build alone measured $0.16).
-3. Rehearse once on https://game-studio-flame.vercel.app. Then run the reset again.
-4. AI limits: 30 calls an hour and 150 a day per creator. A run-through uses 3–5.
+1. `npm run demo:reset -- --plan-b --publish`. This removes rehearsal games and AI-made looks, then adds the prepared detective game, published, so players have a game from the start. Read the output: it lists what it removed and added.
+   - For an empty start, run `npm run demo:reset -- --plan-b` instead: the prepared game is a draft for creator@ only.
+2. Check the AI: `admin@deloitte.com` → **AI services** → Claude → **Test**. Check the Claude Console credit; a full run-through costs about $1–2.
+3. Rehearse once on https://game-studio-flame.vercel.app (after the latest deploy), then reset again.
+4. AI limits: 120 calls an hour per creator. A run-through uses about 15.
 
 ## Set-up on stage
 
-- Two browser windows side by side, or two profiles, so both sessions stay signed in:
-  - **left**: `creator@deloitte.com`
-  - **right**: `player@deloitte.com`
-- The password for all four accounts is `SEED_PASSWORD` in `.env.seed`.
-- Use a screen of 1280 px or wider. Zoom to 110 % if the room is large.
-- Keep this page open on a third screen with the prompts below ready to paste.
+- **Two browser windows side by side:**
+  - **left:** `creator@deloitte.com`;
+  - **right:** `player@deloitte.com`.
 
-## 1 · Build it (2 min) · creator
+  The password is `SEED_PASSWORD` in `.env.seed`.
+- Screen 1280 px or wider. Zoom 100–110 %.
+- Keep this page open on a third screen.
 
-1. **My games** → **New game**.
-2. Title: `Hotel and travel invoices`
-3. Describe the game (or click **Use an example**):
-   > Expense invoices from hotels, airlines, taxis and restaurants that consultants bring back from business trips in Belgium.
-4. Length: **8 invoices · 4 errors** → **Build with AI**.
-5. While it builds (about a minute), say what is happening:
-   - the AI writes each invoice and plants each error against a rule;
-   - every error must quote a passage of the source document;
-   - the app checks every invoice and error before saving: valid Belgian VAT numbers, real rates, totals that add up.
-6. The Studio opens on the new game.
-   - The chat on the left shows what was asked and what the AI did.
-   - Click an invoice with a dot: the *Answer key* highlights the error, and the right panel quotes the passage it breaks.
+## 1 · The idea (30 s) · creator
 
-## 2 · Refine it (1 min) · creator
+**My games** → **New game**, then paste:
 
-Type into **Draft with AI**, for example:
-> Make invoice 2 a restaurant bill where the VAT rate on food is wrong.
+> A detective game where the player interrogates an AI suspect about a VAT fraud case, grounded in the Belgian invoice rules
 
-The changed invoice is highlighted in the preview. **Keep**, and it's in the draft.
+**Start.**
 
-To show the AI's limits, ask something off-topic:
-> Write me a poem about Brussels.
+## 2 · Questions (1–1½ min)
 
-It declines, because it only edits this game.
+The AI asks up to six questions, one at a time, with clickable answers: what the player does, who plays, solo or common goal, leaderboard, the AI's role, source material, look. Click an answer each time, or type your own.
 
-## 3 · Give it a look (1 min) · creator
+What to say while it thinks (about 10 s per question):
+- "It's interviewing me like a game designer would."
+- "Every step follows the house rules the platform admin set."
 
-1. **Look: TaxConnect** → pick a preset (**Harbour Blue**, **Midnight Audit**, **Ledger Serif**). The invoice preview restyles straight away.
-2. Or describe a look:
-   > Bold and friendly for young graduates: deep purple accent, soft lilac page, rounded corners.
+## 3 · Design (about 1 min)
 
-   → **Design with AI**, which takes 10–20 seconds. The readability checks (WCAG AA contrast) show next to the preview, and an unreadable design can't be used. → **Use this look**.
+The concept card and a mock-up of the main screen appear side by side.
+- Ask for one change in the chat, e.g. *"Make it film noir: dark, moody, rain on the window."* The concept and the mock-up update.
+- Optional: **Change look** → pick a preset, or describe a look and use **Design with AI**.
+- **Approve design · build it.**
 
-## 4 · Publish it (15 s) · creator
+## 4 · Code (2–3 min)
 
-**Publish to players** → **Publish**. The status changes to *Draft matches live*.
+The three steps run with timers: *Writing the game's content* and *Building the screens* side by side, then *Writing the game logic*. The code streams in the dark panel.
 
-## 5 · Play it (1 min) · player
+What to say:
+- "Every file is scanned before it's accepted: no internet access, no leaving the page, no storage."
+- "If a step fails, I retry just that step."
 
-1. Reload the player window: the new game is in **Your games**, in its own look.
-2. **Play** → **Start**.
-3. Flag something on an invoice, pick a rule and **Submit**. The feedback quotes the source passage.
-4. One or two invoices are enough. **← Leave** goes back to the library, and the clock keeps running.
+When it's done, **Play test**: talk to the suspect for a moment. Its replies come through the platform, in role, and quote the source.
 
-## If the AI is slow or fails
+## 5 · Check and publish (30 s)
 
-- **The build takes over two minutes or fails:** the game is still created, from the sample invoices, and the chat panel says the AI step failed. Carry on with that game: it publishes and plays the same way.
-- **Or use the prepared draft:** **My games** → **Business travel expenses** (generated earlier from the same description). Present it as "one I made earlier", then continue from step 2.
-- **A look fails to design:** pick a preset instead.
+1. **Check house rules.** The AI reviews the whole game against the rules: "✓ Passed the house-rules check."
+2. **Publish to players.**
+
+Mention: "If I change anything after the check, the database refuses to publish until it's checked again."
+
+## 6 · Play (1 min) · player
+
+Reload the player window. The new game is in **Your games**, in its own look. **Play** → **Start**. Interrogate the suspect, accuse someone. The score lands on the leaderboard.
+
+## 7 · The admin view (30 s, optional) · admin
+
+- **House rules**: the rules every game follows.
+- **Overview** → **Export** next to the game: a zip with the code, content and a readme, ready to take further.
+- To show the guardrails: as creator, **New game** → *"A shooting game where you kill your colleagues"*. It is declined with a friendly reason.
+
+## If something is slow or fails
+
+- **A question or the design fails:** the chat shows the error with **Try again**.
+- **A build step fails:** **Retry** on that step. Earlier steps are kept, and nothing is saved until the whole build works.
+- **Everything is slow:** open **My games** → the prepared detective game (Plan B) and continue from step 4 (Play test) or step 5. Say "here's one I made earlier with the same prompt".
+- **The house-rules check fails:** read the reason out. It shows the guardrails working. Ask for a change in the chat, then check again.
 
 ## Afterwards
 

@@ -1,4 +1,7 @@
 import { StatCard, Table } from '../../ds';
+import type { GameContent } from '../../game/content';
+import { exportGame } from '../../game/exportZip';
+import { errorMessage, supabase } from '../../lib/supabase';
 import { useApp } from '../../app/useApp';
 import { useGameContent } from '../../game/useGameContent';
 import { clock, useFinishedRuns } from '../../game/runs';
@@ -8,7 +11,7 @@ import { gameColumns, gameRows } from '../creator/gameColumns';
 import { useDirectory } from './directory';
 
 export function Dashboard() {
-  const { roles, set } = useApp();
+  const { roles, set, toast } = useApp();
   const { games } = useGameContent();
   const { runs } = useFinishedRuns();
   const { data } = useDirectory();
@@ -18,6 +21,19 @@ export function Dashboard() {
   const players = new Set(all.map(r => r.user_id)).size;
   const published = games.filter(g => g.liveVersion !== null).length;
   const openStudio = roles.includes('creator') ? (gameKey: string) => set({ role: 'creator', screen: 'studio', gameKey }) : undefined;
+  // The live version when there is one, else the draft.
+  const exportCode = async (gameKey: string) => {
+    try {
+      const { data, error } = await supabase.from('game_content').select('stage, content').eq('game_key', gameKey);
+      if (error) throw error;
+      const row = data?.find(r => r.stage === 'live') ?? data?.find(r => r.stage === 'draft');
+      const game = games.find(g => g.key === gameKey);
+      if (!row || !game) throw new Error('This game has nothing to export yet');
+      exportGame(game, row.content as GameContent);
+    } catch (e) {
+      toast(errorMessage(e));
+    }
+  };
 
   return (
     <Screen label="Admin · Overview">
@@ -31,7 +47,7 @@ export function Dashboard() {
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ ...card, flex: '1 1 600px', minWidth: 0 }}>
           <div style={cardHead}>Games</div>
-          <Table columns={gameColumns(openStudio)} rows={gameRows(games, runs)} rowKey="id" compact style={flush} />
+          <Table columns={gameColumns(openStudio, key => void exportCode(key))} rows={gameRows(games, runs)} rowKey="id" compact style={flush} />
         </div>
         <div style={{ ...card, flex: '0 1 320px' }}>
           <div style={cardHead}>Recent runs</div>

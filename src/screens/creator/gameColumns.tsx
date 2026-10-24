@@ -1,4 +1,4 @@
-import { LinkButton, StatusChip, type Column, type Status } from '../../ds';
+import { Button, LinkButton, StatusChip, type Column, type Status } from '../../ds';
 import type { GameMeta } from '../../game/games';
 import type { RunRow } from '../../game/runs';
 
@@ -26,7 +26,7 @@ export function gameRows(games: GameMeta[], runs: RunRow[] | null): GameRow[] {
 }
 
 /** Games table, shared by Creator · My games and Admin · Overview. Clicking the title opens the game in the Studio. */
-export function gameColumns(openInStudio?: (key: string) => void): Column<GameRow>[] {
+export function gameColumns(openInStudio?: (key: string) => void, onExport?: (key: string) => void): Column<GameRow>[] {
   return [
     {
       key: 'title', label: 'Game', width: 'minmax(220px,1.6fr)', strong: true,
@@ -36,5 +36,6 @@ export function gameColumns(openInStudio?: (key: string) => void): Column<GameRo
     { key: 'version', label: 'Version', width: '120px', muted: true },
     { key: 'players', label: 'Players', width: '80px', align: 'right', numeric: true },
     { key: 'runs', label: 'Runs', width: '70px', align: 'right', numeric: true },
+    ...(onExport ? [{ key: 'export', label: '', width: '96px', render: (r: GameRow) => <Button variant="secondary" size="sm" onClick={() => onExport(r.id)}>Export</Button> } as Column<GameRow>] : []),
   ];
 }
