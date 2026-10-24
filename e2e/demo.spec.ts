@@ -85,3 +85,39 @@ test('a platform admin stores a key without ever seeing it again, and tests it',
   await page.getByRole('button', { name: 'Remove' }).click();
   await expect(page.getByRole('button', { name: 'ElevenLabs: Add key…' })).toBeVisible();
 });
+
+test('a platform admin edits the house rules', async ({ page }) => {
+  await signIn(page, 'admin');
+  await page.getByRole('button', { name: 'House rules' }).click();
+  await expect(page.getByRole('textbox', { name: 'Rule 1' })).toHaveValue('Non-violent');
+  await page.getByRole('button', { name: 'Add a rule' }).click();
+  const rules = page.getByRole('textbox', { name: /^Rule \d+$/ });
+  await rules.last().fill('E2E: no alcohol');
+  await page.getByRole('button', { name: 'Save house rules' }).click();
+  await expect(page.getByText('House rules saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: /^Rule \d+$/ }).last()).toHaveValue('E2E: no alcohol');
+  await page.getByRole('button', { name: `Remove rule ${await page.getByRole('textbox', { name: /^Rule \d+$/ }).count()}` }).click();
+  await page.getByRole('button', { name: 'Save house rules' }).click();
+  await expect(page.getByText('House rules saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: /^Rule \d+$/ }).last()).not.toHaveValue('E2E: no alcohol');
+});
+
+test('a game admin sees results and sets AI services for one game', async ({ page }) => {
+  const title = `Console quiz ${Date.now()}`;
+  await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'gameadmin');
+  await expect(page.locator('header')).toContainText('Game administration');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('tab', { name: 'AI services' }).click();
+  await expect(page.getByText('Studio assistant')).toHaveCount(0);
+  await page.getByRole('button', { name: 'HeyGen: Use own key…' }).click();
+  await page.getByLabel('API key').fill('e2e-heygen-8765');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText(/key …8765/)).toBeVisible();
+  await page.getByRole('button', { name: 'HeyGen: Change key…' }).click();
+  await page.getByRole('button', { name: 'Remove' }).click();
+  await expect(page.getByRole('button', { name: 'HeyGen: Use own key…' })).toBeVisible();
+});

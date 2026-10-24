@@ -3,9 +3,9 @@ export type Screen =
   | 'library' | 'play' | 'results'
   | 'games' | 'studio'
   | 'console'
-  | 'dashboard' | 'users' | 'roles' | 'ai' | 'content';
+  | 'dashboard' | 'users' | 'roles' | 'ai' | 'rules' | 'content';
 
-export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'console', 'dashboard', 'users', 'roles', 'ai', 'content'];
+export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'console', 'dashboard', 'users', 'roles', 'ai', 'rules', 'content'];
 
 export const ROLE_HOME: Record<Role, Screen> = { player: 'library', creator: 'games', gameadmin: 'console', admin: 'dashboard' };
 
@@ -14,7 +14,7 @@ export const SCREEN_ROLES: Record<Screen, Role[]> = {
   library: ['player'], play: ['player'], results: ['player'],
   games: ['creator'], studio: ['creator'],
   console: ['gameadmin'],
-  dashboard: ['admin'], users: ['admin'], roles: ['admin'], ai: ['admin'], content: ['creator', 'admin'],
+  dashboard: ['admin'], users: ['admin'], roles: ['admin'], ai: ['admin'], rules: ['admin'], content: ['creator', 'admin'],
 };
 
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -32,7 +32,7 @@ export const NAV: Record<Role, [string, Screen, string?][]> = {
   player: [['Your games', 'library'], ['Results', 'results']],
   creator: [['My games', 'games'], ['Studio', 'studio'], ['Content domains', 'content']],
   gameadmin: [['Games', 'console']],
-  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['Content', 'content']],
+  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['House rules', 'rules'], ['Content', 'content']],
 };
 
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };
@@ -40,6 +40,6 @@ export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Creat
 export const SCREEN_TITLES: Record<Screen, string> = {
   library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', games: 'Creator · My games', studio: 'Creator · Studio',
   console: 'Game administration', dashboard: 'Admin · Overview', users: 'Admin · Users',
-  roles: 'Admin · Roles', ai: 'Admin · AI services', content: 'Content domains',
+  roles: 'Admin · Roles', ai: 'Admin · AI services', rules: 'Admin · House rules', content: 'Content domains',
 };
 

@@ -122,6 +122,19 @@ async function setAssistant(admin: SupabaseClient, c: Caller, body: Body) {
   return { provider: def.id, model };
 }
 
+/** The house rules every AI step and every game check follows. */
+async function setHouseRules(admin: SupabaseClient, c: Caller, body: Body) {
+  requirePermission(c, 'ai.manage', 'Manage AI services and keys');
+  const rules = Array.isArray(body.rules) ? body.rules.filter((r): r is string => typeof r === 'string').map(r => r.trim()).filter(Boolean) : [];
+  if (!rules.length) throw new HttpError(400, 'Keep at least one house rule');
+  if (rules.length > 20 || rules.some(r => r.length > 200)) throw new HttpError(400, 'At most 20 rules of up to 200 characters');
+  const context = typeof body.context === 'string' ? body.context.trim() : '';
+  if (context.length > 1000) throw new HttpError(400, 'Keep the context under 1,000 characters');
+  const { error } = await admin.from('ai_settings').upsert({ key: 'house_rules', value: { rules, context }, updated_by: c.id, updated_at: new Date().toISOString() });
+  if (error) throw new HttpError(400, error.message);
+  return { rules, context };
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json(405, { error: 'Use POST' });
@@ -134,6 +147,7 @@ Deno.serve(async req => {
       case 'remove': return json(200, await remove(admin, c, body));
       case 'test': return json(200, await test(admin, c, body));
       case 'set_assistant': return json(200, await setAssistant(admin, c, body));
+      case 'set_house_rules': return json(200, await setHouseRules(admin, c, body));
       default: return json(400, { error: 'Unknown action' });
     }
   } catch (e) {
