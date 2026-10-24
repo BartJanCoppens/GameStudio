@@ -49,3 +49,13 @@ describe('scanGameFiles', () => {
 
   it('reports a file over 300 KB', () => expect(withJs('x'.repeat(300_001)).join(' ')).toContain('too large'));
 });
+
+describe('the e2e tiny game fixture', () => {
+  it('passes the scan and the concept checks', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { conceptProblems } = await import('../../supabase/functions/_shared/gameModel.ts');
+    const tiny = JSON.parse(readFileSync('e2e/fixtures/tiny-game.json', 'utf8'));
+    expect(scanGameFiles(tiny.files)).toEqual([]);
+    expect(conceptProblems(tiny.concept)).toEqual([]);
+  });
+});

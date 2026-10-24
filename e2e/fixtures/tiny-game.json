@@ -1,0 +1,159 @@
+{
+ "phase": "ready",
+ "brief": [
+  {
+   "role": "creator",
+   "text": "A tiny quiz"
+  }
+ ],
+ "concept": {
+  "title": "Tiny quiz",
+  "pitch": "Ten quick questions on Belgian invoice mentions.",
+  "howToPlay": [
+   "Pick an answer",
+   "Ten questions, ten points each"
+  ],
+  "winCondition": "Answer all ten",
+  "scoring": "10 points per right answer",
+  "mode": "solo",
+  "goal": null,
+  "leaderboard": true,
+  "aiRole": null,
+  "sources": [
+   "p-number",
+   "p-dates",
+   "p-supplier",
+   "p-customer",
+   "p-goods",
+   "p-amounts",
+   "p-rates",
+   "p-exempt",
+   "p-reverse"
+  ],
+  "look": {
+   "name": "Harbour Blue",
+   "tokens": {
+    "accent": "#0B5FFF",
+    "accentInk": "#FFFFFF",
+    "ink": "#14213D",
+    "muted": "#4A5568",
+    "page": "#EEF3FA",
+    "surface": "#FFFFFF",
+    "line": "#D6DFEB",
+    "radius": 10,
+    "bodyFont": "inter",
+    "headingFont": "inter"
+   }
+  }
+ },
+ "mockup": null,
+ "files": {
+  "index.html": "<main id=\"app\">\n  <h1 id=\"title\">Tiny quiz</h1>\n  <p id=\"progress\"></p>\n  <h2 id=\"question\"></h2>\n  <div id=\"options\"></div>\n  <p id=\"feedback\"></p>\n</main>",
+  "game.js": "(async () => {\n  await GameStudio.ready();\n  const { questions } = await GameStudio.getData();\n  let i = 0, score = 0;\n  const $ = id => document.getElementById(id);\n  function show() {\n    if (i >= questions.length) return end();\n    const q = questions[i];\n    $('progress').textContent = 'Question ' + (i + 1) + ' of ' + questions.length;\n    $('question').textContent = q.q;\n    $('options').innerHTML = '';\n    q.options.forEach((text, k) => {\n      const b = document.createElement('button');\n      b.textContent = text;\n      b.onclick = () => { if (k === q.answer) score += 10; i++; show(); };\n      $('options').appendChild(b);\n    });\n  }\n  async function end() {\n    $('question').textContent = 'Done: ' + score + ' points';\n    $('options').innerHTML = '';\n    await GameStudio.submitScore(score, { answered: questions.length });\n    await GameStudio.finish();\n  }\n  show();\n})();",
+  "style.css": "body{font-family:'IBM Plex Sans',sans-serif;padding:24px} button{display:block;margin:6px 0;padding:8px 12px}"
+ },
+ "data": {
+  "questions": [
+   {
+    "q": "Which number must every invoice carry?",
+    "options": [
+     "A unique sequential number",
+     "The customer's phone number",
+     "The VAT rate of the supplier"
+    ],
+    "answer": 0,
+    "source": "p-number"
+   },
+   {
+    "q": "When must the date of supply be stated?",
+    "options": [
+     "Always",
+     "When it differs from the issue date",
+     "Never"
+    ],
+    "answer": 1,
+    "source": "p-dates"
+   },
+   {
+    "q": "What does the supplier's VAT number need?",
+    "options": [
+     "Valid check digits",
+     "A QR code",
+     "A stamp"
+    ],
+    "answer": 0,
+    "source": "p-supplier"
+   },
+   {
+    "q": "When is the customer's VAT number required?",
+    "options": [
+     "When the customer is VAT-registered",
+     "Never",
+     "Only for cash sales"
+    ],
+    "answer": 0,
+    "source": "p-customer"
+   },
+   {
+    "q": "What must describe the goods or services?",
+    "options": [
+     "Their quantity and nature",
+     "Their colour",
+     "The supplier's opinion"
+    ],
+    "answer": 0,
+    "source": "p-goods"
+   },
+   {
+    "q": "How is the VAT amount computed?",
+    "options": [
+     "Taxable amount × rate, rounded to the cent",
+     "Total ÷ 2",
+     "A flat €21"
+    ],
+    "answer": 0,
+    "source": "p-amounts"
+   },
+   {
+    "q": "Is a new detached outbuilding taxed at 6%?",
+    "options": [
+     "Yes",
+     "No, 21%",
+     "It is exempt"
+    ],
+    "answer": 1,
+    "source": "p-rates"
+   },
+   {
+    "q": "What must an exempt invoice state?",
+    "options": [
+     "The legal basis of the exemption",
+     "A discount",
+     "Nothing"
+    ],
+    "answer": 0,
+    "source": "p-exempt"
+   },
+   {
+    "q": "Which mention does a reverse-charge invoice carry?",
+    "options": [
+     "Reverse charge",
+     "Paid",
+     "Duplicate"
+    ],
+    "answer": 0,
+    "source": "p-reverse"
+   },
+   {
+    "q": "What is the standard Belgian VAT rate?",
+    "options": [
+     "21%",
+     "19%",
+     "25%"
+    ],
+    "answer": 0,
+    "source": "p-rates"
+   }
+  ]
+ }
+}
