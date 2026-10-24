@@ -7,7 +7,12 @@ import { PASSAGES } from './source.ts';
 export interface BriefTurn {
   role: 'ai' | 'creator';
   text: string;
+  /** An AI question's clickable answers. */
   choices?: string[];
+  /** Several choices may apply together. */
+  multi?: boolean;
+  /** The AI declined (a house rule); the creator should try something else. */
+  declined?: boolean;
 }
 
 export interface AiRole {
@@ -59,6 +64,30 @@ export interface GameContent {
 export const EMPTY_CONTENT: GameContent = { phase: 'questions', brief: [], concept: null, mockup: null, files: null, data: null };
 
 // ---- Checks ----
+
+const cut = (v: unknown, max: number) => (typeof v === 'string' ? (v.length > max ? `${v.slice(0, max - 1).trimEnd()}…` : v) : v);
+
+/** The model's concept with every text trimmed to its limit and lists capped: wordiness shouldn't fail a design. */
+export function normalizeConcept<T>(c: T): T {
+  if (!c || typeof c !== 'object') return c;
+  const o = c as Record<string, unknown>;
+  const goal = o.goal as Record<string, unknown> | null;
+  const ai = o.aiRole as Record<string, unknown> | null;
+  const look = o.look as Record<string, unknown> | undefined;
+  return {
+    ...o,
+    title: cut(o.title, 80),
+    pitch: cut(o.pitch, 300),
+    howToPlay: Array.isArray(o.howToPlay) ? o.howToPlay.slice(0, 8).map(s => cut(s, 200)) : o.howToPlay,
+    winCondition: cut(o.winCondition, 300),
+    scoring: cut(o.scoring, 300),
+    goal: goal && typeof goal === 'object' ? { ...goal, description: cut(goal.description, 200), unit: cut(goal.unit, 40) } : goal,
+    aiRole: ai && typeof ai === 'object'
+      ? { ...ai, description: cut(ai.description, 500), actions: Array.isArray(ai.actions) ? ai.actions.slice(0, 12).map(a => cut(a, 40)) : ai.actions }
+      : ai,
+    look: look && typeof look === 'object' ? { ...look, name: cut(look.name, 60) } : look,
+  } as T;
+}
 
 const str = (v: unknown, max: number, min = 1) => typeof v === 'string' && v.trim().length >= min && v.length <= max;
 
