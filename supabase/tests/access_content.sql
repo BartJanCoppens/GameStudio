@@ -118,6 +118,32 @@ begin
   select (content->'data') = '{"q":[1,2,3,4]}' and base_revision = 2 from public.game_content where game_key = 'sqltest3-game' and stage = 'draft' into ok;
   results := array_append(results, case when ok then 'ok i' else 'FAIL i: take_in_live didn''t sync the draft' end);
 
+  -- (k) an outsider can't read a restricted game's finished runs or its contributions
+  -- The listed player plays: contributes during the run, then finishes it.
+  perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
+  insert into public.game_contributions (game_key, run_id, amount)
+    select 'sqltest3-game', r.id, 5 from public.game_runs r where r.game_key = 'sqltest3-game' and r.user_id = listed and r.finished_at is null limit 1;
+  update public.game_runs set finished_at = now(), score = 42 where game_key = 'sqltest3-game' and user_id = listed and finished_at is null;
+  perform set_config('request.jwt.claims', json_build_object('sub', outside, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select (select count(*) from public.game_runs where game_key = 'sqltest3-game') = 0
+     and (select count(*) from public.game_contributions where game_key = 'sqltest3-game') = 0 into ok;
+  results := array_append(results, case when ok then 'ok k' else 'FAIL k: outsider read runs or contributions of a restricted game' end);
+  execute 'reset role';
+  -- (k2) the listed player still sees the leaderboard
+  perform set_config('request.jwt.claims', json_build_object('sub', inside, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) >= 0 from public.game_runs where game_key = 'sqltest3-game' into ok;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) >= 1 from public.game_runs where game_key = 'sqltest3-game' and finished_at is not null into ok;
+  results := array_append(results, case when ok then 'ok k2' else 'FAIL k2: a player with access lost the leaderboard' end);
+  -- (l) the public can_play check answers for the caller
+  select public.can_play('sqltest3-game') into ok;
+  results := array_append(results, case when ok then 'ok l' else 'FAIL l: can_play wrong for a listed player' end);
+  execute 'reset role';
+
   -- (h) a player can't call publish_live_content
   perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
   execute as_user;

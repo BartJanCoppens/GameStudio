@@ -59,6 +59,8 @@ export interface GameContent {
   files: GameFiles | null;
   /** The game's own content (levels, questions, cases, story set-up), read by the game through the bridge. */
   data: unknown;
+  /** The shape of `data`, described when it was written, so content added later keeps that shape. */
+  dataNotes?: string;
   /** The files and content before the last change request, so it can be undone. */
   previous?: { files: GameFiles | null; data: unknown } | null;
 }
@@ -203,3 +205,28 @@ export const BRIDGE_API = `window.GameStudio (always available; every method ret
 - GameStudio.askAI({ messages: [{ role: 'player' | 'ai', text }], state }): the AI role's reply { say, quotes: [{ id, heading, loc, text }], action, mood }. state: a small object describing where the player is. Games with an AI role only.
 - GameStudio.getSources(): [{ id, heading, loc, text }] the linked source passages.
 - GameStudio.finish(): the player is done; the platform shows the results.`;
+
+const jsonType = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v);
+
+/**
+ * What would break a game if its content changed this way: content added by a game admin must keep every
+ * top-level key with its type, and no list (at the top level, or directly inside a top-level object) may shrink.
+ */
+export function dataShapeProblems(before: unknown, after: unknown): string[] {
+  if (jsonType(before) !== jsonType(after)) return ['The content changed type'];
+  if (jsonType(before) !== 'object') return Array.isArray(before) && (after as unknown[]).length < before.length ? ['The content lost items'] : [];
+  const p: string[] = [];
+  const b = before as Record<string, unknown>, a = after as Record<string, unknown>;
+  for (const [key, value] of Object.entries(b)) {
+    if (!(key in a)) { p.push(`The new content dropped ${key}`); continue; }
+    if (jsonType(value) !== jsonType(a[key])) { p.push(`${key} changed type`); continue; }
+    if (Array.isArray(value) && (a[key] as unknown[]).length < value.length) p.push(`${key} lost items`);
+    if (jsonType(value) === 'object') {
+      for (const [inner, v] of Object.entries(value as Record<string, unknown>)) {
+        const next = (a[key] as Record<string, unknown>)[inner];
+        if (Array.isArray(v) && (!Array.isArray(next) || next.length < v.length)) p.push(`${key}.${inner} lost items`);
+      }
+    }
+  }
+  return p;
+}

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { callAs, seedGame, tinyGame, userClient } from './games';
+import { callAs, seedGame, streamAs, tinyGame, userClient } from './games';
 
 // Edge Function behaviour that needs no model call (each request is refused before the AI is asked).
 
@@ -67,4 +67,40 @@ test('game-architect refuses an oversized or invalid concept before asking the A
   const bad = { ...tinyGame().concept, sources: ['made-up'] };
   const second = await callAs('creator', 'game-architect', { game_key: key, brief: [{ role: 'creator', text: 'hi' }], concept: bad, request: 'make it red', mode: 'revise' });
   expect(second.status).toBe(400);
+});
+
+test('game-content refuses a player', async () => {
+  const key = await seedGame('Content refuse', tinyGame(), { publish: true });
+  const { status } = await callAs('player', 'game-content', { game_key: key, data: tinyGame().data });
+  expect(status).toBe(403);
+});
+
+test('game-content refuses content that drops what was there', async () => {
+  const key = await seedGame('Content shape', tinyGame(), { publish: true });
+  const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data: { questions: tinyGame().data.questions.slice(0, 3) } });
+  expect(status).toBe(400);
+  expect(String(body.error)).toContain('lost items');
+});
+
+test('game-content fails the check for content with a web address', async () => {
+  const key = await seedGame('Content scan', tinyGame(), { publish: true });
+  const data = tinyGame().data;
+  data.questions.push({ q: 'See https://evil.example', options: ['a', 'b'], answer: 0, source: 'p-number' });
+  const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data });
+  expect(status).toBe(200);
+  expect(body.passed).toBe(false);
+  expect((body.reasons as string[]).join(' ')).toContain('contains a web address');
+});
+
+// Live AI: a few cents, only with E2E_LIVE_AI=1.
+test('a game admin extends a game with AI and publishes it', async () => {
+  test.skip(!process.env.E2E_LIVE_AI, 'set E2E_LIVE_AI=1 to call the real model');
+  test.setTimeout(240_000);
+  const key = await seedGame('Extend live', tinyGame(), { publish: true });
+  const done = await streamAs('gameadmin', 'game-builder', { game_key: key, step: 'extend', instruction: 'Add two questions about the reverse-charge mention' });
+  const questions = (done.data as { questions: unknown[] }).questions;
+  expect(questions.length).toBeGreaterThanOrEqual(12);
+  const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data: done.data });
+  expect(status).toBe(200);
+  expect(body.passed).toBe(true);
 });

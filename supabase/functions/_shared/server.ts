@@ -31,6 +31,13 @@ function secretKey(): string {
 export const adminClient = (): SupabaseClient =>
   createClient(Deno.env.get('SUPABASE_URL')!, secretKey(), { auth: { persistSession: false, autoRefreshToken: false } });
 
+/** A client that acts as the caller (their token, row level security applies): for checks the database owns. */
+export const userClient = (req: Request): SupabaseClient =>
+  createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+  });
+
 export interface Caller {
   id: string;
   permissions: Set<string>;

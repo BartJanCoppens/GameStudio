@@ -93,7 +93,7 @@ export function useBuilder() {
     if (!first.every(Boolean)) return;
     if (p.js === undefined && !(await once('logic', content))) return;
     const files: GameFiles = { 'index.html': p.html!, 'game.js': p.js! };
-    await saveDraft({ ...content, files, data: p.data ?? null, phase: 'ready' });
+    await saveDraft({ ...content, files, data: p.data ?? null, dataNotes: p.notes ?? '', phase: 'ready' });
     setLive(null);
   }, [draft, once, saveDraft]);
 

@@ -14,7 +14,7 @@ import { finishQuota, takeQuota } from '../_shared/quota.ts';
 import { AI_REPLY_SCHEMA, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
-import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, caller, gameOf, json, requirePermission, userClient } from '../_shared/server.ts';
 import { asData } from '../_shared/promptData.ts';
 
 const LIMITS = { messages: 20, messageChars: 1000, stateChars: 4000, sayChars: 1200 };
@@ -48,8 +48,17 @@ Deno.serve(async req => {
     const { data: run } = await admin.from('game_runs').select('user_id, game_key, finished_at, test').eq('id', body.run_id).maybeSingle();
     if (!run || run.user_id !== c.id || run.game_key !== game.key) throw new HttpError(403, 'That run isn’t yours');
     if (run.finished_at) throw new HttpError(409, 'That run has finished');
-    if (run.test) requireEditable(c, game);
-    const stage = run.test ? 'draft' : 'live';
+    // Test runs: an editor tries the draft; a game admin tries the live game (with content they are adding).
+    let stage: 'draft' | 'live' = 'live';
+    if (run.test) {
+      const editor = c.permissions.has('games.create') && (game.created_by === c.id || c.permissions.has('users.manage'));
+      if (editor) stage = 'draft';
+      else requirePermission(c, 'live.edit', 'Add content to a live game');
+    } else {
+      // Access is checked as the caller, the same rule the database applies to live content and runs.
+      const { data: allowed } = await userClient(req).rpc('can_play', { p_game_key: game.key });
+      if (allowed !== true) throw new HttpError(403, 'You don’t have access to this game');
+    }
 
     const messages = readMessages(body.messages);
     const state = asData(body.state ?? null);

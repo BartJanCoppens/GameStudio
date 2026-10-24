@@ -51,3 +51,19 @@ export async function seedGame(title: string, content: unknown, opts: { secret?:
   }
   return key;
 }
+
+/** Calls a streaming Edge Function as an e2e account; returns the payload of its done event (or throws its error). */
+export async function streamAs(role: E2eRole, fn: string, body: unknown): Promise<Record<string, unknown>> {
+  const { url, key } = env();
+  const { token } = await userClient(role);
+  const res = await fetch(`${url}/functions/v1/${fn}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+  for (const block of text.split('\n\n')) {
+    const event = block.match(/^event: (.*)$/m)?.[1];
+    const data = block.split('\n').filter(l => l.startsWith('data: ')).map(l => l.slice(6)).join('\n');
+    if (event === 'done') return JSON.parse(data);
+    if (event === 'error') throw new Error(JSON.parse(data).error);
+  }
+  throw new Error('The stream ended without a result');
+}
