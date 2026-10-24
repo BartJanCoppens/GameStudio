@@ -16,7 +16,7 @@ export function ThemeScope({ tokens: given, page = false, style, children }: Pro
   const t = tokens ?? DEFAULT_TOKENS;
   useEffect(() => { loadFont(t.bodyFont); loadFont(t.headingFont); }, [t.bodyFont, t.headingFont]);
   return (
-    <div style={{ ...(tokens ? themeVars(tokens) : null), ...(page ? { background: t.page, margin: '-26px -32px -140px', padding: '26px 32px 140px', minHeight: 'calc(100vh - 60px)' } : null), ...style }}>
+    <div style={{ ...(tokens ? themeVars(tokens) : null), ...(page ? { background: t.page, margin: '-26px -32px -140px', padding: '26px 32px 140px', minHeight: 'calc(100dvh - 60px)' } : null), ...style }}>
       {children}
     </div>
   );

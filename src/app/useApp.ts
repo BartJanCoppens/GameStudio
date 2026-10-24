@@ -14,6 +14,8 @@ export interface AppState {
   resultsRunId: string | null;
   // creator
   studioChatOpen: boolean;
+  /** The sidebar menu is open (else folded to a rail). */
+  navOpen: boolean;
   // game admin
   consoleTab: 'players' | 'results' | 'ai';
 }

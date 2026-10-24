@@ -70,7 +70,7 @@ function Conversation({ content, architect, builder, onHide }: { content: GameCo
   const open = content.phase !== 'code';
 
   return (
-    <section aria-label="Conversation" style={{ ...card, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 170px)', minHeight: 520, position: 'sticky', top: 78 }}>
+    <section aria-label="Conversation" style={{ ...card, display: 'flex', flexDirection: 'column', height: 'calc(100dvh - 170px)', minHeight: 520, position: 'sticky', top: 78 }}>
       <div style={{ padding: '8px 10px 8px 14px', borderBottom: '1px solid var(--tc-line-hair)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ flex: 1 }}>Design with AI</span>
         <Button variant="secondary" size="sm" aria-label="Hide chat" title="Hide chat" onClick={onHide}>«</Button>

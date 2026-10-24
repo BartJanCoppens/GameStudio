@@ -36,7 +36,7 @@ export function CodePanel({ steps, live, onRetry }: { steps: BuildStep[]; live: 
       <pre
         ref={code}
         aria-label="Code being written"
-        style={{ margin: 0, height: 'calc(100vh - 420px)', minHeight: 280, overflow: 'auto', background: '#14171a', color: '#d6e2c4', borderRadius: 8, padding: '14px 16px', fontSize: 11.5, lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+        style={{ margin: 0, height: 'calc(100dvh - 420px)', minHeight: 280, overflow: 'auto', background: '#14171a', color: '#d6e2c4', borderRadius: 8, padding: '14px 16px', fontSize: 11.5, lineHeight: 1.5, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
       >
         {tail || (steps.every(s => s.status === 'waiting') ? 'Starting the build…' : steps.some(s => s.status === 'failed') ? 'A step failed. Retry it above.' : '')}
       </pre>

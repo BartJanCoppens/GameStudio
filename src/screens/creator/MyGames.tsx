@@ -9,6 +9,7 @@ import { useFinishedRuns } from '../../game/runs';
 import { errorMessage } from '../../lib/supabase';
 import { PageHead, Screen } from '../../shell/ui';
 import { card, flush } from '../../shell/styles';
+import { GameActions } from './GameActions';
 import { gameColumns, gameRows } from './gameColumns';
 
 const IDEA_MAX = 2000;
@@ -60,7 +61,7 @@ export function MyGames() {
   const { runs } = useFinishedRuns();
   const [creating, setCreating] = useState(false);
   const mine = games.filter(g => canEditGame(g, profile.id, permissions));
-  const published = mine.filter(g => g.liveVersion !== null).length;
+  const published = mine.filter(g => g.liveVersion !== null && !g.archived_at).length;
 
   return (
     <Screen label="Creator · My games">
@@ -71,7 +72,7 @@ export function MyGames() {
       />
       <div style={card}>
         {mine.length
-          ? <Table columns={gameColumns(key => openGame(key, 'studio'))} rows={gameRows(mine, runs)} rowKey="id" style={flush} />
+          ? <Table columns={gameColumns({ openInStudio: key => openGame(key, 'studio'), actions: r => <GameActions game={mine.find(g => g.key === r.id)!} runs={r.runs} /> })} rows={gameRows(mine, runs)} rowKey="id" style={flush} />
           : <div style={{ padding: 18, color: 'var(--tc-ink-5)' }}>No games yet. Start one with New game.</div>}
       </div>
       {creating ? (

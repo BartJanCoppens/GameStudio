@@ -7,6 +7,7 @@ import { useGameContent } from '../../game/useGameContent';
 import { clock, useFinishedRuns } from '../../game/runs';
 import { PageHead, Screen } from '../../shell/ui';
 import { card, cardHead, flush } from '../../shell/styles';
+import { GameActions } from '../creator/GameActions';
 import { gameColumns, gameRows } from '../creator/gameColumns';
 import { useDirectory } from './directory';
 
@@ -19,7 +20,7 @@ export function Dashboard() {
   const users = data?.users ?? [];
   const active = users.filter(u => u.status === 'active').length;
   const players = new Set(all.map(r => r.user_id)).size;
-  const published = games.filter(g => g.liveVersion !== null).length;
+  const published = games.filter(g => g.liveVersion !== null && !g.archived_at).length;
   const openStudio = roles.includes('creator') ? (gameKey: string) => set({ role: 'creator', screen: 'studio', gameKey }) : undefined;
   // The live version when there is one, else the draft.
   const exportCode = async (gameKey: string) => {
@@ -47,7 +48,7 @@ export function Dashboard() {
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div style={{ ...card, flex: '1 1 600px', minWidth: 0 }}>
           <div style={cardHead}>Games</div>
-          <Table columns={gameColumns(openStudio, key => void exportCode(key))} rows={gameRows(games, runs)} rowKey="id" compact style={flush} />
+          <Table columns={gameColumns({ openInStudio: openStudio, actions: r => <GameActions game={games.find(g => g.key === r.id)!} runs={r.runs} onExport={() => void exportCode(r.id)} /> })} rows={gameRows(games, runs)} rowKey="id" compact style={flush} />
         </div>
         <div style={{ ...card, flex: '0 1 320px' }}>
           <div style={cardHead}>Recent runs</div>

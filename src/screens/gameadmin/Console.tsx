@@ -43,8 +43,8 @@ export function Console() {
   const { s, set, openGame } = useApp();
   const { permissions } = useSignedIn();
   const { game, games, live } = useGameContent();
-  const published = games.filter(g => g.liveVersion !== null);
-  const current = game && game.liveVersion !== null ? game : published[0] ?? null;
+  const published = games.filter(g => g.liveVersion !== null && !g.archived_at);
+  const current = game && published.includes(game) ? game : published[0] ?? null;
   const { runs, error } = useFinishedRuns(current?.key);
   const concept = current?.key === game?.key ? live?.content.concept : null;
   const { total } = useGoal(concept?.mode === 'common_goal' ? current?.key : undefined);

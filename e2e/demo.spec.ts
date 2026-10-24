@@ -147,3 +147,52 @@ test('profile details and the language sit behind the name in the sidebar', asyn
   await page.keyboard.press('Escape');
   await expect(profile).toHaveCount(0);
 });
+
+test('the menu folds away and the account stays in view in a short window', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 560 });
+  await signIn(page, 'creator');
+  const menu = page.getByRole('complementary');
+  const signOut = menu.getByRole('button', { name: 'Sign out' });
+  const box = (await signOut.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(560);
+  await menu.getByRole('button', { name: 'Hide menu' }).click();
+  await expect(menu.getByRole('button', { name: 'My games' })).toHaveCount(0);
+  await expect.poll(async () => (await page.getByRole('main').boundingBox())!.x).toBeLessThan(120);
+  await menu.getByRole('button', { name: 'Show menu' }).click();
+  await expect(menu.getByRole('button', { name: 'My games' })).toBeVisible();
+});
+
+test('a creator archives, restores and deletes a game; players follow', async ({ page, browser }) => {
+  const title = `Archivable ${Date.now()}`;
+  await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'creator');
+  const row = page.getByRole('row').filter({ hasText: title });
+  await row.getByRole('button', { name: 'Archive' }).click();
+  await expect(row).toContainText('Archived');
+
+  const player = await browser.newPage();
+  await signIn(player, 'player');
+  await expect(player.getByText(title, { exact: true })).toHaveCount(0);
+
+  await row.getByRole('button', { name: 'Restore' }).click();
+  await expect(row).toContainText('Published');
+  await player.reload();
+  await expect(player.getByText(title, { exact: true })).toBeVisible();
+
+  await row.getByRole('button', { name: 'Delete' }).click();
+  const confirm = page.getByRole('dialog', { name: `Delete “${title}”?` });
+  await expect(confirm).toContainText('can’t be undone');
+  await confirm.getByRole('button', { name: 'Delete for good' }).click();
+  await expect(page.getByRole('row').filter({ hasText: title })).toHaveCount(0);
+  await player.reload();
+  await expect(player.getByText(title, { exact: true })).toHaveCount(0);
+});
+
+test('a platform admin deletes any game from the overview', async ({ page }) => {
+  const title = `Admin delete ${Date.now()}`;
+  await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'admin');
+  await page.getByRole('row').filter({ hasText: title }).getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('dialog', { name: `Delete “${title}”?` }).getByRole('button', { name: 'Delete for good' }).click();
+  await expect(page.getByRole('row').filter({ hasText: title })).toHaveCount(0);
+});

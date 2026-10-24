@@ -65,7 +65,7 @@ export function Library() {
   const { runs } = useFinishedRuns();
   const contents = useLiveContents();
   const mine = (runs ?? []).filter(r => r.user_id === profile.id);
-  const playable = games.filter(g => contents?.has(g.key));
+  const playable = games.filter(g => contents?.has(g.key) && !g.archived_at);
 
   return (
     <Screen label="Player · Library">

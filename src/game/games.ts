@@ -14,11 +14,13 @@ export interface GameMeta {
   created_at: string;
   /** null: never published. */
   liveVersion: number | null;
+  /** Archived: hidden from players and can't be started; results stay. */
+  archived_at: string | null;
 }
 
 async function fetchGames(): Promise<GameMeta[]> {
   const [games, live] = await Promise.all([
-    supabase.from('games').select('key, title, description, created_by, created_at').order('created_at'),
+    supabase.from('games').select('key, title, description, created_by, created_at, archived_at').order('created_at'),
     supabase.from('game_content').select('game_key, version').eq('stage', 'live'),
   ]);
   if (games.error) throw games.error;
@@ -77,8 +79,16 @@ export async function renameGame(key: string, title: string, description: string
 }
 
 /** Only games nobody can play yet. */
+/** Archive (or restore): the game leaves players' libraries; its results stay. */
+export async function archiveGame(key: string, archived: boolean): Promise<void> {
+  const { data, error } = await supabase.from('games').update({ archived_at: archived ? new Date().toISOString() : null }).eq('key', key).select('key');
+  if (error) throw error;
+  if (!data?.length) throw new Error('Only the game’s creator or a platform admin can archive it');
+}
+
+/** For good: the game with its content, runs, leaderboard and checks. */
 export async function deleteGame(key: string): Promise<void> {
   const { data, error } = await supabase.from('games').delete().eq('key', key).select('key');
   if (error) throw error;
-  if (!data?.length) throw new Error('Only an unpublished game you created can be deleted');
+  if (!data?.length) throw new Error('Only the game’s creator or a platform admin can delete it');
 }

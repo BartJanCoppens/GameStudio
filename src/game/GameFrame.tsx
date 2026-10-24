@@ -27,7 +27,7 @@ interface Props {
  * content security policy inside, and the bridge as its only way out. If the frame navigates away from the
  * page it was given, it is stopped.
  */
-export function GameFrame({ gameKey, content, runId, test, onFinished, height = 'calc(100vh - 190px)' }: Props) {
+export function GameFrame({ gameKey, content, runId, test, onFinished, height = 'calc(100dvh - 190px)' }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [fontsCss, setFontsCss] = useState<string | null>(null);
   // Which page (and run) was stopped for leaving; a new page or run starts clean.
