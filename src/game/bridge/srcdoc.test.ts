@@ -34,3 +34,20 @@ describe('buildSrcdoc', () => {
     expect(buildSrcdoc({ 'index.html': '<p></p>' }, { fontsCss: '', scripts: false })).toContain("script-src 'none'");
   });
 });
+
+describe('buildSrcdoc with hostile markup', () => {
+  const start = (doc: string) => doc.slice(0, 120);
+  it('builds its own head: the CSP is first even when <header> comes before <head>', () => {
+    const doc = buildSrcdoc({ 'index.html': '<header>x</header><head><title>t</title></head><body><p>b</p></body>' }, { fontsCss: '' });
+    expect(start(doc)).toMatch(/^<!doctype html><html><head><meta http-equiv="Content-Security-Policy"/i);
+  });
+  it('builds its own head when markup precedes <head>', () => {
+    const doc = buildSrcdoc({ 'index.html': '<script>alert(1)</script><head></head><body></body>' }, { fontsCss: '' });
+    expect(start(doc)).toMatch(/^<!doctype html><html><head><meta http-equiv="Content-Security-Policy"/i);
+  });
+  it('removes the author’s own http-equiv metas and base tags', () => {
+    const doc = buildSrcdoc({ 'index.html': '<head><meta http-equiv="refresh" content="0;url=x"><base href="x"></head><body></body>' }, { fontsCss: '' });
+    expect(doc).not.toMatch(/http-equiv="refresh"|<base/i);
+    expect(doc.match(/http-equiv/gi)).toHaveLength(1);
+  });
+});

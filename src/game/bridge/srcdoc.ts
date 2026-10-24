@@ -11,24 +11,38 @@ export const CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'u
 const inScript = (code: string) => code.replace(/<\/(script)/gi, '<\\/$1').replace(/<!--/g, '<\\!--');
 const inStyle = (css: string) => css.replace(/<\/(style)/gi, '<\\/$1');
 
-/** The full page for a game. scripts: false for a mock-up, which may show but never run anything. */
+/** The author's head and body content, without anything that could override the platform's policy or base URL. */
+function authorParts(index: string): { head: string; body: string } {
+  const strip = (s: string) => s.replace(/<meta\b[^>]*http-equiv[^>]*>/gi, '').replace(/<base\b[^>]*>/gi, '');
+  const head = index.match(/<head(?:\s[^>]*)?>([\s\S]*?)<\/head>/i)?.[1] ?? '';
+  const bodyMatch = index.match(/<body(?:\s[^>]*)?>([\s\S]*)<\/body>/i);
+  const body = bodyMatch
+    ? bodyMatch[1]
+    : index.replace(/<head(?:\s[^>]*)?>[\s\S]*?<\/head>/i, '').replace(/<!doctype[^>]*>|<\/?(html|head|body)(?:\s[^>]*)?>/gi, '');
+  return { head: strip(head), body: strip(body) };
+}
+
+/**
+ * The full page for a game. The platform builds the document itself, so its policy is always the first
+ * element of the one real <head>, before any of the author's markup. scripts: false for a mock-up, which may
+ * show but never run anything.
+ */
 export function buildSrcdoc(files: GameFiles, opts: { fontsCss: string; scripts?: boolean }): string {
   const scripts = opts.scripts ?? true;
   const csp = scripts ? CSP : CSP.replace("script-src 'unsafe-inline'", "script-src 'none'");
-  const head = [
+  const author = authorParts(files['index.html'] ?? '');
+  return [
+    '<!doctype html><html><head>',
     `<meta http-equiv="Content-Security-Policy" content="${csp}">`,
     '<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">',
     `<style>${inStyle(opts.fontsCss)}\n${inStyle(files['style.css'] ?? '')}</style>`,
     scripts ? `<script>${inScript(BRIDGE_SCRIPT)}</script>` : '',
-  ].join('\n');
-  const tail = scripts && files['game.js'] ? `<script>${inScript(files['game.js'])}</script>` : '';
-  let html = files['index.html'] ?? '';
-  if (!/<head[\s>]/i.test(html)) {
-    const body = html.replace(/<\/?(html|body)[^>]*>|<!doctype[^>]*>/gi, '');
-    html = `<!doctype html><html><head></head><body>${body}</body></html>`;
-  }
-  html = html.replace(/<head([^>]*)>/i, `<head$1>\n${head}`);
-  return /<\/body>/i.test(html) ? html.replace(/<\/body>(?![\s\S]*<\/body>)/i, `${tail}\n</body>`) : `${html}${tail}`;
+    author.head,
+    '</head><body>',
+    author.body,
+    scripts && files['game.js'] ? `<script>${inScript(files['game.js'])}</script>` : '',
+    '</body></html>',
+  ].join('\n').replace(/^<!doctype html><html><head>\n/, '<!doctype html><html><head>');
 }
 
 /** The look's fonts as data: URLs, read from the app's own /fonts (the frame may load nothing from outside). */
