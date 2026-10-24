@@ -29,8 +29,8 @@ export const LANG_OPTIONS: { value: Lang; label: string }[] = [{ value: 'NL', la
 
 /** [label, screen, count] per role. */
 export const NAV: Record<Role, [string, Screen, string?][]> = {
-  player: [['Your games', 'library', '1'], ['Results', 'results']],
-  creator: [['My games', 'games', '1'], ['Studio', 'studio'], ['Workflow & allocation', 'workflow'], ['Content domains', 'content']],
+  player: [['Your games', 'library'], ['Results', 'results']],
+  creator: [['My games', 'games'], ['Studio', 'studio'], ['Content domains', 'content']],
   gameadmin: [['Spot the invoice errors', 'console']],
   admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['Content', 'content', '1']],
 };

@@ -1,6 +1,6 @@
 # Game Studio
 
-Gamified learning platform for Meridian Tax Advisors: players play games grounded in a Content Domain (OKF bundles + background documents), game creators design them in an AI-assisted Studio and move them through Dev → Test → Review → Published, game administrators add live content per game, and platform admins manage users, roles and domains.
+Gamified learning platform for Deloitte: players play games grounded in a Content Domain (OKF bundles + background documents), game creators design them in an AI-assisted Studio and move them through Dev → Test → Review → Published, game administrators add live content per game, and platform admins manage users, roles and domains.
 
 Implemented from the Claude Design prototype `Game Studio.dc.html` (project "Game Studio Platform Design") with the TaxConnect design system, as a proof of concept around **one working game, Spot the invoice errors**: 12 invoices, 7 planted errors against the Belgian mandatory invoice mentions, a 15-minute clock, feedback citing the source passage, and runs stored per player. Sign-in, users, roles, permissions and runs are on Supabase; the workflow, allocation and content-domain screens still show sample data. See [docs/demo-script.md](docs/demo-script.md) for a 5-minute walkthrough.
 

@@ -3,6 +3,7 @@
 // checked here before they touch the draft, and anything that doesn't fit the game is skipped with a reason.
 import { RULES, type GameContent, type Invoice, type Line, type PlantedError } from './content';
 import { fieldsOf } from './fields';
+import { designUsable, tokenProblems } from '../../supabase/functions/_shared/design.ts';
 
 export interface ModelParty {
   name: string;
@@ -112,14 +113,19 @@ export function contentProblems(c: GameContent): string[] {
   if (new Set(c.errors.map(e => e.id)).size !== c.errors.length) p.push('Two errors share an id');
   for (const inv of c.invoices) p.push(...invoiceProblems(inv));
   for (const e of c.errors) p.push(...errorProblems(e, c.invoices));
+  if (c.design) {
+    p.push(...tokenProblems(c.design.tokens).map(x => `Design: ${x}`));
+    if (!tokenProblems(c.design.tokens).length && !designUsable(c.design.tokens)) p.push('Design: fails the contrast checks');
+  }
   return p;
 }
 
-/** Invoices numbered 1…n in order, errors following their invoice. */
+/** Invoices numbered 1…n in order, errors following their invoice. Everything else (the design) is kept. */
 export function normalize(c: GameContent): GameContent {
   const sorted = [...c.invoices].sort((a, b) => a.no - b.no);
   const renumber = new Map(sorted.map((inv, i) => [inv.no, i + 1]));
   return {
+    ...c,
     invoices: sorted.map(inv => ({ ...inv, no: renumber.get(inv.no)! })),
     errors: c.errors.filter(e => renumber.has(e.invoice)).map(e => ({ ...e, invoice: renumber.get(e.invoice)! })),
   };
@@ -186,7 +192,8 @@ export function applyOperations(start: GameContent, ops: Operation[]): Applied {
   const sorted = [...invoices].sort((a, b) => a.no - b.no);
   const renumber = new Map(sorted.map((inv, i) => [inv.no, i + 1]));
   return {
-    content: normalize({ invoices, errors }),
+    // The design rides along untouched: the Studio chat can't change it.
+    content: normalize({ ...start, invoices, errors }),
     changes,
     skipped,
     touched: [...touched].map(n => renumber.get(n)).filter((n): n is number => n != null),

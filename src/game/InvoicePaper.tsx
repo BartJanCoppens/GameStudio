@@ -63,7 +63,7 @@ export function InvoicePaper({ invoice: inv, marks = {}, onField, style }: Props
   return (
     <article
       aria-label={`Invoice ${inv.number} from ${inv.supplier.name}`}
-      style={{ background: '#fff', border: '1px solid var(--tc-line-soft)', borderRadius: 4, padding: '32px 36px', boxShadow: '0 1px 2px rgba(0,0,0,.04)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--tc-ink)', ...style }}
+      style={{ background: 'var(--tc-surface)', border: '1px solid var(--tc-line-soft)', borderRadius: 'var(--game-radius, 4px)', padding: '32px 36px', boxShadow: '0 1px 2px rgba(0,0,0,.04)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--tc-ink)', ...style }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 24, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 220 }}>

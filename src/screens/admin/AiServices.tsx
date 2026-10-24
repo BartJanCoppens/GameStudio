@@ -74,7 +74,7 @@ async function testLocally(def: ProviderDef, address: string | null): Promise<{ 
   }
 }
 
-function ServiceDialog({ def, scope, row, onClose, onSaved }: { def: ProviderDef; scope: Scope; row?: ServiceRow; onClose: () => void; onSaved: (msg: string) => void }) {
+function ServiceDialog({ def, scope, gameKey, row, onClose, onSaved }: { def: ProviderDef; scope: Scope; gameKey?: string; row?: ServiceRow; onClose: () => void; onSaved: (msg: string) => void }) {
   const [key, setKey] = useState('');
   const [address, setAddress] = useState(row?.address ?? def.defaultAddress ?? '');
   const [model, setModel] = useState(row?.model ?? '');
@@ -92,7 +92,7 @@ function ServiceDialog({ def, scope, row, onClose, onSaved }: { def: ProviderDef
   const save = () => run(async () => {
     if (!row && def.auth === 'key' && !key.trim()) throw new Error('Paste the API key');
     await callFunction('ai-services', {
-      action: 'save', scope, provider: def.id,
+      action: 'save', scope, game_key: gameKey, provider: def.id,
       ...(key.trim() ? { key: key.trim() } : {}),
       ...(needsAddress ? { address } : {}),
       ...(isModel ? { model } : {}),
@@ -101,7 +101,7 @@ function ServiceDialog({ def, scope, row, onClose, onSaved }: { def: ProviderDef
     return `${def.name} saved${scope === 'game' ? ' for this game' : ''}`;
   });
   const remove = () => run(async () => {
-    await callFunction('ai-services', { action: 'remove', scope, provider: def.id });
+    await callFunction('ai-services', { action: 'remove', scope, game_key: gameKey, provider: def.id });
     return `${def.name} removed${scope === 'game' ? ' from this game' : ''}`;
   });
   const findLocalModels = () => run(async () => {
@@ -193,14 +193,14 @@ function AssistantCard({ rows, assistant, onSaved }: { rows: ServiceRow[]; assis
   );
 }
 
-/** Model, avatar and voice providers with their keys, for the platform or for the one game. */
-export function AiServicesPanel({ scope }: { scope: Scope }) {
+/** Model, avatar and voice providers with their keys, for the platform or for one game. */
+export function AiServicesPanel({ scope, gameKey }: { scope: Scope; gameKey?: string }) {
   const { toast } = useApp();
   const { rows, assistant, error, reload } = useServices();
   const [editing, setEditing] = useState<ProviderDef | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
 
-  const own = (id: string) => rows?.find(r => r.provider === id && r.scope === scope);
+  const own = (id: string) => rows?.find(r => r.provider === id && r.scope === scope && (scope === 'platform' || r.game_key === gameKey));
   const platform = (id: string) => rows?.find(r => r.provider === id && r.scope === 'platform');
 
   const saved = async (msg: string) => { setEditing(null); toast(msg); await reload(); };
@@ -210,7 +210,7 @@ export function AiServicesPanel({ scope }: { scope: Scope }) {
       const row = own(def.id) ?? (scope === 'game' ? platform(def.id) : undefined);
       const result = def.local
         ? await testLocally(def, row?.address ?? null)
-        : await callFunction<{ ok: boolean; message: string }>('ai-services', { action: 'test', scope, provider: def.id });
+        : await callFunction<{ ok: boolean; message: string }>('ai-services', { action: 'test', scope, game_key: gameKey, provider: def.id });
       toast(`${def.name}: ${result.message}`);
       await reload();
     } catch (e) {
@@ -264,7 +264,7 @@ export function AiServicesPanel({ scope }: { scope: Scope }) {
       <div style={{ fontSize: 12, color: '#8b918a' }}>
         Keys are stored encrypted in Supabase Vault and used only on the server. {scope === 'platform' ? 'A game administrator can give their game its own key per provider; the game then uses that one.' : 'Without its own key, this game uses the platform’s.'}
       </div>
-      {editing ? <ServiceDialog def={editing} scope={scope} row={own(editing.id)} onClose={() => setEditing(null)} onSaved={msg => void saved(msg)} /> : null}
+      {editing ? <ServiceDialog def={editing} scope={scope} gameKey={gameKey} row={own(editing.id)} onClose={() => setEditing(null)} onSaved={msg => void saved(msg)} /> : null}
     </div>
   );
 }

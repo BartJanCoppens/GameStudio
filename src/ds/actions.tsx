@@ -39,7 +39,7 @@ export function Button({ variant = 'primary', size = 'md', disabled = false, ful
       onMouseLeave={() => setHover(false)}
       style={{
         display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: h, padding: `0 ${padX}px`,
-        border: v.border, borderRadius: 6, background: hover && !disabled ? v.hover : v.bg, color: v.fg, fontFamily: 'inherit',
+        border: v.border, borderRadius: 'var(--game-radius, 6px)', background: hover && !disabled ? v.hover : v.bg, color: v.fg, fontFamily: 'inherit',
         fontSize: fs, fontWeight: v.weight, lineHeight: 1, cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.5 : 1,
         whiteSpace: 'nowrap', width: fullWidth ? '100%' : undefined, ...style,
       }}

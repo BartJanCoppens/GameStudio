@@ -3,16 +3,9 @@ import { Button, ChatBubble, FilterChip, LinkButton, Select } from '../../ds';
 import { useApp, type StudioChatEntry } from '../../app/useApp';
 import { callFunction, errorMessage, supabase } from '../../lib/supabase';
 import { GAME, type GameContent } from '../../game/content';
-import { applyOperations, type Operation } from '../../game/ops';
-
-interface ChatAnswer {
-  status: 'changes' | 'answer' | 'out_of_scope';
-  reply: string;
-  operations: Operation[];
-  chat_id: string;
-  message_id: number | null;
-  model: string;
-}
+import { useGameContent } from '../../game/useGameContent';
+import { applyOperations } from '../../game/ops';
+import type { ChatAnswer } from '../../game/generate';
 
 interface SavedChat {
   id: string;
@@ -37,8 +30,8 @@ const SUGGESTIONS = [
   'Replace invoice 2 with a reverse-charge invoice that is correct',
 ];
 
-async function fetchChats(): Promise<SavedChat[]> {
-  const { data } = await supabase.from('studio_chats').select('id, title, updated_at').order('updated_at', { ascending: false }).limit(30).returns<SavedChat[]>();
+async function fetchChats(gameKey: string): Promise<SavedChat[]> {
+  const { data } = await supabase.from('studio_chats').select('id, title, updated_at').eq('game_key', gameKey).order('updated_at', { ascending: false }).limit(30).returns<SavedChat[]>();
   return data ?? [];
 }
 
@@ -68,6 +61,7 @@ function Rail({ pending, onOpen }: { pending: boolean; onOpen: () => void }) {
 
 export function StudioChat({ base, onProposal }: { base: GameContent; onProposal: (touched: number[]) => void }) {
   const { s, set } = useApp();
+  const { game } = useGameContent();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [chats, setChats] = useState<SavedChat[]>([]);
@@ -76,9 +70,9 @@ export function StudioChat({ base, onProposal }: { base: GameContent; onProposal
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [s.studioChat.length, busy]);
   useEffect(() => {
     let cancelled = false;
-    fetchChats().then(c => { if (!cancelled) setChats(c); });
+    fetchChats(game.key).then(c => { if (!cancelled) setChats(c); });
     return () => { cancelled = true; };
-  }, []);
+  }, [game.key]);
 
   const open = async (chatId: string | null) => {
     set({ studioChatId: chatId, studioChat: chatId ? await fetchMessages(chatId) : [] });
@@ -87,7 +81,7 @@ export function StudioChat({ base, onProposal }: { base: GameContent; onProposal
     if (!s.studioChatId) return;
     await supabase.from('studio_chats').delete().eq('id', s.studioChatId);
     set({ studioChatId: null, studioChat: [] });
-    setChats(await fetchChats());
+    setChats(await fetchChats(game.key));
   };
 
   if (!s.studioChatOpen) return <Rail pending={Boolean(s.studioPending)} onOpen={() => set({ studioChatOpen: true })} />;
@@ -100,7 +94,7 @@ export function StudioChat({ base, onProposal }: { base: GameContent; onProposal
     setBusy(true);
     try {
       // The server keeps the conversation; the model sees the draft as it stands, including unsaved changes.
-      const answer = await callFunction<ChatAnswer>('studio-chat', { chat_id: s.studioChatId, message: msg, draft: base });
+      const answer = await callFunction<ChatAnswer>('studio-chat', { game_key: game.key, chat_id: s.studioChatId, message: msg, draft: base });
       const applied = answer.status === 'changes' ? applyOperations(base, answer.operations) : null;
       // Record on the saved message what was applied and skipped, so the history says so too.
       if (applied && answer.message_id) await supabase.from('studio_chat_messages').update({ changes: applied.changes, skipped: applied.skipped }).eq('id', answer.message_id);
@@ -117,13 +111,13 @@ export function StudioChat({ base, onProposal }: { base: GameContent; onProposal
       set(prev => ({ studioChat: [...prev.studioChat, { role: 'assistant', text: errorMessage(e), status: 'error' }] }));
       // A first message that failed still started a saved chat: pick it up so the next message continues it.
       if (!s.studioChatId) {
-        const latest = await fetchChats();
+        const latest = await fetchChats(game.key);
         setChats(latest);
         if (latest[0] && latest[0].title === msg.slice(0, 80)) set({ studioChatId: latest[0].id });
       }
     } finally {
       setBusy(false);
-      setChats(await fetchChats());
+      setChats(await fetchChats(game.key));
     }
   };
 
@@ -165,7 +159,7 @@ export function StudioChat({ base, onProposal }: { base: GameContent; onProposal
         {!s.studioChat.length ? (
           <>
             <ChatBubble role="assistant" sources={[GAME.source]}>
-              Tell me how to change {GAME.title}: add or rework invoices, plant or remove errors, make it harder or easier. I only work on this game, and every error must rest on a rule from the source document. Changes show in the preview first; nothing is saved until you keep them.
+              Tell me how to change {game.title}: add or rework invoices, plant or remove errors, make it harder or easier. I only work on this game, and every error must rest on a rule from the source document. Changes show in the preview first; nothing is saved until you keep them.
             </ChatBubble>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {SUGGESTIONS.map(q => <FilterChip key={q} onClick={() => void send(q)} style={{ whiteSpace: 'normal', height: 'auto', padding: '6px 12px', textAlign: 'left' }}>{q}</FilterChip>)}

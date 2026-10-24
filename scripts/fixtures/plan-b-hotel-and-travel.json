@@ -1,0 +1,319 @@
+{
+ "invoices": [
+  {
+   "no": 1,
+   "supplier": {
+    "name": "Hotel Lys Gent",
+    "address": [
+     "Korenlei 12",
+     "9000 Gent"
+    ],
+    "vat": "BE 0456.781.215"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "HL-2025-0311",
+   "issueDate": "2025-03-14",
+   "supplyDate": "2025-03-13",
+   "lines": [
+    {
+     "description": "Room nights, single room, 11–13 March 2025",
+     "qty": 2,
+     "unit": "night",
+     "unitPrice": 125,
+     "rate": 6
+    },
+    {
+     "description": "Hotel parking, 11–13 March 2025",
+     "qty": 2,
+     "unit": "day",
+     "unitPrice": 15,
+     "rate": 21
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 2,
+   "supplier": {
+    "name": "Taxis Zenith Bruxelles",
+    "address": [
+     "Avenue Louise 210",
+     "1050 Bruxelles"
+    ],
+    "vat": "BE 0834.127.645"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "TZ-2025-0418",
+   "issueDate": "2025-03-11",
+   "lines": [
+    {
+     "description": "Taxi ride Brussels-Midi station to Rue de la Loi 155",
+     "qty": 1,
+     "unit": "trip",
+     "unitPrice": 24.5,
+     "rate": 6
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 3,
+   "supplier": {
+    "name": "Brasserie De Kaai",
+    "address": [
+     "Ernest van Dijckkaai 7",
+     "2000 Antwerpen"
+    ],
+    "vat": "BE 0661.239.003"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "BK/25/1022",
+   "issueDate": "2025-04-02",
+   "lines": [
+    {
+     "description": "Lunch menu, 3 courses",
+     "qty": 3,
+     "unit": "person",
+     "unitPrice": 32,
+     "rate": 12
+    },
+    {
+     "description": "Wine, bottle of Côtes du Rhône",
+     "qty": 1,
+     "unit": "bottle",
+     "unitPrice": 38,
+     "rate": 21
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 4,
+   "supplier": {
+    "name": "Aerolys Belgium",
+    "address": [
+     "Brussels Airport",
+     "1930 Zaventem"
+    ],
+    "vat": "BE 0402.987.191"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "AB-25-778104",
+   "issueDate": "2025-04-05",
+   "lines": [
+    {
+     "description": "Air ticket Brussels–Lisbon return, economy class, passenger J. Peeters",
+     "qty": 1,
+     "unit": "ticket",
+     "unitPrice": 286,
+     "rate": 0
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 5,
+   "supplier": {
+    "name": "Hôtel du Parc",
+    "address": [
+     "Boulevard d'Avroy 45",
+     "4000 Liège"
+    ],
+    "vat": "BE 0778.563.417"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "HP-2025-0207",
+   "issueDate": "2025-04-23",
+   "supplyDate": "2025-04-22",
+   "lines": [
+    {
+     "description": "Room nights, double room for single use, 20–22 April 2025",
+     "qty": 2,
+     "unit": "night",
+     "unitPrice": 140,
+     "rate": 6
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 6,
+   "supplier": {
+    "name": "Taxis Zenith Bruxelles",
+    "address": [
+     "Avenue Louise 210",
+     "1050 Bruxelles"
+    ],
+    "vat": "BE 0834.127.645"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "TZ-2025-0418",
+   "issueDate": "2025-04-24",
+   "lines": [
+    {
+     "description": "Taxi ride Brussels-Central station to Brussels Airport",
+     "qty": 1,
+     "unit": "trip",
+     "unitPrice": 52,
+     "rate": 6
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 7,
+   "supplier": {
+    "name": "Le Comptoir Namurois",
+    "address": [
+     "Rue de Fer 18",
+     "5000 Namur"
+    ],
+    "vat": "BE 0889.024.596"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "CN-2025-0563",
+   "issueDate": "2025-05-08",
+   "lines": [
+    {
+     "description": "Various",
+     "qty": 1,
+     "unit": "lot",
+     "unitPrice": 145,
+     "rate": 12
+    }
+   ],
+   "mentions": []
+  },
+  {
+   "no": 8,
+   "supplier": {
+    "name": "Hotel Lys Gent",
+    "address": [
+     "Korenlei 12",
+     "9000 Gent"
+    ],
+    "vat": "BE 0456.781.215"
+   },
+   "customer": {
+    "name": "Scheldt Advisory BV",
+    "address": [
+     "Rue de la Loi 155",
+     "1040 Bruxelles"
+    ],
+    "vat": "BE 0712.345.630"
+   },
+   "number": "HL-2025-0402",
+   "issueDate": "2025-05-21",
+   "supplyDate": "2025-05-20",
+   "lines": [
+    {
+     "description": "Room night, single room, 19–20 May 2025",
+     "qty": 1,
+     "unit": "night",
+     "unitPrice": 135,
+     "rate": 6
+    },
+    {
+     "description": "Meeting room rental, half day, 20 May 2025",
+     "qty": 1,
+     "unit": "half day",
+     "unitPrice": 180,
+     "rate": 21
+    }
+   ],
+   "mentions": []
+  }
+ ],
+ "errors": [
+  {
+   "id": "e1",
+   "invoice": 3,
+   "fields": [
+    "totals.vat",
+    "totals.total"
+   ],
+   "rule": "vat-amount",
+   "title": "VAT total does not add up",
+   "explanation": "The invoice prints VAT of 21.40, but 96.00 × 12% = 11.52 on the lunch menus plus 38.00 × 21% = 7.98 on the wine gives 19.50."
+  },
+  {
+   "id": "e2",
+   "invoice": 5,
+   "fields": [
+    "supplier.vat"
+   ],
+   "rule": "supplier-id",
+   "title": "Invalid supplier VAT number",
+   "explanation": "For BE 0778.563.417 the first eight digits 07785634 leave a remainder of 26 when divided by 97. The check digits should therefore be 97 − 26 = 71, not 17."
+  },
+  {
+   "id": "e3",
+   "invoice": 6,
+   "fields": [
+    "number"
+   ],
+   "rule": "numbering",
+   "title": "Invoice number used twice",
+   "explanation": "Taxis Zenith Bruxelles issued this invoice of 24 April 2025 under number TZ-2025-0418. It already used that number on invoice 2, dated 11 March 2025, and the same number may never be used for two invoices."
+  },
+  {
+   "id": "e4",
+   "invoice": 7,
+   "fields": [
+    "line.0"
+   ],
+   "rule": "description",
+   "title": "No description of what was supplied",
+   "explanation": "The only line reads \"Various\", 1 lot at 145.00. It does not state the quantity and nature of the meals or drinks served."
+  }
+ ]
+}

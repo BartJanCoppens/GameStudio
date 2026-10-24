@@ -1,5 +1,7 @@
 # Demo script · Spot the invoice errors (5 minutes)
 
+> For the pitch (a creator builds a game from scratch and publishes it), use [pitch-demo.md](pitch-demo.md). This older script tours the demo game; its Workflow step is a mock screen that is no longer in the menu.
+
 Proof of concept. Content is written from *Invoice mandatory mentions.md* and has not been reviewed by a VAT specialist; say so if asked.
 
 **Before you start**

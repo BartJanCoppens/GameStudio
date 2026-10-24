@@ -7,22 +7,21 @@
 // for a game" (ai.game). Keys go into Supabase Vault and never come back to the browser.
 import { providerById } from '../_shared/providers.ts';
 import { secretOf, testService, type ServiceRow } from '../_shared/ai.ts';
-import { CORS, HttpError, adminClient, assertPublicTarget, caller, json, requirePermission, type Caller } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, assertPublicTarget, caller, gameOf, json, requirePermission, type Caller } from '../_shared/server.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.117.3';
 
-const GAME_KEY = 'invoice-errors';
 const PUBLIC_COLUMNS = 'id, scope, game_key, provider, enabled, address, model, models, key_hint, test_status, test_message, tested_at, updated_at';
 
 type Body = Record<string, unknown>;
 
-function scopeOf(body: Body, c: Caller): { scope: 'platform' | 'game'; gameKey: string | null } {
+async function scopeOf(admin: SupabaseClient, body: Body, c: Caller): Promise<{ scope: 'platform' | 'game'; gameKey: string | null }> {
   if (body.scope === 'platform') {
     requirePermission(c, 'ai.manage', 'Manage AI services and keys');
     return { scope: 'platform', gameKey: null };
   }
   if (body.scope === 'game') {
     requirePermission(c, 'ai.game', 'Set AI services for a game');
-    return { scope: 'game', gameKey: GAME_KEY };
+    return { scope: 'game', gameKey: (await gameOf(admin, body.game_key)).key };
   }
   throw new HttpError(400, 'scope must be platform or game');
 }
@@ -41,7 +40,7 @@ async function findRow(admin: SupabaseClient, scope: string, gameKey: string | n
 }
 
 async function save(admin: SupabaseClient, c: Caller, body: Body) {
-  const { scope, gameKey } = scopeOf(body, c);
+  const { scope, gameKey } = await scopeOf(admin, body, c);
   const def = providerOf(body);
   const patch: Record<string, unknown> = { updated_by: c.id, updated_at: new Date().toISOString() };
 
@@ -90,7 +89,7 @@ async function save(admin: SupabaseClient, c: Caller, body: Body) {
 }
 
 async function remove(admin: SupabaseClient, c: Caller, body: Body) {
-  const { scope, gameKey } = scopeOf(body, c);
+  const { scope, gameKey } = await scopeOf(admin, body, c);
   const def = providerOf(body);
   const row = await findRow(admin, scope, gameKey, def.id);
   if (row) await admin.from('ai_services').delete().eq('id', row.id); // the trigger deletes the Vault secret
@@ -98,7 +97,7 @@ async function remove(admin: SupabaseClient, c: Caller, body: Body) {
 }
 
 async function test(admin: SupabaseClient, c: Caller, body: Body) {
-  const { scope, gameKey } = scopeOf(body, c);
+  const { scope, gameKey } = await scopeOf(admin, body, c);
   const def = providerOf(body);
   const row = await findRow(admin, scope, gameKey, def.id);
   if (!row) throw new HttpError(400, `${def.name} isn’t set up yet`);

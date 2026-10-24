@@ -1,0 +1,13 @@
+# Never upload secrets or local state; Vercel builds from the source.
+.env
+.env.*
+!.env.example
+!.env.seed.example
+e2e/.password
+supabase/.temp
+supabase/.branches
+node_modules
+dist
+test-results
+playwright-report
+.playwright-mcp

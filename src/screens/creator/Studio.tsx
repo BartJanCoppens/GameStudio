@@ -10,20 +10,24 @@ import { useGameContent } from '../../game/useGameContent';
 import { BackLink, Screen } from '../../shell/ui';
 import { card } from '../../shell/styles';
 import { StudioChat } from './StudioChat';
+import { LookDialog } from './LookDialog';
+import { ThemeScope } from '../../game/theme';
+import type { GameDesign } from '../../game/content';
 
 const panelHead = { padding: '12px 14px', borderBottom: '1px solid #eef0ea', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600 } as const;
 
 export function Studio() {
   const { s, set, go, toast } = useApp();
-  const { permissions } = useSignedIn();
-  const { draft, live, saveDraft, publish, loading } = useGameContent();
+  const { profile, permissions } = useSignedIn();
+  const { game, published, draft, live, saveDraft, publish, loading } = useGameContent();
   const [busy, setBusy] = useState(false);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [choosingLook, setChoosingLook] = useState(false);
 
   if (!draft) {
     return (
       <Screen label="Creator · Studio">
-        <Banner tone="info">You need “Create a game in the Studio” to open the Studio.</Banner>
+        <Banner tone="info">{permissions.has('games.create') ? `Only the creator of ${game.title} can edit it. Open one of your games from My games.` : 'You need “Create a game in the Studio” to open the Studio.'}</Banner>
       </Screen>
     );
   }
@@ -35,7 +39,8 @@ export function Studio() {
   const errors = errorsOn(content, inv.no);
   const marks: Record<string, FieldMark> = s.studioView === 'key' ? Object.fromEntries(errors.map(e => [e.fields[0], 'answer' as const])) : {};
   const usedRules = new Set(content.errors.map(e => e.rule));
-  const draftDiffers = JSON.stringify(draft.content) !== JSON.stringify(live.content);
+  // A game that was never published has everything still to publish.
+  const draftDiffers = !published || JSON.stringify(draft.content) !== JSON.stringify(live.content);
   const canPublish = permissions.has('workflow.publish');
 
   const run = async (work: () => Promise<string>) => {
@@ -48,6 +53,12 @@ export function Studio() {
     return `Kept ${pending!.count} ${pending!.count === 1 ? 'change' : 'changes'} · draft saved`;
   });
   const discard = () => { set({ studioPending: null }); toast('Discarded the AI changes'); };
+  const applyLook = async (design: GameDesign | undefined) => {
+    const { design: _old, ...rest } = draft.content;
+    await saveDraft(design ? { ...rest, design } : rest);
+    setChoosingLook(false);
+    toast(design ? `Look: ${design.name} · saved to the draft` : 'Back to the TaxConnect look');
+  };
   const doPublish = () => run(async () => {
     setConfirmPublish(false);
     await publish();
@@ -59,10 +70,19 @@ export function Studio() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <BackLink onClick={() => go('games')}>← My games</BackLink>
         <span style={{ color: '#d5dacf' }}>·</span>
-        <h1 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.2, margin: 0 }}>{GAME.title}</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.2, margin: 0 }}>{game.title}</h1>
         <Tag tone="bundle">{GAME.domain}</Tag>
-        <StatusChip status={pending ? 'clarification' : draftDiffers ? 'in-progress' : 'accepted'} label={pending ? 'Unsaved AI changes' : draftDiffers ? `Draft${draft.version ? ` v${draft.version}` : ''} · not published` : 'Draft matches live'} size="xs" />
+        <StatusChip status={pending ? 'clarification' : draftDiffers ? 'in-progress' : 'accepted'} label={pending ? 'Unsaved AI changes' : !published ? 'Never published' : draftDiffers ? `Draft${draft.version ? ` v${draft.version}` : ''} · not published` : 'Draft matches live'} size="xs" />
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={() => setChoosingLook(true)}
+            disabled={busy || loading || !!pending}
+            title={pending ? 'Keep or discard the AI changes first' : 'Colours, fonts and corners players see'}
+          >
+            Look: {draft.content.design?.name ?? 'TaxConnect'}
+          </Button>
           <Button
             variant="secondary"
             size="md"
@@ -72,7 +92,6 @@ export function Studio() {
           >
             Publish to players
           </Button>
-          <Button variant="dark" size="md" onClick={() => go('workflow')}>Send to test →</Button>
         </div>
       </div>
 
@@ -110,7 +129,9 @@ export function Studio() {
               <SegmentedControl options={[{ value: 'key', label: 'Answer key' }, { value: 'player', label: 'As the player sees it' }]} value={s.studioView} onChange={studioView => set({ studioView })} size="sm" />
             </span>
           </nav>
-          <InvoicePaper invoice={inv} marks={marks} />
+          <ThemeScope tokens={content.design?.tokens} style={{ background: content.design?.tokens.page ?? 'var(--tc-surface-sunken)', padding: 14, borderRadius: 8 }}>
+            <InvoicePaper invoice={inv} marks={marks} />
+          </ThemeScope>
           <div style={{ fontSize: 12, color: '#8b918a' }}>Invoice {inv.no} of {content.invoices.length} · {content.errors.length} errors · {content.invoices.length - new Set(content.errors.map(e => e.invoice)).size} clean invoices</div>
         </div>
 
@@ -139,12 +160,15 @@ export function Studio() {
               <div style={{ fontWeight: 500 }}>{GAME.source}</div>
               <div style={{ color: '#5a6058' }}>{PASSAGES.length} sections · {new Set(content.errors.map(e => ruleById(e.rule).passage)).size} used by errors</div>
               <div style={{ color: '#5a6058' }}>{RULES.length} rules in the picker · {RULES.length - usedRules.size} unused, so players can’t guess by elimination</div>
-              <div style={{ color: '#5a6058' }}>Live: {live.version ? `version ${live.version}` : 'built-in version'}</div>
+              <div style={{ color: '#5a6058' }}>Live: {!published ? 'not published yet' : live.version ? `version ${live.version}` : 'built-in version'}</div>
             </div>
           </div>
         </div>
       </div>
 
+      {choosingLook ? (
+        <LookDialog gameKey={game.key} gameTitle={game.title} current={draft.content.design} userId={profile.id} onClose={() => setChoosingLook(false)} onApply={applyLook} />
+      ) : null}
       {confirmPublish ? (
         <Dialog
           title="Publish the draft to players?"

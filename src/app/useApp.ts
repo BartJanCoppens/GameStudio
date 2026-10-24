@@ -3,9 +3,11 @@ import type { Cohort, Lang, Role, Screen } from '../data/shared';
 import type { GameContent } from '../game/content';
 import type { Flag, InvoiceAnswer } from '../game/scoring';
 
-/** A run of Spot the invoice errors in progress in this browser. */
+/** A run of an invoice-errors game in progress in this browser. */
 export interface ActiveRun {
   id: string;
+  gameKey: string;
+  gameTitle: string;
   /** The live game as it was when the run started, so a publish mid-run changes nothing. */
   content: GameContent;
   /** Client clock, for the countdown; the database keeps the authoritative times. */
@@ -46,6 +48,8 @@ export interface AppState {
   screen: Screen;
   lang: Lang;
   toast: string | null;
+  /** The game the player, Studio and Console screens are on (games.key). */
+  gameKey: string;
   // player
   run: ActiveRun | null;
   /** The run the Results screen shows; null = the player's latest finished run. */
@@ -73,6 +77,8 @@ export interface AppApi {
   roles: Role[];
   setRole: (role: Role) => void;
   go: (screen: Screen) => void;
+  /** Switch to another game (clearing the Studio chat and unsaved AI changes) and open a screen. */
+  openGame: (gameKey: string, screen: Screen) => void;
   toast: (msg: string) => void;
   /** Dead ends say so: the prototype's standard "this opens a form here" toast. */
   toastProto: () => void;

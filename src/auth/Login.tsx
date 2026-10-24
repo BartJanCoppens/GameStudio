@@ -20,11 +20,11 @@ function Hero() {
         <BrandMark />
         <div>
           <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.1 }}>Game Studio</div>
-          <div style={{ fontSize: 11, color: 'var(--tc-shell-muted)', letterSpacing: '.04em', textTransform: 'uppercase' }}>Meridian Tax Advisors</div>
+          <div style={{ fontSize: 11, color: 'var(--tc-shell-muted)', letterSpacing: '.04em', textTransform: 'uppercase' }}>Deloitte</div>
         </div>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 22, maxWidth: 440 }}>
-        <div style={{ fontSize: 30, fontWeight: 600, lineHeight: 1.2, textWrap: 'pretty' }}>Learn tax by playing it. Every answer traces to the source.</div>
+        <div style={{ fontSize: 30, fontWeight: 600, lineHeight: 1.2, textWrap: 'pretty' }}>Learn by playing. Every answer traces to the source.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 14, color: 'var(--tc-shell-text)' }}>
           {['Games built on your firm’s own Content Domains', 'Feedback that quotes the passage behind each answer', 'Allocated by cohort, tracked per player'].map(s => (
             <div key={s} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}><Check /><span>{s}</span></div>
@@ -67,7 +67,7 @@ export function Login() {
         <form onSubmit={submit} noValidate style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>Sign in</h1>
-            <div style={{ color: 'var(--tc-ink-3)', marginTop: 4 }}>Game Studio · Meridian Tax Advisors</div>
+            <div style={{ color: 'var(--tc-ink-3)', marginTop: 4 }}>Game Studio · Deloitte</div>
           </div>
           {!supabaseConfigured ? <SetupNeeded /> : null}
           {notice ? <Banner tone="warning">{notice}</Banner> : null}

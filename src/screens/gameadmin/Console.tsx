@@ -1,4 +1,4 @@
-import { Banner, Button, LinkButton, StatCard, Table, Tabs, Tag, type Column } from '../../ds';
+import { Banner, Button, LinkButton, Select, StatCard, Table, Tabs, Tag, type Column } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
 import { GAME, errorsOn, passageOfError, ruleById, type GameContent, type Invoice, type PlantedError } from '../../game/content';
@@ -80,10 +80,10 @@ function errorStats(content: GameContent, runs: RunRow[]): ErrorStat[] {
 }
 
 export function Console() {
-  const { s, set, toastProto } = useApp();
+  const { s, set, openGame, toastProto } = useApp();
   const { profile, permissions } = useSignedIn();
-  const { runs, error } = useFinishedRuns();
-  const { live } = useGameContent();
+  const { game, games, live } = useGameContent();
+  const { runs, error } = useFinishedRuns(game.key);
   const content = live.content;
   const all = runs ?? [];
   const current = all.filter(r => r.content_version === live.version);
@@ -104,9 +104,16 @@ export function Console() {
     <Screen label="Game admin · Console">
       <PageHead
         eyebrow="Game administration"
-        title={`${GAME.title} · ${live.version ? `version ${live.version}` : GAME.version} live`}
+        title={`${game.title} · ${live.version ? `version ${live.version}` : GAME.version} live`}
         lead="Additions you make here go live directly · logged with your name and time · the template stays at v3"
-        actions={<Button variant="secondary" size="lg" onClick={toastProto}>+ Add invoice</Button>}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            {games.length > 1 ? (
+              <Select aria-label="Game" value={game.key} onChange={e => openGame(e.target.value, 'console')} options={games.filter(g => g.liveVersion !== null).map(g => ({ value: g.key, label: g.title }))} style={{ minWidth: 220 }} />
+            ) : null}
+            <Button variant="secondary" size="lg" onClick={toastProto}>+ Add invoice</Button>
+          </div>
+        }
       />
       {error ? <Banner tone="warning" title="Could not load runs.">{error}</Banner> : null}
       {!permissions.has('results.view') ? <Banner tone="info">You don’t hold “View results and leaderboards”, so players and results show only what players can see.</Banner> : null}
@@ -115,7 +122,7 @@ export function Console() {
         value={s.consoleTab}
         onChange={consoleTab => set({ consoleTab })}
       />
-      {s.consoleTab === 'ai' && permissions.has('ai.game') ? <AiServicesPanel scope="game" /> : null}
+      {s.consoleTab === 'ai' && permissions.has('ai.game') ? <AiServicesPanel scope="game" gameKey={game.key} /> : null}
       {s.consoleTab === 'invoices' ? (
         <div style={card}><Table columns={invoiceColumns(content)} rows={content.invoices} rowKey="no" compact style={flush} /></div>
       ) : null}

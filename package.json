@@ -11,6 +11,7 @@
     "seed:users": "node --env-file-if-exists=.env.seed scripts/seed-users.mjs",
     "dev:local": "vite --mode localstack",
     "seed:users:local": "node --env-file-if-exists=.env.seed.local scripts/seed-users.mjs",
+    "demo:reset": "node --env-file-if-exists=.env.seed scripts/demo-reset.mjs",
     "test": "vitest run",
     "e2e": "playwright test"
   },

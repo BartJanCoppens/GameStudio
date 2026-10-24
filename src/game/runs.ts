@@ -16,13 +16,14 @@ export interface RunRow {
   false_flags: number | null;
   points: number | null;
   answers: InvoiceAnswer[];
+  game_key: string;
   /** The live version played; 0 = the built-in game. */
   content_version: number;
 }
 
-export async function startRun(contentVersion: number): Promise<RunRow> {
+export async function startRun(gameKey: string, contentVersion: number): Promise<RunRow> {
   // The database fills in the player, their name and the start time.
-  const { data, error } = await supabase.from('game_runs').insert({ game_key: 'invoice-errors', content_version: contentVersion }).select('*').single<RunRow>();
+  const { data, error } = await supabase.from('game_runs').insert({ game_key: gameKey, content_version: contentVersion }).select('*').single<RunRow>();
   if (error) throw error;
   return data;
 }
@@ -52,26 +53,29 @@ export async function finishRun(runId: string, answers: InvoiceAnswer[], score: 
 }
 
 /** Finished runs the signed-in user may see (their own always; everyone's with play or results permission). */
-const fetchFinished = () =>
-  supabase.from('game_runs').select('*').not('finished_at', 'is', null).order('finished_at', { ascending: false }).returns<RunRow[]>();
+const fetchFinished = (gameKey?: string) => {
+  const q = supabase.from('game_runs').select('*').not('finished_at', 'is', null);
+  return (gameKey ? q.eq('game_key', gameKey) : q).order('finished_at', { ascending: false }).returns<RunRow[]>();
+};
 
-export function useFinishedRuns() {
+/** One game's finished runs, or every game's without a key. */
+export function useFinishedRuns(gameKey?: string) {
   const [runs, setRuns] = useState<RunRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(async () => {
-    const { data, error: e } = await fetchFinished();
+    const { data, error: e } = await fetchFinished(gameKey);
     setError(e ? e.message : null);
     if (!e) setRuns(data ?? []);
-  }, []);
+  }, [gameKey]);
   useEffect(() => {
     let cancelled = false;
-    fetchFinished().then(({ data, error: e }) => {
+    fetchFinished(gameKey).then(({ data, error: e }) => {
       if (cancelled) return;
       setError(e ? e.message : null);
       if (!e) setRuns(data ?? []);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [gameKey]);
   return { runs, error, reload };
 }
 

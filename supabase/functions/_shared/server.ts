@@ -56,6 +56,26 @@ export function requirePermission(c: Caller, permission: string, label: string) 
   if (!c.permissions.has(permission)) throw new HttpError(403, `You need “${label}”`);
 }
 
+export interface Game {
+  key: string;
+  title: string;
+  created_by: string | null;
+}
+
+/** The game a request names; 404 when it doesn't exist. */
+export async function gameOf(admin: SupabaseClient, key: unknown): Promise<Game> {
+  if (typeof key !== 'string' || !/^[a-z0-9][a-z0-9-]{2,59}$/.test(key)) throw new HttpError(400, 'Say which game (game_key)');
+  const { data } = await admin.from('games').select('key, title, created_by').eq('key', key).maybeSingle<Game>();
+  if (!data) throw new HttpError(404, 'That game no longer exists');
+  return data;
+}
+
+/** Same rule as private.can_edit_game: its creator, any creator for the demo game, or a platform admin. */
+export function requireEditable(c: Caller, game: Game) {
+  requirePermission(c, 'games.create', 'Create a game in the Studio');
+  if (game.key !== 'invoice-errors' && game.created_by !== c.id && !c.permissions.has('users.manage')) throw new HttpError(403, 'Only the game’s creator can edit it');
+}
+
 /** True for addresses that aren't on the public internet, parsed numerically (IPv4 and IPv6). */
 export function isPrivateIp(ip: string): boolean {
   const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);

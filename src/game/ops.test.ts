@@ -18,6 +18,18 @@ describe('the built-in game', () => {
   it('has no problems', () => expect(contentProblems(DEFAULT_CONTENT)).toEqual([]));
 });
 
+describe('the design', () => {
+  const design = { id: null, name: 'Test', tokens: { accent: '#0B5FFF', accentInk: '#FFFFFF', ink: '#111111', muted: '#555555', page: '#F5F5F5', surface: '#FFFFFF', line: '#DDDDDD', radius: 4, bodyFont: 'inter', headingFont: 'inter' } } as const;
+  it('survives AI edits and renumbering', () => {
+    const r = applyOperations({ ...DEFAULT_CONTENT, design }, [{ ...NONE, op: 'remove_invoice', invoice_no: 1 }]);
+    expect(r.content.design).toEqual(design);
+  });
+  it('is checked for contrast', () => {
+    expect(contentProblems({ ...DEFAULT_CONTENT, design })).toEqual([]);
+    expect(contentProblems({ ...DEFAULT_CONTENT, design: { ...design, tokens: { ...design.tokens, ink: '#EEEEEE' } } })).toContain('Design: fails the contrast checks');
+  });
+});
+
 describe('applyOperations', () => {
   it('adds an invoice and plants an error on it', () => {
     const ops: Operation[] = [

@@ -4,6 +4,7 @@
 // "Invoice mandatory mentions.md" that it breaks. Proof of concept: written from the
 // document, not reviewed by a VAT specialist. All companies and people are fictional.
 import { PASSAGES, RULES, SOURCE_DOCUMENT, type Passage, type Rule } from '../../supabase/functions/_shared/source.ts';
+import type { DesignTokens } from '../../supabase/functions/_shared/design.ts';
 import { beVat } from './vat';
 
 export const GAME = {
@@ -172,6 +173,15 @@ const DEFAULT_ERRORS: PlantedError[] = [
 export interface GameContent {
   invoices: Invoice[];
   errors: PlantedError[];
+  /** The look players see; a copy of the chosen design system, so it publishes with the game. None = TaxConnect. */
+  design?: GameDesign;
+}
+
+export interface GameDesign {
+  /** The design system it was copied from, if it still exists. */
+  id: string | null;
+  name: string;
+  tokens: DesignTokens;
 }
 
 /** The built-in version, used until a creator saves a draft or a version is published. */

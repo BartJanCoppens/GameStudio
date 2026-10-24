@@ -8,20 +8,33 @@ import { fieldName } from '../../game/fields';
 import { InvoicePaper, type FieldMark } from '../../game/InvoicePaper';
 import { clock, finishRun, saveAnswers, startRun } from '../../game/runs';
 import { scoreInvoice, scoreRun, type InvoiceAnswer, type InvoiceResult } from '../../game/scoring';
+import { ThemeScope } from '../../game/theme';
+import { headingFont } from '../../game/themeVars';
 import { BackLink, Screen } from '../../shell/ui';
 import { card, cardHead, eyebrow } from '../../shell/styles';
 
 const SOURCE = GAME.source;
 
-function Brief({ content, onStart, busy, error }: { content: GameContent; onStart: () => void; busy: boolean; error: string | null }) {
-  const { go } = useApp();
+interface BriefProps {
+  title: string;
+  content: GameContent;
+  published: boolean;
+  /** A run of another game still in progress: finish that one first. */
+  elsewhere: ActiveRun | null;
+  onStart: () => void;
+  busy: boolean;
+  error: string | null;
+}
+
+function Brief({ title, content, published, elsewhere, onStart, busy, error }: BriefProps) {
+  const { go, openGame } = useApp();
   return (
     <Screen label="Player · Brief" narrow={860}>
       <BackLink onClick={() => go('library')}>← Back to your games</BackLink>
       <div style={{ ...card, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={eyebrow}>{GAME.type} · {GAME.domain}</div>
-        <h1 style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, margin: 0 }}>{GAME.title}</h1>
-        <div style={{ color: '#5a6058', fontSize: 14, lineHeight: 1.5, maxWidth: 620 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, margin: 0, ...headingFont }}>{title}</h1>
+        <div style={{ color: 'var(--tc-ink-3)', fontSize: 14, lineHeight: 1.5, maxWidth: 620 }}>
           You are auditing a client file. {content.invoices.length} invoices hide {content.errors.length} mistakes against the mandatory mentions on a Belgian VAT invoice. Some invoices are correct.
         </div>
         <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -30,11 +43,17 @@ function Brief({ content, onStart, busy, error }: { content: GameContent; onStar
           <li>Each answer shows the passage it rests on. +{POINTS_PER_ERROR} per error found, {POINTS_PER_FALSE_FLAG} per flag on something that is fine.</li>
           <li>One {GAME.minutes}-minute clock runs for all {content.invoices.length} invoices.</li>
         </ol>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#5a6058' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--tc-ink-3)' }}>
           <span>Source</span><Tag tone="source">{SOURCE}</Tag><span>{PASSAGES.length} sections</span>
         </div>
         {error ? <Banner tone="warning">{error}</Banner> : null}
-        <div><Button variant="primary" size="xl" onClick={onStart} disabled={busy}>{busy ? 'Starting…' : `Start · ${GAME.minutes}:00`}</Button></div>
+        {!published ? <Banner tone="info">This game isn’t published yet, so it can’t be played.</Banner> : null}
+        {elsewhere ? (
+          <Banner tone="info" actions={<Button variant="secondary" size="md" onClick={() => openGame(elsewhere.gameKey, 'play')}>Continue {elsewhere.gameTitle}</Button>}>
+            You have a run of {elsewhere.gameTitle} in progress. Finish it before you start another game.
+          </Banner>
+        ) : null}
+        <div><Button variant="primary" size="xl" onClick={onStart} disabled={busy || !published || !!elsewhere}>{busy ? 'Starting…' : `Start · ${GAME.minutes}:00`}</Button></div>
       </div>
     </Screen>
   );
@@ -69,13 +88,13 @@ function RulePicker({ run, onPick, onRemove, onCancel }: { run: ActiveRun; onPic
             role="radio"
             aria-checked={current === r.id}
             onClick={() => onPick(r.id)}
-            style={{ textAlign: 'left', padding: '9px 18px', border: 0, borderTop: '1px solid #eef0ea', background: current === r.id ? '#f6f9ef' : '#fff', boxShadow: current === r.id ? 'inset 3px 0 0 #86BC25' : 'none', font: 'inherit', fontSize: 13, cursor: 'pointer', color: 'inherit' }}
+            style={{ textAlign: 'left', padding: '9px 18px', border: 0, borderTop: '1px solid var(--tc-line-hair)', background: current === r.id ? 'var(--tc-green-100)' : 'var(--tc-surface)', boxShadow: current === r.id ? 'inset 3px 0 0 var(--tc-green)' : 'none', font: 'inherit', fontSize: 13, cursor: 'pointer', color: 'inherit' }}
           >
             {r.label}
           </button>
         ))}
       </div>
-      <div style={{ display: 'flex', gap: 12, padding: '12px 18px', borderTop: '1px solid #eef0ea' }}>
+      <div style={{ display: 'flex', gap: 12, padding: '12px 18px', borderTop: '1px solid var(--tc-line-hair)' }}>
         {current ? <LinkButton size={12.5} tone="muted" onClick={onRemove}>Remove flag</LinkButton> : null}
         <LinkButton size={12.5} onClick={onCancel}>Cancel</LinkButton>
       </div>
@@ -87,9 +106,9 @@ function Feedback({ result, last, onNext, busy }: { result: InvoiceResult; last:
   const quote = (passageId: string) => {
     const p = PASSAGES.find(x => x.id === passageId)!;
     return (
-      <div style={{ background: '#fafbf8', border: '1px solid #e1e5dc', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 11.5, color: '#5a6058' }}><Tag tone="source">{SOURCE}</Tag><span>{p.loc}</span></div>
-        <div style={{ fontSize: 12.5, lineHeight: 1.5, borderLeft: '2px solid #86BC25', paddingLeft: 10 }}>“{p.text}”</div>
+      <div style={{ background: 'var(--tc-surface-raised)', border: '1px solid var(--tc-line-soft)', borderRadius: 'var(--game-radius, 6px)', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 11.5, color: 'var(--tc-ink-3)' }}><Tag tone="source">{SOURCE}</Tag><span>{p.loc}</span></div>
+        <div style={{ fontSize: 12.5, lineHeight: 1.5, borderLeft: '2px solid var(--tc-green)', paddingLeft: 10 }}>“{p.text}”</div>
       </div>
     );
   };
@@ -107,19 +126,19 @@ function Feedback({ result, last, onNext, busy }: { result: InvoiceResult; last:
           <div key={error.id} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div>{outcomeChip[outcome]}</div>
             <div style={{ fontWeight: 600 }}>{error.title}</div>
-            <div style={{ color: '#5a6058' }}>{error.explanation}</div>
+            <div style={{ color: 'var(--tc-ink-3)' }}>{error.explanation}</div>
             {outcome === 'wrong-rule' && flag ? <div style={{ fontSize: 12, color: '#9a3d0c' }}>You said: {ruleById(flag.rule).label}. The rule is: {ruleById(error.rule).label}.</div> : null}
             {quote(passageOfError(error).id)}
           </div>
         ))}
         {result.falseFlags.map(f => (
-          <div key={f.field} style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid #eef0ea', paddingTop: 10 }}>
+          <div key={f.field} style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--tc-line-hair)', paddingTop: 10 }}>
             <div><StatusChip status="na" label={`Not an error · ${POINTS_PER_FALSE_FLAG}`} size="xs" /></div>
             <div style={{ fontSize: 12.5 }}>{fieldName(f.field)}: nothing wrong with it under “{ruleById(f.rule).label}”.</div>
           </div>
         ))}
       </div>
-      <div style={{ padding: '12px 18px', borderTop: '1px solid #eef0ea', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ padding: '12px 18px', borderTop: '1px solid var(--tc-line-hair)', display: 'flex', justifyContent: 'flex-end' }}>
         <Button variant="primary" size="xl" onClick={onNext} disabled={busy}>{last ? (busy ? 'Saving…' : 'See results →') : 'Next invoice →'}</Button>
       </div>
     </div>
@@ -128,8 +147,9 @@ function Feedback({ result, last, onNext, busy }: { result: InvoiceResult; last:
 
 export function Play() {
   const { s, set, go, toast } = useApp();
-  const { live, loading } = useGameContent();
-  const run = s.run;
+  const { game, live, published, loading } = useGameContent();
+  // A run belongs to the game it was started in.
+  const run = s.run?.gameKey === game.key ? s.run : null;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -139,8 +159,8 @@ export function Play() {
     setBusy(true);
     setError(null);
     try {
-      const row = await startRun(live.version);
-      set({ run: { id: row.id, content: live.content, startedAt: Date.now(), answers: [], index: 0, flags: [], choosing: null, submitted: false } });
+      const row = await startRun(game.key, live.version);
+      set({ run: { id: row.id, gameKey: game.key, gameTitle: game.title, content: live.content, startedAt: Date.now(), answers: [], index: 0, flags: [], choosing: null, submitted: false } });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -183,7 +203,13 @@ export function Play() {
     return () => clearInterval(id);
   }, [runId]);
 
-  if (!run) return <Brief content={live.content} onStart={() => void start()} busy={busy || loading} error={error} />;
+  if (!run) {
+    return (
+      <ThemeScope tokens={live.content.design?.tokens} page>
+        <Brief title={game.title} content={live.content} published={published} elsewhere={s.run} onStart={() => void start()} busy={busy || loading} error={error} />
+      </ThemeScope>
+    );
+  }
 
   const { invoices, errors } = run.content;
   const inv = invoices[run.index];
@@ -204,59 +230,61 @@ export function Play() {
   const lowTime = remaining <= 60;
 
   return (
-    <Screen label="Player · In game" gap={14}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <BackLink onClick={() => go('library')}>← Leave · the clock keeps running</BackLink>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#5a6058' }}>
-          <span>{GAME.title} · invoice {run.index + 1} of {invoices.length}</span>
-          <span style={{ color: '#d5dacf' }}>·</span>
-          <span role="timer" aria-label="Time left" style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, fontSize: 13, color: lowTime ? '#9a2b22' : '#1a1d18' }}>{clock(remaining)}</span>
+    <ThemeScope tokens={run.content.design?.tokens} page>
+      <Screen label="Player · In game" gap={14}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <BackLink onClick={() => go('library')}>← Leave · the clock keeps running</BackLink>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--tc-ink-3)' }}>
+            <span>{run.gameTitle} · invoice {run.index + 1} of {invoices.length}</span>
+            <span style={{ color: 'var(--tc-line)' }}>·</span>
+            <span role="timer" aria-label="Time left" style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, fontSize: 13, color: lowTime ? 'var(--tc-red-text)' : 'var(--tc-ink)' }}>{clock(remaining)}</span>
+          </div>
         </div>
-      </div>
-      <div role="progressbar" aria-label="Invoices done" aria-valuenow={run.answers.length} aria-valuemin={0} aria-valuemax={invoices.length} style={{ height: 4, background: '#eef0ec', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ height: '100%', background: '#86BC25', width: `${(run.answers.length / invoices.length) * 100}%`, transition: 'width .15s' }} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 18, alignItems: 'start' }}>
-        <InvoicePaper
-          invoice={inv}
-          marks={marksFor(run, result)}
-          onField={run.submitted ? undefined : field => patchRun({ choosing: field })}
-        />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 78 }}>
-          {result ? (
-            <Feedback result={result} last={last} onNext={next} busy={busy} />
-          ) : run.choosing ? (
-            <RulePicker
-              run={run}
-              onPick={rule => patchRun({ flags: [...run.flags.filter(f => f.field !== run.choosing), { field: run.choosing!, rule }], choosing: null })}
-              onRemove={() => patchRun({ flags: run.flags.filter(f => f.field !== run.choosing), choosing: null })}
-              onCancel={() => patchRun({ choosing: null })}
-            />
-          ) : (
-            <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
-              <div style={cardHead}>Your flags · invoice {inv.no}</div>
-              <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {run.flags.length ? run.flags.map(f => (
-                  <div key={f.field} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#e0a100', marginTop: 6, flex: 'none' }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 500 }}>{fieldName(f.field)}</div>
-                      <div style={{ fontSize: 12, color: '#5a6058' }}>{ruleById(f.rule).label}</div>
+        <div role="progressbar" aria-label="Invoices done" aria-valuenow={run.answers.length} aria-valuemin={0} aria-valuemax={invoices.length} style={{ height: 4, background: 'var(--tc-surface-muted)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: 'var(--tc-green)', width: `${(run.answers.length / invoices.length) * 100}%`, transition: 'width .15s' }} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 18, alignItems: 'start' }}>
+          <InvoicePaper
+            invoice={inv}
+            marks={marksFor(run, result)}
+            onField={run.submitted ? undefined : field => patchRun({ choosing: field })}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14, position: 'sticky', top: 78 }}>
+            {result ? (
+              <Feedback result={result} last={last} onNext={next} busy={busy} />
+            ) : run.choosing ? (
+              <RulePicker
+                run={run}
+                onPick={rule => patchRun({ flags: [...run.flags.filter(f => f.field !== run.choosing), { field: run.choosing!, rule }], choosing: null })}
+                onRemove={() => patchRun({ flags: run.flags.filter(f => f.field !== run.choosing), choosing: null })}
+                onCancel={() => patchRun({ choosing: null })}
+              />
+            ) : (
+              <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
+                <div style={cardHead}>Your flags · invoice {inv.no}</div>
+                <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {run.flags.length ? run.flags.map(f => (
+                    <div key={f.field} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#e0a100', marginTop: 6, flex: 'none' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500 }}>{fieldName(f.field)}</div>
+                        <div style={{ fontSize: 12, color: 'var(--tc-ink-3)' }}>{ruleById(f.rule).label}</div>
+                      </div>
+                      <LinkButton size={12} tone="muted" onClick={() => patchRun({ choosing: f.field })}>Change</LinkButton>
                     </div>
-                    <LinkButton size={12} tone="muted" onClick={() => patchRun({ choosing: f.field })}>Change</LinkButton>
-                  </div>
-                )) : <div style={{ color: '#5a6058' }}>Click any part of the invoice you think is wrong. Nothing flagged means “no errors”.</div>}
+                  )) : <div style={{ color: 'var(--tc-ink-3)' }}>Click any part of the invoice you think is wrong. Nothing flagged means “no errors”.</div>}
+                </div>
+                <div style={{ padding: '12px 18px', borderTop: '1px solid var(--tc-line-hair)' }}>
+                  <Button variant="primary" size="xl" fullWidth onClick={submit}>
+                    {run.flags.length ? `Submit · ${run.flags.length} ${run.flags.length === 1 ? 'flag' : 'flags'}` : 'Submit · no errors'}
+                  </Button>
+                </div>
               </div>
-              <div style={{ padding: '12px 18px', borderTop: '1px solid #eef0ea' }}>
-                <Button variant="primary" size="xl" fullWidth onClick={submit}>
-                  {run.flags.length ? `Submit · ${run.flags.length} ${run.flags.length === 1 ? 'flag' : 'flags'}` : 'Submit · no errors'}
-                </Button>
-              </div>
-            </div>
-          )}
-          <div style={{ fontSize: 12, color: '#8b918a' }}>Points so far: {run.answers.reduce((a, ans) => a + scoreInvoice(run.content, ans).points, 0)} · {errors.length} errors in {invoices.length} invoices</div>
+            )}
+            <div style={{ fontSize: 12, color: 'var(--tc-ink-5)' }}>Points so far: {run.answers.reduce((a, ans) => a + scoreInvoice(run.content, ans).points, 0)} · {errors.length} errors in {invoices.length} invoices</div>
+          </div>
         </div>
-      </div>
-    </Screen>
+      </Screen>
+    </ThemeScope>
   );
 }

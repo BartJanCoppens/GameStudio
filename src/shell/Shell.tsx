@@ -30,7 +30,7 @@ function Sidebar() {
         <BrandMark />
         <div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.2 }}>Game Studio</div>
-          <div style={{ fontSize: 11, color: '#858c82' }}>Meridian Tax Advisors</div>
+          <div style={{ fontSize: 11, color: '#858c82' }}>Deloitte</div>
         </div>
       </div>
       <nav style={{ padding: '14px 10px 8px', display: 'flex', flexDirection: 'column', gap: 2 }}>

@@ -37,3 +37,4 @@ supabase/.branches
 /test-results
 /playwright-report
 e2e/.password
+.vercel

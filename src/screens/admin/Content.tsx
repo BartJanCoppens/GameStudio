@@ -1,7 +1,7 @@
 import { Button, StatusChip, Table, Tag, type Column } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { GAME, PASSAGES, ruleById, type GameContent, type Passage } from '../../game/content';
-import { useLiveGame } from '../../game/useGameContent';
+import { useGameContent } from '../../game/useGameContent';
 import { PageHead, Screen } from '../../shell/ui';
 import { card, dot, flush } from '../../shell/styles';
 
@@ -18,7 +18,9 @@ const passageColumns = (content: GameContent): Column<Passage>[] => [
 
 export function Content() {
   const { toastProto } = useApp();
-  const content = useLiveGame();
+  const { game, games, live } = useGameContent();
+  const content = live.content;
+  const usedByGames = `${games.length} ${games.length === 1 ? 'game' : 'games'}`;
   return (
     <Screen label="Content domains">
       <PageHead
@@ -50,14 +52,14 @@ export function Content() {
             <div style={{ padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 500 }}>{GAME.source}</span>
               <Tag tone="neutral">Markdown</Tag>
-              <span style={{ fontSize: 12, color: '#8b918a' }}>{PASSAGES.length} sections · used by {GAME.title}</span>
+              <span style={{ fontSize: 12, color: '#8b918a' }}>{PASSAGES.length} sections · used by {usedByGames}</span>
             </div>
           </div>
           <div style={card}>
             <div style={sectionHead}><span style={{ fontWeight: 600 }}>Sections of {GAME.source}</span></div>
             <Table columns={passageColumns(content)} rows={PASSAGES} rowKey="id" compact style={flush} />
           </div>
-          <div style={{ fontSize: 12.5, color: '#5a6058' }}>Used by {GAME.title} · changing the document marks the game “source changed” in the creator’s workflow.</div>
+          <div style={{ fontSize: 12.5, color: '#5a6058' }}>Used by {usedByGames} · “Grounds” counts the errors in {game.title} · changing the document marks the game “source changed” in the creator’s workflow.</div>
         </div>
       </div>
     </Screen>

@@ -143,3 +143,59 @@ test('a game admin sets AI services for the game only', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove' }).click();
   await expect(page.getByRole('button', { name: 'HeyGen: Use own key…' })).toBeVisible();
 });
+
+test('a creator makes a game, gives it a look and publishes it; a player plays it', async ({ page, browser }) => {
+  const title = `E2E game ${Date.now()}`;
+  await signIn(page, 'creator');
+  await page.getByRole('button', { name: 'New game' }).click();
+  await page.getByLabel('Title').fill(title);
+  await page.getByRole('button', { name: 'Start from the sample game' }).click();
+  await expect(page.locator('header')).toContainText('Creator · Studio');
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByText('Never published')).toBeVisible();
+  await expect(page).toHaveURL(/#\/studio\?game=e2e-game-/);
+
+  await page.getByRole('button', { name: 'Look: TaxConnect' }).click();
+  await page.getByRole('button', { name: 'Use the look Harbour Blue' }).click();
+  await expect(page.getByRole('button', { name: 'Look: Harbour Blue' })).toBeVisible();
+
+  const player = await browser.newPage();
+  await signIn(player, 'player');
+  await expect(player.getByText(title)).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Publish to players' }).click();
+  await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(page.getByText('Draft matches live')).toBeVisible();
+
+  await player.reload();
+  const card = player.locator('div').filter({ has: player.getByText(title, { exact: true }) }).filter({ has: player.getByRole('button', { name: 'Play', exact: true }) }).last();
+  await card.getByRole('button', { name: 'Play', exact: true }).click();
+  await expect(player.getByRole('heading', { name: title })).toBeVisible();
+  // Harbour Blue's accent is on the start button.
+  await expect(player.getByRole('button', { name: /^Start · / })).toHaveCSS('background-color', 'rgb(11, 95, 255)');
+  await player.getByRole('button', { name: /^Start · / }).click();
+  await expect(player.getByText(`${title} · invoice 1 of 12`)).toBeVisible();
+});
+
+// Live AI: about a minute and roughly $0.16 a run, so only with E2E_LIVE_AI=1.
+test('a creator builds a game from a description with AI', async ({ page }) => {
+  test.skip(!process.env.E2E_LIVE_AI, 'set E2E_LIVE_AI=1 to call the real model');
+  test.setTimeout(240_000);
+  await signIn(page, 'creator');
+  await page.getByRole('button', { name: 'New game' }).click();
+  await page.getByLabel('Title').fill(`E2E AI game ${Date.now()}`);
+  await page.getByRole('button', { name: 'Use an example' }).click();
+  await page.getByRole('button', { name: '6 invoices · 3 errors' }).click();
+  await page.getByRole('button', { name: 'Build with AI' }).click();
+  await expect(page.getByRole('status')).toContainText('with AI');
+  await expect(page.locator('header')).toContainText('Creator · Studio', { timeout: 180_000 });
+  await expect(page.getByText(/Invoice 1 of [3-9] · 3 errors/)).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Draft with AI' })).toContainText('Build this game from scratch');
+
+  await page.getByRole('button', { name: 'Look: TaxConnect' }).click();
+  await page.getByPlaceholder(/Bold and friendly/).fill('Bold and friendly for young graduates: deep purple accent, soft lilac page, rounded corners.');
+  await page.getByRole('button', { name: 'Design with AI' }).click();
+  await expect(page.getByText('Readability (WCAG AA)')).toBeVisible({ timeout: 90_000 });
+  await page.getByRole('button', { name: 'Use this look' }).click();
+  await expect(page.getByRole('button', { name: /^Look: (?!TaxConnect)/ })).toBeVisible();
+});
