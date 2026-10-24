@@ -17,7 +17,7 @@ import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable } from '../_shared/server.ts';
 
-const LIMITS = { turns: 40, turnChars: 2000, request: 2000, questions: 6, mockupChars: 40_000 };
+const LIMITS = { turns: 40, turnChars: 2000, request: 2000, questions: 6, mockupChars: 40_000, conceptChars: 20_000 };
 
 const SOURCES = `Source material available (${SOURCE_DOCUMENT}, Belgian VAT); passage ids and headings:\n${PASSAGES.map(p => `- ${p.id}: ${p.heading} (${p.loc})`).join('\n')}`;
 
@@ -77,7 +77,15 @@ function readBody(raw: unknown) {
   });
   const request = typeof b?.request === 'string' ? b.request.slice(0, LIMITS.request) : '';
   if (mode === 'revise' && (!b?.concept || !request.trim())) throw new HttpError(400, 'Say what to change');
-  return { gameKey: b?.game_key, brief, concept: (b?.concept ?? null) as GameConcept | null, request, mode };
+  // The current concept goes into the prompt: it must be one this function could have produced.
+  let concept: GameConcept | null = null;
+  if (b?.concept != null) {
+    if (JSON.stringify(b.concept).length > LIMITS.conceptChars) throw new HttpError(400, 'The current design is too large');
+    concept = normalizeConcept(b.concept as GameConcept);
+    const problems = conceptProblems(concept);
+    if (problems.length) throw new HttpError(400, `The current design isn’t valid: ${problems[0]}`);
+  }
+  return { gameKey: b?.game_key, brief, concept, request, mode };
 }
 
 const transcript = (brief: BriefTurn[]) => brief.map(t => `${t.role === 'ai' ? 'Designer' : 'Creator'}: ${t.text}`).join('\n');

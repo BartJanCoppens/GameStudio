@@ -1,0 +1,133 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { GameContent, GameFiles } from '../content';
+import { useGameContent } from '../useGameContent';
+import { streamFunction } from './sse';
+
+export type StepId = 'data' | 'screens' | 'logic';
+export type StepStatus = 'waiting' | 'running' | 'done' | 'failed';
+
+export interface BuildStep {
+  id: StepId;
+  label: string;
+  status: StepStatus;
+  /** When it started (ms) and how long it took (s), for the timers. */
+  started: number;
+  seconds: number;
+  error?: string;
+}
+
+const STEPS: { id: StepId; label: string }[] = [
+  { id: 'data', label: 'Writing the game’s content' },
+  { id: 'screens', label: 'Building the screens' },
+  { id: 'logic', label: 'Writing the game logic' },
+];
+
+interface Partial_ {
+  data?: unknown;
+  notes?: string;
+  html?: string;
+  js?: string;
+}
+
+/**
+ * The Code phase: content and screens are written side by side, then the logic. Each step streams its text
+ * so the creator watches it appear. Only a complete build is saved; a failed step keeps what came before and
+ * offers Retry for that step (and the logic after it).
+ */
+export function useBuilder() {
+  const { game, draft, saveDraft } = useGameContent();
+  const [steps, setSteps] = useState<BuildStep[]>(() => STEPS.map(s => ({ ...s, status: 'waiting', started: 0, seconds: 0 })));
+  const [live, setLive] = useState<{ step: StepId | 'change'; text: string } | null>(null);
+  const [changing, setChanging] = useState(false);
+  const [changeError, setChangeError] = useState<string | null>(null);
+  const parts = useRef<Partial_>({});
+  const started = useRef<string | null>(null);
+
+  const patch = (id: StepId, p: Partial<BuildStep>) => setSteps(s => s.map(x => (x.id === id ? { ...x, ...p } : x)));
+
+  const runStep = useCallback(async (id: StepId, content: GameContent): Promise<boolean> => {
+    const t0 = Date.now();
+    patch(id, { status: 'running', started: t0, error: undefined });
+    let text = '';
+    try {
+      const p = parts.current;
+      const result = await streamFunction('game-builder', {
+        game_key: game!.key, step: id, concept: content.concept,
+        ...(id === 'logic' ? { notes: p.notes ?? '', files: { 'index.html': p.html } } : {}),
+      }, d => { text += d; setLive({ step: id, text }); }) as Record<string, unknown>;
+      if (id === 'data') { p.data = result.data; p.notes = String(result.notes ?? ''); }
+      if (id === 'screens') p.html = String(result.content);
+      if (id === 'logic') p.js = String(result.content);
+      patch(id, { status: 'done', seconds: Math.round((Date.now() - t0) / 1000) });
+      return true;
+    } catch (e) {
+      patch(id, { status: 'failed', seconds: Math.round((Date.now() - t0) / 1000), error: e instanceof Error ? e.message : 'The step failed' });
+      return false;
+    }
+  }, [game]);
+
+  /** Runs whatever isn't done yet; saves the game once every step has succeeded. */
+  const build = useCallback(async () => {
+    const content = draft!.content;
+    const p = parts.current;
+    const first = await Promise.all([
+      p.data === undefined ? runStep('data', content) : Promise.resolve(true),
+      p.html === undefined ? runStep('screens', content) : Promise.resolve(true),
+    ]);
+    if (!first.every(Boolean)) return;
+    if (p.js === undefined && !(await runStep('logic', content))) return;
+    const files: GameFiles = { 'index.html': p.html!, 'game.js': p.js! };
+    await saveDraft({ ...content, files, data: p.data ?? null, phase: 'ready' });
+    setLive(null);
+  }, [draft, runStep, saveDraft]);
+
+  /** Retry a failed step: it and the logic (which depends on both) run again. */
+  const retry = useCallback((id: StepId) => {
+    const p = parts.current;
+    if (id === 'data') { p.data = undefined; p.notes = undefined; }
+    if (id === 'screens') p.html = undefined;
+    p.js = undefined;
+    setSteps(s => s.map(x => (x.id === id || x.id === 'logic' ? { ...x, status: 'waiting', error: undefined } : x)));
+    void build();
+  }, [build]);
+
+  /** A change request after the build: the AI returns whole changed files, applied and saved together. */
+  const change = useCallback(async (instruction: string): Promise<string> => {
+    const content = draft!.content;
+    setChanging(true);
+    setChangeError(null);
+    let text = '';
+    try {
+      const result = await streamFunction('game-builder', {
+        game_key: game!.key, step: 'change', concept: content.concept, files: content.files, data: content.data, instruction,
+      }, d => { text += d; setLive({ step: 'change', text }); }) as { reply: string; files: GameFiles; data?: unknown };
+      const changedFiles = Object.keys(result.files ?? {}).length;
+      const reply = result.reply || (changedFiles ? 'Changed.' : 'Nothing changed.');
+      // The request and the answer join the conversation; the files and content change together.
+      await saveDraft({
+        ...content,
+        brief: [...content.brief, { role: 'creator', text: instruction }, { role: 'ai', text: reply }],
+        files: { ...content.files, ...result.files },
+        ...(result.data !== undefined ? { data: result.data } : {}),
+      });
+      return reply;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'The change failed';
+      setChangeError(msg);
+      throw e;
+    } finally {
+      setChanging(false);
+      setLive(null);
+    }
+  }, [draft, game, saveDraft]);
+
+  // Approving the design starts the build by itself.
+  const phase = draft?.content.phase;
+  useEffect(() => {
+    if (phase !== 'code' || !game || started.current === game.key) return;
+    started.current = game.key;
+    void build();
+  }, [phase, game, build]);
+
+  return { steps, live, build, retry, change, changing, changeError };
+}

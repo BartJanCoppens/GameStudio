@@ -58,3 +58,13 @@ test('the AI opponent replies in role and only with allowed actions', async () =
   expect((body.say as string).length).toBeGreaterThan(0);
   expect([null, 'raise', 'fold']).toContain(body.action);
 });
+
+test('game-architect refuses an oversized or invalid concept before asking the AI', async () => {
+  const key = await seedGame('Architect limits', { phase: 'design', brief: [{ role: 'creator', text: 'x' }], concept: null, mockup: null, files: null, data: null });
+  const concept = { ...tinyGame().concept, howToPlay: Array.from({ length: 2000 }, () => 'x'.repeat(100)) };
+  const { status } = await callAs('creator', 'game-architect', { game_key: key, brief: [{ role: 'creator', text: 'hi' }], concept, request: 'make it red', mode: 'revise' });
+  expect(status).toBe(400);
+  const bad = { ...tinyGame().concept, sources: ['made-up'] };
+  const second = await callAs('creator', 'game-architect', { game_key: key, brief: [{ role: 'creator', text: 'hi' }], concept: bad, request: 'make it red', mode: 'revise' });
+  expect(second.status).toBe(400);
+});

@@ -46,6 +46,8 @@ export interface Turn {
 export interface AskOptions {
   effort?: 'low' | 'medium' | 'high';
   maxTokens?: number;
+  /** streamText only: a JSON schema the streamed text must follow (Claude); others are told it in the prompt. */
+  schema?: unknown;
   /** With Claude, use the faster model; other providers keep the admin's choice. */
   fastModel?: boolean;
 }
@@ -168,14 +170,14 @@ export interface StreamedText {
 /** Plain text (e.g. a code file), passed on as it is written. OpenAI-compatible providers answer in one piece. */
 export async function streamText(ai: Assistant, system: string, turns: Turn[], opts: AskOptions, onDelta: (text: string) => void): Promise<StreamedText> {
   if (ai.def.api !== 'anthropic') {
-    const reply = await askOpenAiText(ai, system, turns);
+    const reply = await askOpenAiText(ai, opts.schema ? `${system}\n\nAnswer with JSON only, following this schema:\n${JSON.stringify(opts.schema)}` : system, turns);
     onDelta(reply.text);
     return reply;
   }
   const client = new Anthropic({ apiKey: ai.key! });
   try {
     // deno-lint-ignore no-explicit-any
-    const stream = client.beta.messages.stream(claudeParams(ai, system, turns, opts) as any);
+    const stream = client.beta.messages.stream(claudeParams(ai, system, turns, opts, opts.schema ? { type: 'json_schema', schema: opts.schema } : undefined) as any);
     stream.on('text', (delta: string) => onDelta(delta));
     const message = await stream.finalMessage();
     const usage: Usage = { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens, costUsd: claudeCost(message.model, message.usage) };

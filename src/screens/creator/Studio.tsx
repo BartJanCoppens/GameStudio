@@ -4,12 +4,15 @@ import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
 import { DEFAULT_TOKENS } from '../../../supabase/functions/_shared/design.ts';
 import type { GameContent } from '../../game/content';
-import { MockupFrame } from '../../game/GameFrame';
+import { GameFrame, MockupFrame } from '../../game/GameFrame';
+import { startRun } from '../../game/runs';
+import { useBuilder } from '../../game/studio/useBuilder';
 import { useArchitect } from '../../game/studio/useArchitect';
 import { useGameContent } from '../../game/useGameContent';
 import { BackLink, Screen } from '../../shell/ui';
 import { card } from '../../shell/styles';
 import { LookDialog } from './LookDialog';
+import { CodePanel } from './studio/CodePanel';
 import { ConceptCard } from './studio/ConceptCard';
 import { PhaseBar } from './studio/PhaseBar';
 import { QuestionCard } from './studio/QuestionCard';
@@ -24,17 +27,25 @@ export function Elapsed({ since, label }: { since: number; label: string }) {
   return <div role="status" style={{ fontSize: 12.5, color: 'var(--tc-ink-3)' }}>{label} {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</div>;
 }
 
-function Conversation({ content, architect }: { content: GameContent; architect: ReturnType<typeof useArchitect> }) {
+function Conversation({ content, architect, builder }: { content: GameContent; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder> }) {
   const [text, setText] = useState('');
   const end = useRef<HTMLDivElement>(null);
-  const { busy, since, error } = architect;
+  const [changeSince, setChangeSince] = useState(0);
+  const busy = architect.busy ?? (builder.changing ? 'changing' : null);
+  const since = builder.changing ? changeSince : architect.since;
+  const error = content.phase === 'ready' ? builder.changeError : architect.error;
   const last = content.brief[content.brief.length - 1];
   const asking = content.phase === 'questions' && last?.role === 'ai' && !last.declined && !!last.choices?.length;
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }); }, [content.brief.length, busy]);
 
-  const send = (t: string) => { const msg = t.trim(); if (!msg || busy) return; setText(''); void architect.send(msg); };
+  const send = (t: string) => {
+    const msg = t.trim();
+    if (!msg || busy) return;
+    setText('');
+    if (content.phase === 'ready') { setChangeSince(Date.now()); builder.change(msg).catch(() => {}); } else void architect.send(msg);
+  };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(text); } };
-  const open = content.phase === 'questions' || content.phase === 'design';
+  const open = content.phase !== 'code';
 
   return (
     <section aria-label="Conversation" style={{ ...card, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 170px)', minHeight: 520, position: 'sticky', top: 78 }}>
@@ -45,9 +56,9 @@ function Conversation({ content, architect }: { content: GameContent; architect:
           if (t.declined) return <div key={i} role="status" aria-label="Declined"><Banner tone="warning">{t.text}</Banner></div>;
           return <ChatBubble key={i} role={t.role === 'creator' ? 'user' : 'assistant'}>{t.text}</ChatBubble>;
         })}
-        {busy ? <Elapsed since={since} label={busy === 'designing' ? 'Designing your game…' : 'Thinking…'} /> : null}
+        {busy ? <Elapsed since={since} label={busy === 'designing' ? 'Designing your game…' : busy === 'changing' ? 'Changing the game…' : 'Thinking…'} /> : null}
         {error ? (
-          <Banner tone="warning" actions={<Button variant="secondary" size="sm" onClick={architect.retry}>Try again</Button>}>{error}</Banner>
+          <Banner tone="warning" actions={content.phase === 'ready' ? undefined : <Button variant="secondary" size="sm" onClick={architect.retry}>Try again</Button>}>{error}</Banner>
         ) : null}
         <div ref={end} />
       </div>
@@ -58,7 +69,7 @@ function Conversation({ content, architect }: { content: GameContent; architect:
             value={text}
             onChange={e => setText(e.target.value.slice(0, MESSAGE_MAX))}
             onKeyDown={onKey}
-            placeholder={content.phase === 'design' ? 'Ask for a change: “make it a team effort”, “darker colours”…' : 'Type an answer or anything you want…'}
+            placeholder={content.phase === 'questions' ? 'Type an answer or anything you want…' : 'Ask for a change: “make it harder”, “darker colours”…'}
             disabled={!!busy}
             rows={3}
             style={{ resize: 'none', border: '1px solid var(--tc-line)', borderRadius: 6, padding: '8px 10px', font: 'inherit', fontSize: 13 }}
@@ -75,7 +86,28 @@ function Conversation({ content, architect }: { content: GameContent; architect:
   );
 }
 
-function Stage({ content, architect, onLook }: { content: GameContent; architect: ReturnType<typeof useArchitect>; onLook: () => void }) {
+function TestPlay({ gameKey, content }: { gameKey: string; content: GameContent }) {
+  const [runId, setRunId] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const start = async () => {
+    setError(null);
+    setResult(null);
+    try { setRunId((await startRun(gameKey, 0, true)).id); } catch (e) { setError(e instanceof Error ? e.message : 'Could not start a test'); }
+  };
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Button variant={runId ? 'secondary' : 'primary'} size="lg" onClick={() => void start()}>{runId ? 'Restart test' : 'Play test'}</Button>
+        <span style={{ fontSize: 12.5, color: 'var(--tc-ink-4)' }}>{result ?? 'Test plays never reach leaderboards or goals.'}</span>
+      </div>
+      {error ? <Banner tone="warning">{error}</Banner> : null}
+      <GameFrame key={runId ?? 'preview'} gameKey={gameKey} content={content} runId={runId} test height={560} onFinished={score => setResult(score === null ? 'Test finished.' : `Test finished · score ${score}`)} />
+    </div>
+  );
+}
+
+function Stage({ gameKey, content, architect, builder, onLook }: { gameKey: string; content: GameContent; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder>; onLook: () => void }) {
   if (content.phase === 'questions') {
     const idea = content.brief.find(t => t.role === 'creator')?.text;
     return (
@@ -104,7 +136,8 @@ function Stage({ content, architect, onLook }: { content: GameContent; architect
       </div>
     );
   }
-  return <Banner tone="info">The design is approved. Building comes next.</Banner>;
+  if (content.phase === 'code') return <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} />;
+  return builder.live ? <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} /> : <TestPlay gameKey={gameKey} content={content} />;
 }
 
 export function Studio() {
@@ -112,6 +145,7 @@ export function Studio() {
   const { profile } = useSignedIn();
   const { game, draft, loading } = useGameContent();
   const architect = useArchitect();
+  const builder = useBuilder();
   const [choosingLook, setChoosingLook] = useState(false);
 
   if (!game) {
@@ -140,8 +174,8 @@ export function Studio() {
         <div style={{ marginLeft: 'auto' }}><PhaseBar phase={content.phase} /></div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px,360px) minmax(0,1fr)', gap: 14, alignItems: 'start' }}>
-        <Conversation content={content} architect={architect} />
-        <Stage content={content} architect={architect} onLook={() => setChoosingLook(true)} />
+        <Conversation content={content} architect={architect} builder={builder} />
+        <Stage gameKey={game.key} content={content} architect={architect} builder={builder} onLook={() => setChoosingLook(true)} />
       </div>
       {choosingLook && content.concept ? (
         <LookDialog
