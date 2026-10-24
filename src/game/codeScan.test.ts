@@ -53,9 +53,8 @@ describe('scanGameFiles', () => {
 
 describe('the e2e tiny game fixture', () => {
   it('passes the scan and the concept checks', async () => {
-    const { readFileSync } = await import('node:fs');
     const { conceptProblems } = await import('../../supabase/functions/_shared/gameModel.ts');
-    const tiny = JSON.parse(readFileSync('e2e/fixtures/tiny-game.json', 'utf8'));
+    const tiny = (await import('../../e2e/fixtures/tiny-game.json')).default;
     expect(scanGameFiles(tiny.files)).toEqual([]);
     expect(conceptProblems(tiny.concept)).toEqual([]);
   });
