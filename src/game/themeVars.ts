@@ -1,8 +1,11 @@
 import type { CSSProperties } from 'react';
-import { FONTS, contrast, type DesignTokens, type FontId } from '../../supabase/functions/_shared/design.ts';
+import { FONTS, contrast, tokenProblems, type DesignTokens, type FontId } from '../../supabase/functions/_shared/design.ts';
 
 // A design system as CSS: its colours, radius and fonts become the TaxConnect variables, so the
 // design-system components inside a ThemeScope pick them up.
+
+/** Stored tokens are written by browsers, so they are checked before they become CSS: anything invalid means no design. */
+export const safeTokens = (t: unknown): DesignTokens | undefined => (t && tokenProblems(t).length === 0 ? (t as DesignTokens) : undefined);
 
 const hex = (n: number) => Math.round(Math.max(0, Math.min(255, n))).toString(16).padStart(2, '0');
 const rgb = (h: string) => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };

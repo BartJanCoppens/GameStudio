@@ -29,7 +29,7 @@ export interface DesignTokens {
   muted: string;
   /** Page background. */
   page: string;
-  /** Cards and the invoice paper. */
+  /** Cards and panels. */
   surface: string;
   /** Borders. */
   line: string;

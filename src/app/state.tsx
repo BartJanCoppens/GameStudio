@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 // Role here is an app view; the database's built-in role keys use the same four names.
 import { ROLE_HOME, SCREEN_ROLES, SCREENS, type Role, type Screen } from '../data/shared';
-import { INITIAL_COHORTS } from '../data/creator';
-import { DEMO_GAME_KEY } from '../game/games';
 import { AppContext, type AppApi, type AppState, type Patch } from './useApp';
 
 const INITIAL_STATE: AppState = {
-  role: 'player', screen: 'library', lang: 'EN', toast: null, gameKey: DEMO_GAME_KEY,
-  run: null, resultsRunId: null,
-  studioInvoice: 1, studioView: 'key', studioChatOpen: true, studioChatId: null, studioChat: [], studioPending: null, stage: 1, cohorts: INITIAL_COHORTS,
-  consoleTab: 'invoices',
+  role: 'player', screen: 'library', lang: 'EN', toast: null, gameKey: '',
+  resultsRunId: null, studioChatOpen: true, consoleTab: 'players',
 };
 
 /** `#/console?game=key` → that screen, the first of the user's roles it belongs to, and the game; anything else → null. */
@@ -19,11 +15,11 @@ function fromHash(allowed: Role[]): Pick<AppState, 'role' | 'screen' | 'gameKey'
   if (!SCREENS.includes(screen)) return null;
   const role = SCREEN_ROLES[screen].find(r => allowed.includes(r));
   const game = new URLSearchParams(query).get('game');
-  return role ? { role, screen, gameKey: game && /^[a-z0-9][a-z0-9-]{2,59}$/.test(game) ? game : DEMO_GAME_KEY } : null;
+  return role ? { role, screen, gameKey: game && /^[a-z0-9][a-z0-9-]{2,59}$/.test(game) ? game : '' } : null;
 }
 
 /** Studio chats and unsaved AI changes belong to one game. */
-const STUDIO_RESET: Partial<AppState> = { studioInvoice: 1, studioChatId: null, studioChat: [], studioPending: null, resultsRunId: null };
+const STUDIO_RESET: Partial<AppState> = { resultsRunId: null };
 
 /** Opens on the screen in the URL when the user may see it, else on their first role's home. */
 function initialState(allowed: Role[]): AppState {
@@ -40,7 +36,7 @@ export function AppProvider({ roles, children }: { roles: Role[]; children: Reac
   // The URL follows the screen (so back/forward and links work), and the screen follows the URL.
   const firstScreen = useRef(true);
   useEffect(() => {
-    const target = `#/${s.screen}${s.gameKey === DEMO_GAME_KEY ? '' : `?game=${s.gameKey}`}`;
+    const target = `#/${s.screen}${s.gameKey ? `?game=${s.gameKey}` : ''}`;
     if (window.location.hash !== target) window.history[firstScreen.current ? 'replaceState' : 'pushState'](null, '', target);
     firstScreen.current = false;
   }, [s.screen, s.gameKey]);

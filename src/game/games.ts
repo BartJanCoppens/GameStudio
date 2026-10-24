@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { DEFAULT_CONTENT, GAME, type GameContent } from './content';
+import { EMPTY_CONTENT, type GameContent } from './content';
 
-// The games (see supabase/migrations/*_games.sql). Every game is an invoice-errors game: same rules,
-// source document and scoring, its own title, invoices, errors, look, runs and leaderboard.
-
-export const DEMO_GAME_KEY = GAME.key;
+// The games (see supabase/migrations/*_games.sql and *_generic_games.sql): each is built by the AI
+// from a creator's answers, with its own content, look, runs and leaderboard.
 
 /** A row of public.games, with whether players can play it and which live version they get. */
 export interface GameMeta {
@@ -14,7 +12,7 @@ export interface GameMeta {
   description: string;
   created_by: string | null;
   created_at: string;
-  /** null: never published. The demo game counts as published with its built-in content (version 0). */
+  /** null: never published. */
   liveVersion: number | null;
 }
 
@@ -25,7 +23,7 @@ async function fetchGames(): Promise<GameMeta[]> {
   ]);
   if (games.error) throw games.error;
   const versions = new Map((live.data ?? []).map(r => [r.game_key as string, r.version as number]));
-  return (games.data ?? []).map(g => ({ ...g, liveVersion: versions.get(g.key) ?? (g.key === DEMO_GAME_KEY ? 0 : null) }) as GameMeta);
+  return (games.data ?? []).map(g => ({ ...g, liveVersion: versions.get(g.key) ?? null }) as GameMeta);
 }
 
 export function useGames() {
@@ -42,18 +40,18 @@ export function useGames() {
   return { games, error, reload };
 }
 
-/** Same rule as private.can_edit_game: its creator, any creator for the demo game, or a platform admin. */
-export const canEditGame = (g: Pick<GameMeta, 'key' | 'created_by'>, userId: string, permissions: Set<string>) =>
-  permissions.has('games.create') && (g.key === DEMO_GAME_KEY || g.created_by === userId || permissions.has('users.manage'));
+/** Same rule as private.can_edit_game: its creator or a platform admin. */
+export const canEditGame = (g: Pick<GameMeta, 'created_by'>, userId: string, permissions: Set<string>) =>
+  permissions.has('games.create') && (g.created_by === userId || permissions.has('users.manage'));
 
-/** "VAT on hotel invoices" → "vat-on-hotel-invoices-k3f9": readable, and unique without a lookup. */
+/** "Escape the audit room" → "escape-the-audit-room-k3f9": readable, and unique without a lookup. */
 export function gameKeyFor(title: string): string {
   const base = title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'game';
   return `${base}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 /** Adds the game and saves its first draft. It isn't playable until it is published. */
-export async function createGame(title: string, description: string, content: GameContent = DEFAULT_CONTENT): Promise<string> {
+export async function createGame(title: string, description: string, content: GameContent = EMPTY_CONTENT): Promise<string> {
   const key = gameKeyFor(title);
   const { error } = await supabase.from('games').insert({ key, title, description });
   if (error) throw error;

@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Banner, Button, Dialog, Field, Textarea } from '../../ds';
 import { contrastChecks, designUsable, type DesignTokens } from '../../../supabase/functions/_shared/design.ts';
-import type { GameDesign } from '../../game/content';
 import { DesignSpecimen } from '../../game/DesignSpecimen';
 import { callFunction, errorMessage, supabase } from '../../lib/supabase';
+
+/** A look chosen for a game: copied into the game's concept. id: the design system it came from. */
+export interface GameDesign {
+  id: string | null;
+  name: string;
+  tokens: DesignTokens;
+}
 
 interface DesignRow {
   id: string;

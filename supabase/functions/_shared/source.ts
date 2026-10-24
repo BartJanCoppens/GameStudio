@@ -1,5 +1,5 @@
-// The source document and the rules of "Spot the invoice errors", shared by the app (src/game/content.ts)
-// and the studio-chat Edge Function, so the Studio AI only ever sees the real rules and passages.
+// The Content Domain's source document, shared by the app and the Edge Functions: a game that links to
+// source material quotes these passages, and the AI only ever sees the real text.
 // Plain TypeScript, no imports: Deno and Vite both load it.
 
 // ---- Source document ----
@@ -25,27 +25,3 @@ export const PASSAGES: Passage[] = [
   { id: 'p-exempt', loc: '§ 8 · VAT Code, Art. 39bis', heading: 'Exempt supplies', text: 'An invoice for an exempt supply states the legal basis of the exemption, for example “Exempt intra-Community supply, Art. 39bis VAT Code”.' },
   { id: 'p-reverse', loc: '§ 9 · Royal Decree No. 1, Art. 20', heading: 'Reverse charge', text: 'Where the customer pays the VAT, for example on work on immovable property for a registered contractor, the invoice shows no VAT and carries the mention “Reverse charge” (“Verlegging van heffing” / “Autoliquidation”).' },
 ];
-
-
-// ---- Rules the player picks from ----
-
-export interface Rule {
-  id: string;
-  label: string;
-  passage: string;
-}
-
-/** Some of these never apply, so the picker can't be solved by elimination. */
-export const RULES: Rule[] = [
-  { id: 'numbering', label: 'Unique, sequential invoice number', passage: 'p-number' },
-  { id: 'issue-date', label: 'Date of issue stated', passage: 'p-dates' },
-  { id: 'supply-date', label: 'Date of supply stated when it differs', passage: 'p-dates' },
-  { id: 'supplier-id', label: 'Supplier’s name, address and valid VAT number', passage: 'p-supplier' },
-  { id: 'customer-vat', label: 'Customer’s VAT number when required', passage: 'p-customer' },
-  { id: 'description', label: 'Quantity and nature of goods or services', passage: 'p-goods' },
-  { id: 'rate', label: 'Correct VAT rate applied', passage: 'p-rates' },
-  { id: 'vat-amount', label: 'VAT amount matches taxable amount × rate', passage: 'p-amounts' },
-  { id: 'exemption-mention', label: 'Legal basis of an exemption stated', passage: 'p-exempt' },
-  { id: 'reverse-charge-mention', label: 'Reverse-charge mention present', passage: 'p-reverse' },
-];
-

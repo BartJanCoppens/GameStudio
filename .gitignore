@@ -38,3 +38,6 @@ supabase/.branches
 /playwright-report
 e2e/.password
 .vercel
+
+# Plan execution scratch (ledger, briefs)
+.superpowers/

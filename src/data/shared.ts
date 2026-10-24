@@ -1,18 +1,18 @@
 export type Role = 'player' | 'creator' | 'gameadmin' | 'admin';
 export type Screen =
   | 'library' | 'play' | 'results'
-  | 'games' | 'studio' | 'workflow'
+  | 'games' | 'studio'
   | 'console'
   | 'dashboard' | 'users' | 'roles' | 'ai' | 'content';
 
-export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'workflow', 'console', 'dashboard', 'users', 'roles', 'ai', 'content'];
+export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'console', 'dashboard', 'users', 'roles', 'ai', 'content'];
 
 export const ROLE_HOME: Record<Role, Screen> = { player: 'library', creator: 'games', gameadmin: 'console', admin: 'dashboard' };
 
 /** The role whose navigation a screen belongs to (content is shared by creators and admins). */
 export const SCREEN_ROLES: Record<Screen, Role[]> = {
   library: ['player'], play: ['player'], results: ['player'],
-  games: ['creator'], studio: ['creator'], workflow: ['creator'],
+  games: ['creator'], studio: ['creator'],
   console: ['gameadmin'],
   dashboard: ['admin'], users: ['admin'], roles: ['admin'], ai: ['admin'], content: ['creator', 'admin'],
 };
@@ -31,17 +31,15 @@ export const LANG_OPTIONS: { value: Lang; label: string }[] = [{ value: 'NL', la
 export const NAV: Record<Role, [string, Screen, string?][]> = {
   player: [['Your games', 'library'], ['Results', 'results']],
   creator: [['My games', 'games'], ['Studio', 'studio'], ['Content domains', 'content']],
-  gameadmin: [['Spot the invoice errors', 'console']],
-  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['Content', 'content', '1']],
+  gameadmin: [['Games', 'console']],
+  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['Content', 'content']],
 };
 
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };
 
 export const SCREEN_TITLES: Record<Screen, string> = {
   library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', games: 'Creator · My games', studio: 'Creator · Studio',
-  workflow: 'Creator · Workflow', console: 'Game administration', dashboard: 'Admin · Overview', users: 'Admin · Users',
+  console: 'Game administration', dashboard: 'Admin · Overview', users: 'Admin · Users',
   roles: 'Admin · Roles', ai: 'Admin · AI services', content: 'Content domains',
 };
 
-export type Cohort = 'Analysts' | 'Consultants' | 'Seniors' | 'Indirect tax' | 'Brussels' | 'Antwerp' | 'New joiners 2026';
-export const COHORT_SIZES: Record<Cohort, number> = { 'Analysts': 48, 'Consultants': 36, 'Seniors': 22, 'Indirect tax': 40, 'Brussels': 90, 'Antwerp': 60, 'New joiners 2026': 18 };

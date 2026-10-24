@@ -4,27 +4,26 @@ import type { GameMeta } from './games';
 
 export interface StoredContent {
   content: GameContent;
-  /** 0 = the built-in version, never saved. */
   version: number;
   updatedAt: string | null;
 }
 
 export interface GameContentApi {
-  /** The selected game (AppState.gameKey). */
-  game: GameMeta;
-  /** Every game, oldest first. */
+  /** The selected game (AppState.gameKey); null while there are no games. */
+  game: GameMeta | null;
+  /** Every game the user can see, oldest first. */
   games: GameMeta[];
   reloadGames: () => Promise<void>;
-  /** Players can play it: it has a live version (the demo game always does). */
+  /** Players can play it: it has a live version. */
   published: boolean;
-  /** What players play; the built-in demo content while the game has never been published. */
-  live: StoredContent;
+  /** What players play; null until the game is published. */
+  live: StoredContent | null;
   /** What the Studio edits; null for users who may not edit this game. */
   draft: StoredContent | null;
   loading: boolean;
   error: string | null;
   saveDraft: (content: GameContent) => Promise<void>;
-  /** Copies the draft to live (needs "Approve and publish a version"). */
+  /** Publishes the draft (needs "Approve and publish a version" and a passed house-rules check). */
   publish: () => Promise<void>;
 }
 
@@ -35,6 +34,3 @@ export function useGameContent(): GameContentApi {
   if (!ctx) throw new Error('useGameContent must be used inside <GameContentProvider>');
   return ctx;
 }
-
-/** The live game, for player screens and results. */
-export const useLiveGame = () => useGameContent().live.content;

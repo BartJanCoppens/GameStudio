@@ -6,8 +6,8 @@ const columns = (meId?: string): Column<LeaderboardEntry>[] => [
   { key: 'rank', label: '#', width: '44px', muted: true },
   { key: 'name', label: 'Player', width: 'minmax(140px,1fr)', strong: true, render: r => <>{r.name}{r.userId === meId ? <span style={{ color: 'var(--tc-ink-5)', fontWeight: 400 }}> · you</span> : null}</> },
   { key: 'cohort', label: 'Cohort', width: 'minmax(120px,1fr)', muted: true, render: r => r.cohort || '—' },
-  { key: 'invoicesCorrect', label: 'Invoices right', width: '120px', align: 'right', numeric: true, render: r => `${r.invoicesCorrect}` },
-  { key: 'points', label: 'Points', width: '80px', align: 'right', numeric: true },
+  { key: 'runs', label: 'Runs', width: '70px', align: 'right', numeric: true },
+  { key: 'score', label: 'Best score', width: '100px', align: 'right', numeric: true },
 ];
 
 /** Best run per player. */

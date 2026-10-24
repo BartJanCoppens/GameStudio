@@ -70,10 +70,10 @@ export async function gameOf(admin: SupabaseClient, key: unknown): Promise<Game>
   return data;
 }
 
-/** Same rule as private.can_edit_game: its creator, any creator for the demo game, or a platform admin. */
+/** Same rule as private.can_edit_game: its creator or a platform admin. */
 export function requireEditable(c: Caller, game: Game) {
   requirePermission(c, 'games.create', 'Create a game in the Studio');
-  if (game.key !== 'invoice-errors' && game.created_by !== c.id && !c.permissions.has('users.manage')) throw new HttpError(403, 'Only the game’s creator can edit it');
+  if (game.created_by !== c.id && !c.permissions.has('users.manage')) throw new HttpError(403, 'Only the game’s creator can edit it');
 }
 
 /** True for addresses that aren't on the public internet, parsed numerically (IPv4 and IPv6). */
