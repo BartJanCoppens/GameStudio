@@ -6,11 +6,12 @@ Proof of concept: games are built by the AI from the creator's answers. When a g
 
 ## The day before
 
-1. `npm run demo:reset -- --plan-b --publish`. This removes rehearsal games and AI-made looks, then adds the prepared detective game, published, so players have a game from the start. Read the output: it lists what it removed and added.
+1. In **Admin › Groups**, make sure the group **Analysts** exists with `player@deloitte.com` in it (it survives resets).
+2. `npm run demo:reset -- --plan-b --publish`. This removes rehearsal games and AI-made looks, then adds the prepared detective game, published, so players have a game from the start. Read the output: it lists what it removed and added.
    - For an empty start, run `npm run demo:reset -- --plan-b` instead: the prepared game is a draft for creator@ only.
-2. Check the AI: `admin@deloitte.com` → **AI services** → Claude → **Test**. Check the Claude Console credit; a full run-through costs about $1–2.
-3. Rehearse once on https://game-studio-flame.vercel.app (after the latest deploy), then reset again.
-4. AI limits: 120 calls an hour per creator. A run-through uses about 15.
+3. Check the AI: `admin@deloitte.com` → **AI services** → Claude → **Test**. Check the Claude Console credit; a full run-through costs about $1–2.
+4. Rehearse once on https://game-studio-flame.vercel.app (after the latest deploy), then reset again.
+5. AI limits: 120 calls an hour per creator. A run-through uses about 15.
 
 ## Set-up on stage
 
@@ -66,7 +67,13 @@ Mention: "If I change anything after the check, the database refuses to publish 
 
 Reload the player window. The new game is in **Your games**, in its own look. **Play** → **Start**. Interrogate the suspect, accuse someone. The score lands on the leaderboard.
 
-## 7 · The admin view (30 s, optional) · admin
+## 7 · Look after the game (1½ min) · game admin
+
+Sign in as `gameadmin@deloitte.com` → **Game administration** → pick the game.
+- **Access** → *Selected groups and people* → tick **Analysts** (set up the day before under Admin › Groups, with `player@deloitte.com` in it). Only Analysts, the creator and admins can play it now; anyone else no longer sees it.
+- **Content** → *"Add two harder cases where the supplier's VAT number is valid but the customer's is missing."* → **Generate** (about 20 s) → the preview shows what grew (e.g. *cases · 3 → 5*) and a test play → **Check and publish**. The player's next game includes the new cases.
+
+## 8 · The admin view (30 s, optional) · admin
 
 - **House rules**: the rules every game follows.
 - **Overview** → **Export** next to the game: a zip with the code, content and a readme, ready to take further.
