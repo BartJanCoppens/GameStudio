@@ -62,3 +62,37 @@ test('a creator builds and test-plays a game', async ({ page }) => {
   await expect(frame.locator('body')).not.toBeEmpty();
   await page.screenshot({ path: 'test-results/live-build.png' });
 });
+
+/** A built game with a passing house-rules check on its current draft. */
+async function checkedGame(title: string) {
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  const admin = adminClient();
+  const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: key });
+  await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: true, reasons: [] });
+  return key;
+}
+
+test('a creator publishes a checked game', async ({ page }) => {
+  const title = `Publishable ${Date.now()}`;
+  const key = await checkedGame(title);
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByText('Passed the house-rules check')).toBeVisible();
+  await page.getByRole('button', { name: 'Publish to players' }).click();
+  await expect(page.getByText('Published · players can play it now')).toBeVisible();
+});
+
+test('publishing is refused after the draft changes', async ({ page }) => {
+  const title = `Changed after check ${Date.now()}`;
+  const key = await checkedGame(title);
+  // The creator's draft changes after the check (here directly, as a change request would).
+  const { client } = await (await import('./games')).userClient('creator');
+  const { data } = await client.from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  await client.from('game_content').update({ content: { ...data!.content, data: { questions: [] } } }).eq('game_key', key).eq('stage', 'draft');
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByText('The game changed since the last check')).toBeVisible();
+  await page.getByRole('button', { name: 'Publish to players' }).click();
+  await expect(page.getByText(/The game changed since the house-rules check/)).toBeVisible();
+});

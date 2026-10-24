@@ -16,6 +16,8 @@ import { CodePanel } from './studio/CodePanel';
 import { ConceptCard } from './studio/ConceptCard';
 import { PhaseBar } from './studio/PhaseBar';
 import { QuestionCard } from './studio/QuestionCard';
+import { TestPublish } from './studio/TestPublish';
+import type { GameMeta } from '../../game/games';
 
 const MESSAGE_MAX = 2000;
 
@@ -107,7 +109,8 @@ function TestPlay({ gameKey, content }: { gameKey: string; content: GameContent 
   );
 }
 
-function Stage({ gameKey, content, architect, builder, onLook }: { gameKey: string; content: GameContent; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder>; onLook: () => void }) {
+function Stage({ game, content, draftUpdatedAt, architect, builder, onLook }: { game: GameMeta; content: GameContent; draftUpdatedAt: string | null; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder>; onLook: () => void }) {
+  const gameKey = game.key;
   if (content.phase === 'questions') {
     const idea = content.brief.find(t => t.role === 'creator')?.text;
     return (
@@ -137,7 +140,13 @@ function Stage({ gameKey, content, architect, builder, onLook }: { gameKey: stri
     );
   }
   if (content.phase === 'code') return <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} />;
-  return builder.live ? <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} /> : <TestPlay gameKey={gameKey} content={content} />;
+  if (builder.live) return <CodePanel steps={builder.steps} live={builder.live} onRetry={builder.retry} />;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <TestPublish game={game} content={content} draftUpdatedAt={draftUpdatedAt} />
+      <TestPlay gameKey={gameKey} content={content} />
+    </div>
+  );
 }
 
 export function Studio() {
@@ -175,7 +184,7 @@ export function Studio() {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px,360px) minmax(0,1fr)', gap: 14, alignItems: 'start' }}>
         <Conversation content={content} architect={architect} builder={builder} />
-        <Stage gameKey={game.key} content={content} architect={architect} builder={builder} onLook={() => setChoosingLook(true)} />
+        <Stage game={game} content={content} draftUpdatedAt={draft.updatedAt} architect={architect} builder={builder} onLook={() => setChoosingLook(true)} />
       </div>
       {choosingLook && content.concept ? (
         <LookDialog
