@@ -21,6 +21,7 @@ Proof of concept. Content is written from *Invoice mandatory mentions.md* and ha
 1. **My games** → **Spot the invoice errors** opens the Studio.
 2. Click invoice 10: in the *Answer key*, the 6% rate is highlighted. The grounding panel quotes § 7 (no reduced rate for a new detached outbuilding).
 3. Switch to **As the player sees it**, then show **Workflow & allocation** (v4 moving Dev → Test → Review → Published).
+4. **Draft with AI** (needs a model set up under Admin › AI services): ask for a change, watch the preview update, then **Keep** or **Discard**. Collapse the chat (**«**) to give the preview room; earlier chats are listed at the top of the panel.
 
 ## 3 · Game administrator (1 min) · `gameadmin@deloitte.com`
 
@@ -32,5 +33,6 @@ Proof of concept. Content is written from *Invoice mandatory mentions.md* and ha
 1. **Overview**: users, players, runs and the latest run.
 2. **Users** → **+ Invite user**: create someone; no email goes out. **Edit** → **Deactivate**: they can no longer sign in.
 3. **Roles & permissions**: click a cell to grant or remove a permission. The two admin cells that stay locked keep the platform from losing its admins.
+4. **AI services**: the model, avatar and voice providers. Add a key (it's never shown again, only its last four characters), test it, and choose the Studio assistant's model. A game admin can give the game its own keys under **Game administration › AI services**.
 
 **If someone asks "can a user manager make themselves admin?"** No. The database only lets you hand out, or act on, permissions you hold yourself.

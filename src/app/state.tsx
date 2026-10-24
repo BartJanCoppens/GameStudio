@@ -7,7 +7,7 @@ import { AppContext, type AppApi, type AppState, type Patch } from './useApp';
 const INITIAL_STATE: AppState = {
   role: 'player', screen: 'library', lang: 'EN', toast: null,
   run: null, resultsRunId: null,
-  studioInvoice: 1, studioView: 'key', stage: 1, cohorts: INITIAL_COHORTS,
+  studioInvoice: 1, studioView: 'key', studioChatOpen: true, studioChatId: null, studioChat: [], studioPending: null, stage: 1, cohorts: INITIAL_COHORTS,
   consoleTab: 'invoices',
 };
 

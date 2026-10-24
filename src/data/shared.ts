@@ -3,9 +3,9 @@ export type Screen =
   | 'library' | 'play' | 'results'
   | 'games' | 'studio' | 'workflow'
   | 'console'
-  | 'dashboard' | 'users' | 'roles' | 'content';
+  | 'dashboard' | 'users' | 'roles' | 'ai' | 'content';
 
-export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'workflow', 'console', 'dashboard', 'users', 'roles', 'content'];
+export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'workflow', 'console', 'dashboard', 'users', 'roles', 'ai', 'content'];
 
 export const ROLE_HOME: Record<Role, Screen> = { player: 'library', creator: 'games', gameadmin: 'console', admin: 'dashboard' };
 
@@ -14,7 +14,7 @@ export const SCREEN_ROLES: Record<Screen, Role[]> = {
   library: ['player'], play: ['player'], results: ['player'],
   games: ['creator'], studio: ['creator'], workflow: ['creator'],
   console: ['gameadmin'],
-  dashboard: ['admin'], users: ['admin'], roles: ['admin'], content: ['creator', 'admin'],
+  dashboard: ['admin'], users: ['admin'], roles: ['admin'], ai: ['admin'], content: ['creator', 'admin'],
 };
 
 export const ROLE_OPTIONS: { value: Role; label: string }[] = [
@@ -32,7 +32,7 @@ export const NAV: Record<Role, [string, Screen, string?][]> = {
   player: [['Your games', 'library', '1'], ['Results', 'results']],
   creator: [['My games', 'games', '1'], ['Studio', 'studio'], ['Workflow & allocation', 'workflow'], ['Content domains', 'content']],
   gameadmin: [['Spot the invoice errors', 'console']],
-  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['Content', 'content', '1']],
+  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['Content', 'content', '1']],
 };
 
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };
@@ -40,7 +40,7 @@ export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Creat
 export const SCREEN_TITLES: Record<Screen, string> = {
   library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', games: 'Creator · My games', studio: 'Creator · Studio',
   workflow: 'Creator · Workflow', console: 'Game administration', dashboard: 'Admin · Overview', users: 'Admin · Users',
-  roles: 'Admin · Roles', content: 'Content domains',
+  roles: 'Admin · Roles', ai: 'Admin · AI services', content: 'Content domains',
 };
 
 export type Cohort = 'Analysts' | 'Consultants' | 'Seniors' | 'Indirect tax' | 'Brussels' | 'Antwerp' | 'New joiners 2026';

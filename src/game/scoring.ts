@@ -1,4 +1,4 @@
-import { ERRORS, INVOICES, POINTS_PER_ERROR, POINTS_PER_FALSE_FLAG, errorsOn, type PlantedError } from './content';
+import { POINTS_PER_ERROR, POINTS_PER_FALSE_FLAG, errorsOn, type GameContent, type PlantedError } from './content';
 
 /** The player's verdict on one field: "this is wrong, because of this rule". */
 export interface Flag {
@@ -23,8 +23,8 @@ export interface InvoiceResult {
   points: number;
 }
 
-export function scoreInvoice(answer: InvoiceAnswer): InvoiceResult {
-  const planted = errorsOn(answer.invoice);
+export function scoreInvoice(content: GameContent, answer: InvoiceAnswer): InvoiceResult {
+  const planted = errorsOn(content, answer.invoice);
   const used = new Set<Flag>();
   const errors = planted.map(error => {
     const onField = answer.flags.filter(f => error.fields.includes(f.field));
@@ -55,12 +55,12 @@ export interface RunScore {
 }
 
 /** Invoices without an answer (time ran out) count as judged wrong and their errors as missed. */
-export function scoreRun(answers: InvoiceAnswer[]): RunScore {
+export function scoreRun(content: GameContent, answers: InvoiceAnswer[]): RunScore {
   const byInvoice = new Map(answers.map(a => [a.invoice, a]));
-  const results = INVOICES.map(inv => {
+  const results = content.invoices.map(inv => {
     const answer = byInvoice.get(inv.no);
-    if (answer) return scoreInvoice(answer);
-    const missed = scoreInvoice({ invoice: inv.no, flags: [] });
+    if (answer) return scoreInvoice(content, answer);
+    const missed = scoreInvoice(content, { invoice: inv.no, flags: [] });
     return { ...missed, correct: false };
   });
   return {
@@ -71,5 +71,3 @@ export function scoreRun(answers: InvoiceAnswer[]): RunScore {
     results,
   };
 }
-
-export const MAX_POINTS = ERRORS.length * POINTS_PER_ERROR;

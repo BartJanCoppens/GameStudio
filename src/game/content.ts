@@ -3,6 +3,7 @@
 // Twelve invoices, seven planted errors, each tied to a rule and to the passage of
 // "Invoice mandatory mentions.md" that it breaks. Proof of concept: written from the
 // document, not reviewed by a VAT specialist. All companies and people are fictional.
+import { PASSAGES, RULES, SOURCE_DOCUMENT, type Passage, type Rule } from '../../supabase/functions/_shared/source.ts';
 import { beVat } from './vat';
 
 export const GAME = {
@@ -10,7 +11,7 @@ export const GAME = {
   title: 'Spot the invoice errors',
   type: 'Audit',
   domain: 'Belgian VAT',
-  source: 'Invoice mandatory mentions.md',
+  source: SOURCE_DOCUMENT,
   version: 'v3',
   minutes: 15,
 } as const;
@@ -19,55 +20,15 @@ export const TIME_LIMIT_SECONDS = GAME.minutes * 60;
 export const POINTS_PER_ERROR = 10;
 export const POINTS_PER_FALSE_FLAG = -5;
 
-// ---- Source document ----
+// ---- Source document and rules (shared with the studio-chat function) ----
 
-export interface Passage {
-  id: string;
-  /** Where it sits in the document. */
-  loc: string;
-  heading: string;
-  text: string;
-}
-
-export const PASSAGES: Passage[] = [
-  { id: 'p-number', loc: '§ 1 · Royal Decree No. 1, Art. 5', heading: 'Invoice number', text: 'Every invoice carries a sequential number that identifies it uniquely within one or more series. The same number may never be used for two invoices.' },
-  { id: 'p-dates', loc: '§ 2 · Royal Decree No. 1, Art. 5', heading: 'Dates', text: 'The invoice states its date of issue and, where it differs, the date on which the supply of goods or services took place or was completed.' },
-  { id: 'p-supplier', loc: '§ 3 · Royal Decree No. 1, Art. 5', heading: 'Supplier', text: 'The invoice states the supplier’s name, address and VAT identification number. A Belgian VAT number is BE followed by the ten-digit enterprise number; its last two digits are a check equal to 97 minus the first eight digits modulo 97.' },
-  { id: 'p-customer', loc: '§ 4 · Royal Decree No. 1, Art. 5', heading: 'Customer', text: 'The invoice states the customer’s name and address. Where the customer receives an exempt intra-Community supply, or pays the VAT under the reverse charge, the customer’s VAT identification number must be stated as well.' },
-  { id: 'p-goods', loc: '§ 5 · Royal Decree No. 1, Art. 5', heading: 'Goods and services', text: 'The invoice describes the quantity and nature of the goods supplied or the extent and nature of the services rendered.' },
-  { id: 'p-amounts', loc: '§ 6 · Royal Decree No. 1, Art. 5', heading: 'Amounts per rate', text: 'For each rate the invoice shows the taxable amount, the rate applied and the VAT due. The VAT equals the taxable amount multiplied by the rate, rounded to the cent.' },
-  { id: 'p-rates', loc: '§ 7 · Royal Decree No. 20, Table A, XXXVIII', heading: 'Reduced rate for renovation', text: 'The standard rate is 21%. The 6% rate applies to renovation work on a private dwelling first occupied at least ten years earlier. It does not apply to new constructions, including new outbuildings detached from the dwelling.' },
-  { id: 'p-exempt', loc: '§ 8 · VAT Code, Art. 39bis', heading: 'Exempt supplies', text: 'An invoice for an exempt supply states the legal basis of the exemption, for example “Exempt intra-Community supply, Art. 39bis VAT Code”.' },
-  { id: 'p-reverse', loc: '§ 9 · Royal Decree No. 1, Art. 20', heading: 'Reverse charge', text: 'Where the customer pays the VAT, for example on work on immovable property for a registered contractor, the invoice shows no VAT and carries the mention “Reverse charge” (“Verlegging van heffing” / “Autoliquidation”).' },
-];
+export { PASSAGES, RULES, type Passage, type Rule };
 
 export const passageById = (id: string): Passage => {
   const p = PASSAGES.find(x => x.id === id);
   if (!p) throw new Error(`Unknown passage ${id}`);
   return p;
 };
-
-// ---- Rules the player picks from ----
-
-export interface Rule {
-  id: string;
-  label: string;
-  passage: string;
-}
-
-/** Some of these never apply, so the picker can't be solved by elimination. */
-export const RULES: Rule[] = [
-  { id: 'numbering', label: 'Unique, sequential invoice number', passage: 'p-number' },
-  { id: 'issue-date', label: 'Date of issue stated', passage: 'p-dates' },
-  { id: 'supply-date', label: 'Date of supply stated when it differs', passage: 'p-dates' },
-  { id: 'supplier-id', label: 'Supplier’s name, address and valid VAT number', passage: 'p-supplier' },
-  { id: 'customer-vat', label: 'Customer’s VAT number when required', passage: 'p-customer' },
-  { id: 'description', label: 'Quantity and nature of goods or services', passage: 'p-goods' },
-  { id: 'rate', label: 'Correct VAT rate applied', passage: 'p-rates' },
-  { id: 'vat-amount', label: 'VAT amount matches taxable amount × rate', passage: 'p-amounts' },
-  { id: 'exemption-mention', label: 'Legal basis of an exemption stated', passage: 'p-exempt' },
-  { id: 'reverse-charge-mention', label: 'Reverse-charge mention present', passage: 'p-reverse' },
-];
 
 export const ruleById = (id: string): Rule => {
   const r = RULES.find(x => x.id === id);
@@ -116,7 +77,7 @@ const DELCOURT: Party = { name: 'Maison Delcourt SRL', address: ['Rue Féronstr�
 const DELCROIX: Party = { name: 'Delcroix Trading BV', address: ['Industrieweg 14', '9032 Wondelgem'], vat: beVat('08127763') };
 const MAES: Party = { name: 'Bouwgroep Maes NV', address: ['Brusselsesteenweg 220', '9090 Melle'], vat: beVat('04336650') };
 
-export const INVOICES: Invoice[] = [
+const DEFAULT_INVOICES: Invoice[] = [
   {
     no: 1, supplier: LUMEN, customer: DELCROIX, number: '2026-0141', issueDate: '2026-03-02',
     lines: [{ description: 'Ergonomic office chair, model Rhea', qty: 4, unit: 'pcs', unitPrice: 180, rate: 21 }],
@@ -197,7 +158,7 @@ export interface PlantedError {
   explanation: string;
 }
 
-export const ERRORS: PlantedError[] = [
+const DEFAULT_ERRORS: PlantedError[] = [
   { id: 'e1', invoice: 3, fields: ['supplier.vat'], rule: 'supplier-id', title: 'Supplier VAT number is not valid', explanation: 'BE 0689.331.482 fails the check digits: 97 − (06893314 mod 97) is 88, so the number must end in 88, not 82.' },
   { id: 'e2', invoice: 5, fields: ['customer.vat'], rule: 'customer-vat', title: 'Customer VAT number missing on an exempt intra-Community supply', explanation: 'Kranz Handels GmbH receives an exempt intra-Community supply, so its German VAT number must be on the invoice.' },
   { id: 'e3', invoice: 7, fields: ['mentions', 'line.0.rate'], rule: 'exemption-mention', title: 'Exemption without its legal basis', explanation: 'No VAT is charged on a supply to France, but the invoice never says why: the Art. 39bis mention is missing.' },
@@ -207,7 +168,17 @@ export const ERRORS: PlantedError[] = [
   { id: 'e7', invoice: 12, fields: ['number'], rule: 'numbering', title: 'Invoice number used twice', explanation: 'MD/2026/113 was already used by Maison Delcourt for invoice 9 to Delcroix Trading BV.' },
 ];
 
-export const errorsOn = (invoiceNo: number) => ERRORS.filter(e => e.invoice === invoiceNo);
+/** What the Studio edits and players play: the invoices and the errors planted in them. Rules and passages are fixed. */
+export interface GameContent {
+  invoices: Invoice[];
+  errors: PlantedError[];
+}
+
+/** The built-in version, used until a creator saves a draft or a version is published. */
+export const DEFAULT_CONTENT: GameContent = { invoices: DEFAULT_INVOICES, errors: DEFAULT_ERRORS };
+
+export const errorsOn = (content: GameContent, invoiceNo: number) => content.errors.filter(e => e.invoice === invoiceNo);
+export const maxPoints = (content: GameContent) => content.errors.length * POINTS_PER_ERROR;
 export const passageOfError = (e: PlantedError) => passageById(ruleById(e.rule).passage);
 
 // ---- Amounts ----

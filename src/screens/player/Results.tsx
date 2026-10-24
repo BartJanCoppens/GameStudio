@@ -1,7 +1,8 @@
 import { Button, ProgressRing } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
-import { ERRORS, GAME, INVOICES, passageOfError } from '../../game/content';
+import { GAME, passageOfError } from '../../game/content';
+import { useGameContent } from '../../game/useGameContent';
 import { Leaderboard } from '../../game/Leaderboard';
 import { clock, leaderboardOf, useFinishedRuns } from '../../game/runs';
 import { scoreRun } from '../../game/scoring';
@@ -15,6 +16,8 @@ export function Results() {
   const { s, go } = useApp();
   const { profile } = useSignedIn();
   const { runs, error } = useFinishedRuns();
+  const { live } = useGameContent();
+  const content = live.content;
   const mine = (runs ?? []).filter(r => r.user_id === profile.id);
   const run = s.resultsRunId ? mine.find(r => r.id === s.resultsRunId) ?? mine[0] : mine[0];
 
@@ -32,7 +35,9 @@ export function Results() {
     );
   }
 
-  const score = scoreRun(run.answers);
+  // The review uses the live game; the totals are the ones stored when the run finished.
+  const changed = run.content_version !== live.version;
+  const score = scoreRun(content, run.answers);
   const outcomes = new Map(score.results.flatMap(r => r.errors).map(e => [e.error.id, e.outcome]));
   const earned = mine.some(r => (r.invoices_correct ?? 0) >= BADGE_AT);
   const answered = run.answers.length;
@@ -41,20 +46,21 @@ export function Results() {
     <Screen label="Player · Results" narrow={860}>
       <BackLink onClick={() => go('library')}>← Back to your games</BackLink>
       <div style={{ ...card, padding: '24px 28px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-        <ProgressRing value={(run.invoices_correct ?? 0) / INVOICES.length} size={72} />
+        <ProgressRing value={(run.invoices_correct ?? 0) / Math.max(1, content.invoices.length)} size={72} />
         <div style={{ flex: 1, minWidth: 240 }}>
           <div style={eyebrow}>{GAME.title} · {new Date(run.finished_at!).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-          <div style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, marginTop: 4 }}>{run.invoices_correct} of {INVOICES.length} invoices right</div>
+          <div style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, marginTop: 4 }}>{run.invoices_correct}{changed ? '' : ` of ${content.invoices.length}`} invoices right</div>
           <div style={{ color: '#5a6058', marginTop: 4 }}>
-            {run.errors_found} of {ERRORS.length} errors found · {run.false_flags} false {run.false_flags === 1 ? 'flag' : 'flags'} · {run.points} points · {clock(run.duration_seconds ?? 0)}
-            {answered < INVOICES.length ? ` · time ran out after ${answered} invoices` : ''}
+            {run.errors_found}{changed ? '' : ` of ${content.errors.length}`} errors found · {run.false_flags} false {run.false_flags === 1 ? 'flag' : 'flags'} · {run.points} points · {clock(run.duration_seconds ?? 0)}
+            {!changed && answered < content.invoices.length ? ` · time ran out after ${answered} invoices` : ''}
+            {changed ? ' · the game has changed since this run' : ''}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <div style={{ width: 40, height: 40, borderRadius: '50%', background: earned ? '#eef7dc' : '#eef0ec', border: `1px solid ${earned ? '#c9e39a' : '#d5dacf'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, color: earned ? '#3f6a0a' : '#8b918a' }}>A</div>
           <div>
             <div style={{ fontWeight: 600 }}>Invoice auditor badge</div>
-            <div style={{ fontSize: 12, color: '#8b918a' }}>{earned ? 'Earned' : `At ${BADGE_AT} of ${INVOICES.length} invoices right`}</div>
+            <div style={{ fontSize: 12, color: '#8b918a' }}>{earned ? 'Earned' : `At ${BADGE_AT} invoices right in one run`}</div>
           </div>
         </div>
       </div>
@@ -64,8 +70,8 @@ export function Results() {
           <Leaderboard entries={leaderboardOf(runs)} meId={profile.id} />
         </div>
         <div style={{ ...card, flex: '0 1 340px', padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontWeight: 600 }}>The {ERRORS.length} errors</div>
-          {ERRORS.map(e => {
+          <div style={{ fontWeight: 600 }}>The {content.errors.length} errors{changed ? ' in the current version' : ''}</div>
+          {content.errors.map(e => {
             const o = outcomes.get(e.id);
             return (
               <div key={e.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '8px 0', borderTop: '1px solid #eef0ea' }}>

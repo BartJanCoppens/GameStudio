@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Banner, Button, LinkButton, StatusChip, Tag } from '../../ds';
 import { useApp, type ActiveRun } from '../../app/useApp';
 import { errorMessage } from '../../lib/supabase';
-import { ERRORS, GAME, INVOICES, PASSAGES, POINTS_PER_ERROR, POINTS_PER_FALSE_FLAG, RULES, TIME_LIMIT_SECONDS, passageOfError, ruleById } from '../../game/content';
+import { GAME, PASSAGES, POINTS_PER_ERROR, POINTS_PER_FALSE_FLAG, RULES, TIME_LIMIT_SECONDS, passageOfError, ruleById, type GameContent } from '../../game/content';
+import { useGameContent } from '../../game/useGameContent';
 import { fieldName } from '../../game/fields';
 import { InvoicePaper, type FieldMark } from '../../game/InvoicePaper';
 import { clock, finishRun, saveAnswers, startRun } from '../../game/runs';
@@ -12,7 +13,7 @@ import { card, cardHead, eyebrow } from '../../shell/styles';
 
 const SOURCE = GAME.source;
 
-function Brief({ onStart, busy, error }: { onStart: () => void; busy: boolean; error: string | null }) {
+function Brief({ content, onStart, busy, error }: { content: GameContent; onStart: () => void; busy: boolean; error: string | null }) {
   const { go } = useApp();
   return (
     <Screen label="Player · Brief" narrow={860}>
@@ -21,13 +22,13 @@ function Brief({ onStart, busy, error }: { onStart: () => void; busy: boolean; e
         <div style={eyebrow}>{GAME.type} · {GAME.domain}</div>
         <h1 style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, margin: 0 }}>{GAME.title}</h1>
         <div style={{ color: '#5a6058', fontSize: 14, lineHeight: 1.5, maxWidth: 620 }}>
-          You are auditing a client file. {INVOICES.length} invoices hide {ERRORS.length} mistakes against the mandatory mentions on a Belgian VAT invoice. Some invoices are correct.
+          You are auditing a client file. {content.invoices.length} invoices hide {content.errors.length} mistakes against the mandatory mentions on a Belgian VAT invoice. Some invoices are correct.
         </div>
         <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <li>Click any part of an invoice you think is wrong, then pick the rule it breaks.</li>
           <li>Submit each invoice. With no flags, you are saying it has no errors.</li>
           <li>Each answer shows the passage it rests on. +{POINTS_PER_ERROR} per error found, {POINTS_PER_FALSE_FLAG} per flag on something that is fine.</li>
-          <li>One {GAME.minutes}-minute clock runs for all {INVOICES.length} invoices.</li>
+          <li>One {GAME.minutes}-minute clock runs for all {content.invoices.length} invoices.</li>
         </ol>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#5a6058' }}>
           <span>Source</span><Tag tone="source">{SOURCE}</Tag><span>{PASSAGES.length} sections</span>
@@ -127,6 +128,7 @@ function Feedback({ result, last, onNext, busy }: { result: InvoiceResult; last:
 
 export function Play() {
   const { s, set, go, toast } = useApp();
+  const { live, loading } = useGameContent();
   const run = s.run;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -137,8 +139,8 @@ export function Play() {
     setBusy(true);
     setError(null);
     try {
-      const row = await startRun();
-      set({ run: { id: row.id, startedAt: Date.now(), answers: [], index: 0, flags: [], choosing: null, submitted: false } });
+      const row = await startRun(live.version);
+      set({ run: { id: row.id, content: live.content, startedAt: Date.now(), answers: [], index: 0, flags: [], choosing: null, submitted: false } });
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -151,7 +153,7 @@ export function Play() {
     finishing.current = true;
     setBusy(true);
     try {
-      const row = await finishRun(run.id, answers, scoreRun(answers));
+      const row = await finishRun(run.id, answers, scoreRun(run.content, answers));
       set({ run: null, resultsRunId: row.id, screen: 'results' });
       if (timedOut) toast('Time is up · unanswered invoices count as missed');
     } catch (e) {
@@ -181,11 +183,12 @@ export function Play() {
     return () => clearInterval(id);
   }, [runId]);
 
-  if (!run) return <Brief onStart={() => void start()} busy={busy} error={error} />;
+  if (!run) return <Brief content={live.content} onStart={() => void start()} busy={busy || loading} error={error} />;
 
-  const inv = INVOICES[run.index];
-  const last = run.index === INVOICES.length - 1;
-  const result = run.submitted ? scoreInvoice({ invoice: inv.no, flags: run.flags }) : null;
+  const { invoices, errors } = run.content;
+  const inv = invoices[run.index];
+  const last = run.index === invoices.length - 1;
+  const result = run.submitted ? scoreInvoice(run.content, { invoice: inv.no, flags: run.flags }) : null;
   const patchRun = (p: Partial<ActiveRun>) => set(prev => (prev.run ? { run: { ...prev.run, ...p } } : {}));
 
   const submit = () => {
@@ -205,13 +208,13 @@ export function Play() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <BackLink onClick={() => go('library')}>← Leave · the clock keeps running</BackLink>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#5a6058' }}>
-          <span>{GAME.title} · invoice {run.index + 1} of {INVOICES.length}</span>
+          <span>{GAME.title} · invoice {run.index + 1} of {invoices.length}</span>
           <span style={{ color: '#d5dacf' }}>·</span>
           <span role="timer" aria-label="Time left" style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600, fontSize: 13, color: lowTime ? '#9a2b22' : '#1a1d18' }}>{clock(remaining)}</span>
         </div>
       </div>
-      <div role="progressbar" aria-label="Invoices done" aria-valuenow={run.answers.length} aria-valuemin={0} aria-valuemax={INVOICES.length} style={{ height: 4, background: '#eef0ec', borderRadius: 2, overflow: 'hidden' }}>
-        <div style={{ height: '100%', background: '#86BC25', width: `${(run.answers.length / INVOICES.length) * 100}%`, transition: 'width .15s' }} />
+      <div role="progressbar" aria-label="Invoices done" aria-valuenow={run.answers.length} aria-valuemin={0} aria-valuemax={invoices.length} style={{ height: 4, background: '#eef0ec', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: '#86BC25', width: `${(run.answers.length / invoices.length) * 100}%`, transition: 'width .15s' }} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 340px', gap: 18, alignItems: 'start' }}>
         <InvoicePaper
@@ -251,7 +254,7 @@ export function Play() {
               </div>
             </div>
           )}
-          <div style={{ fontSize: 12, color: '#8b918a' }}>Points so far: {run.answers.reduce((a, ans) => a + scoreInvoice(ans).points, 0)} · {ERRORS.length} errors in {INVOICES.length} invoices</div>
+          <div style={{ fontSize: 12, color: '#8b918a' }}>Points so far: {run.answers.reduce((a, ans) => a + scoreInvoice(run.content, ans).points, 0)} · {errors.length} errors in {invoices.length} invoices</div>
         </div>
       </div>
     </Screen>

@@ -33,6 +33,18 @@ All four share the password you choose as `SEED_PASSWORD` when seeding; it is ne
 - **Roles & permissions** (needs *Edit roles and permissions*): click a cell to step it not granted → granted → partial; add, rename or delete custom roles. Custom roles carry permissions; screens still come from the four built-in roles.
 - The database enforces this, not just the screens: row level security checks the permission matrix on every write. Platform admin can never lose *Manage users* or *Edit roles*, the last active platform admin cannot be removed, and built-in roles cannot be deleted.
 
+### AI services
+
+**Admin › AI services** connects language models (Claude, OpenAI, Gemini, OpenRouter, Mistral, Groq, DeepSeek, Ollama, LM Studio, any OpenAI-compatible server), avatars (HeyGen, LiveAvatar) and voices (ElevenLabs). Per provider: add or change a key, pick a default model, test it. The **Studio assistant** card chooses which provider and model drives “Draft with AI”.
+
+A game administrator gets the same list under **Game administration › AI services**: a key set there is used for that game instead of the platform’s (billing goes to the account behind it).
+
+- Keys are stored encrypted in Supabase Vault. The browser can set or test a key but never read it back; it sees only the last four characters. Only the `ai-services` and `studio-chat` Edge Functions read keys, after checking the caller’s permission (*Manage AI services and keys* for the platform, *Set AI services for a game* for a game).
+- Tests are cheap read-only calls to each provider (list models, or the account endpoint). Ollama and LM Studio run on your computer, so they are tested from the browser.
+- A custom OpenAI-compatible address must be public https: the server won’t call this machine or a private network.
+- The Studio assistant runs on the server, so it can use any cloud provider but not Ollama or LM Studio. Every model gets the same restrictions: this game only, a fixed answer shape, edits validated before they touch the draft.
+- Studio chats are saved per creator (`studio_chats`, `studio_chat_messages`) and can be reopened from the chat panel.
+
 ### Hosted project
 
 The app runs on the Supabase project **game-studio** (`izdjzxrsebssxzcmudxp`, West EU · Paris). All migrations are applied, `admin-users` is deployed, auth settings come from `supabase/config.toml` (`supabase config push`), and the four demo accounts are seeded. Local, git-ignored files hold what's needed to work on it:

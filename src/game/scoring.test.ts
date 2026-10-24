@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { ERRORS, INVOICES } from './content';
-import { MAX_POINTS, scoreInvoice, scoreRun, type InvoiceAnswer } from './scoring';
+import { DEFAULT_CONTENT, maxPoints } from './content';
+import { scoreInvoice as scoreOne, scoreRun as scoreAll, type InvoiceAnswer } from './scoring';
+
+const { invoices: INVOICES, errors: ERRORS } = DEFAULT_CONTENT;
+const scoreInvoice = (a: InvoiceAnswer) => scoreOne(DEFAULT_CONTENT, a);
+const scoreRun = (a: InvoiceAnswer[]) => scoreAll(DEFAULT_CONTENT, a);
+const MAX_POINTS = maxPoints(DEFAULT_CONTENT);
 
 const perfect: InvoiceAnswer[] = INVOICES.map(inv => ({
   invoice: inv.no,

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ERRORS, INVOICES, PASSAGES, RULES, passageOfError, ruleById, totalsOf } from './content';
+import { DEFAULT_CONTENT, PASSAGES, RULES, passageOfError, ruleById, totalsOf } from './content';
 import { fieldsOf } from './fields';
 import { beVat, isValidBeVat } from './vat';
+
+const { invoices: INVOICES, errors: ERRORS } = DEFAULT_CONTENT;
 
 describe('Belgian VAT numbers', () => {
   it('builds numbers whose check digits validate', () => {

@@ -1,22 +1,24 @@
 import { Button, StatusChip, Table, Tag, type Column } from '../../ds';
 import { useApp } from '../../app/useApp';
-import { ERRORS, GAME, PASSAGES, ruleById, type Passage } from '../../game/content';
+import { GAME, PASSAGES, ruleById, type GameContent, type Passage } from '../../game/content';
+import { useLiveGame } from '../../game/useGameContent';
 import { PageHead, Screen } from '../../shell/ui';
 import { card, dot, flush } from '../../shell/styles';
 
 const sectionHead = { padding: '14px 18px', borderBottom: '1px solid #eef0ea', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 } as const;
 
-const usedBy = (p: Passage) => ERRORS.filter(e => ruleById(e.rule).passage === p.id);
+const usedBy = (content: GameContent, p: Passage) => content.errors.filter(e => ruleById(e.rule).passage === p.id);
 
-const passageColumns: Column<Passage>[] = [
+const passageColumns = (content: GameContent): Column<Passage>[] => [
   { key: 'loc', label: 'Section', width: '220px', muted: true },
   { key: 'heading', label: 'Heading', width: '170px', strong: true },
   { key: 'text', label: 'Text', width: 'minmax(280px,2fr)', wrap: true, render: p => <span style={{ fontSize: 12.5, color: '#5a6058' }}>{p.text}</span> },
-  { key: 'used', label: 'Grounds', width: '130px', render: p => { const n = usedBy(p).length; return n ? <Tag tone="green">{n} {n === 1 ? 'error' : 'errors'}</Tag> : <Tag tone="muted">Rules only</Tag>; } },
+  { key: 'used', label: 'Grounds', width: '130px', render: p => { const n = usedBy(content, p).length; return n ? <Tag tone="green">{n} {n === 1 ? 'error' : 'errors'}</Tag> : <Tag tone="muted">Rules only</Tag>; } },
 ];
 
 export function Content() {
   const { toastProto } = useApp();
+  const content = useLiveGame();
   return (
     <Screen label="Content domains">
       <PageHead
@@ -53,7 +55,7 @@ export function Content() {
           </div>
           <div style={card}>
             <div style={sectionHead}><span style={{ fontWeight: 600 }}>Sections of {GAME.source}</span></div>
-            <Table columns={passageColumns} rows={PASSAGES} rowKey="id" compact style={flush} />
+            <Table columns={passageColumns(content)} rows={PASSAGES} rowKey="id" compact style={flush} />
           </div>
           <div style={{ fontSize: 12.5, color: '#5a6058' }}>Used by {GAME.title} · changing the document marks the game “source changed” in the creator’s workflow.</div>
         </div>

@@ -7,6 +7,7 @@ import { AuthProvider } from './auth/AuthProvider';
 import { Login } from './auth/Login';
 import { useAuth } from './auth/useAuth';
 import { Shell } from './shell/Shell';
+import { GameContentProvider } from './game/GameContentProvider';
 import { Library } from './screens/player/Library';
 import { Play } from './screens/player/Play';
 import { Results } from './screens/player/Results';
@@ -17,13 +18,14 @@ import { Console } from './screens/gameadmin/Console';
 import { Dashboard } from './screens/admin/Dashboard';
 import { Users } from './screens/admin/Users';
 import { Roles } from './screens/admin/Roles';
+import { AiServicesScreen } from './screens/admin/AiServices';
 import { Content } from './screens/admin/Content';
 
 const SCREENS: Record<Screen, ComponentType> = {
   library: Library, play: Play, results: Results,
   games: MyGames, studio: Studio, workflow: Workflow,
   console: Console,
-  dashboard: Dashboard, users: Users, roles: Roles, content: Content,
+  dashboard: Dashboard, users: Users, roles: Roles, ai: AiServicesScreen, content: Content,
 };
 
 function CurrentScreen() {
@@ -53,9 +55,11 @@ function Gate() {
   // key: a different account, or a change to your own roles, starts from a clean app state.
   return (
     <AppProvider key={`${state.profile.id}:${views.join(',')}`} roles={views}>
-      <Shell>
-        <CurrentScreen />
-      </Shell>
+      <GameContentProvider>
+        <Shell>
+          <CurrentScreen />
+        </Shell>
+      </GameContentProvider>
     </AppProvider>
   );
 }

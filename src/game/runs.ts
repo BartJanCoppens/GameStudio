@@ -16,11 +16,13 @@ export interface RunRow {
   false_flags: number | null;
   points: number | null;
   answers: InvoiceAnswer[];
+  /** The live version played; 0 = the built-in game. */
+  content_version: number;
 }
 
-export async function startRun(): Promise<RunRow> {
+export async function startRun(contentVersion: number): Promise<RunRow> {
   // The database fills in the player, their name and the start time.
-  const { data, error } = await supabase.from('game_runs').insert({ game_key: 'invoice-errors' }).select('*').single<RunRow>();
+  const { data, error } = await supabase.from('game_runs').insert({ game_key: 'invoice-errors', content_version: contentVersion }).select('*').single<RunRow>();
   if (error) throw error;
   return data;
 }

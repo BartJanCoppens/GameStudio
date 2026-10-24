@@ -9,9 +9,9 @@ export const supabaseConfigured = Boolean(url && key);
 // The publishable (or legacy anon) key is meant for browsers: every query runs under row level security.
 export const supabase = createClient(url ?? 'http://localhost', key ?? 'missing-key');
 
-/** Calls the admin-users Edge Function and surfaces its error message. */
-export async function adminUsers<T = unknown>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke<T>('admin-users', { body });
+/** Calls an Edge Function and surfaces its error message. */
+export async function callFunction<T = unknown>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<T>(name, { body });
   if (error) {
     if (error instanceof FunctionsHttpError) {
       const payload = await error.context.json().catch(() => null) as { error?: string } | null;
@@ -21,6 +21,8 @@ export async function adminUsers<T = unknown>(body: Record<string, unknown>): Pr
   }
   return data as T;
 }
+
+export const adminUsers = <T = unknown>(body: Record<string, unknown>) => callFunction<T>('admin-users', body);
 
 /** Turns a Supabase/Postgres error into a sentence for a toast. */
 export function errorMessage(e: unknown): string {

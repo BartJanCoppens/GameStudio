@@ -1,7 +1,8 @@
 import { Button, StatusChip, Tag } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
-import { ERRORS, GAME, INVOICES } from '../../game/content';
+import { GAME } from '../../game/content';
+import { useLiveGame } from '../../game/useGameContent';
 import { useFinishedRuns } from '../../game/runs';
 import { PageHead, Screen } from '../../shell/ui';
 
@@ -9,12 +10,13 @@ export function Library() {
   const { s, go, set } = useApp();
   const { profile } = useSignedIn();
   const { runs } = useFinishedRuns();
+  const content = useLiveGame();
   const mine = (runs ?? []).filter(r => r.user_id === profile.id);
   const best = mine.reduce<number | null>((b, r) => Math.max(b ?? 0, r.invoices_correct ?? 0), null);
   const status = s.run
-    ? { st: 'in-progress' as const, label: `In progress · invoice ${s.run.index + 1} of 12` }
+    ? { st: 'in-progress' as const, label: `In progress · invoice ${s.run.index + 1} of ${s.run.content.invoices.length}` }
     : best !== null
-      ? { st: 'accepted' as const, label: `Completed · best ${best}/12` }
+      ? { st: 'accepted' as const, label: `Completed · best ${best}/${content.invoices.length}` }
       : { st: 'not-started' as const, label: 'Not started' };
 
   return (
@@ -31,7 +33,7 @@ export function Library() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.25 }}>{GAME.title}</div>
-            <div style={{ color: '#5a6058', marginTop: 4 }}>{INVOICES.length} invoices, {ERRORS.length} mistakes against the Belgian mandatory invoice mentions. Find them all and name the rule each one breaks.</div>
+            <div style={{ color: '#5a6058', marginTop: 4 }}>{content.invoices.length} invoices, {content.errors.length} mistakes against the Belgian mandatory invoice mentions. Find them all and name the rule each one breaks.</div>
           </div>
           <div style={{ fontSize: 12, color: '#8b918a' }}>{GAME.minutes} min · leaderboard · feedback citing the source</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 'auto', paddingTop: 8, borderTop: '1px solid #eef0ea' }}>
