@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Avatar, BrandMark, Button, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Avatar, BrandMark, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
 import { LANG_OPTIONS, NAV, NAV_GROUP, ROLE_OPTIONS, SCREEN_TITLES } from '../data/shared';
 import { useApp } from '../app/useApp';
 import { useAuth, useSignedIn } from '../auth/useAuth';
@@ -7,16 +7,52 @@ import { useAuth, useSignedIn } from '../auth/useAuth';
 const initialsOf = (name: string, email: string) =>
   (name.trim() ? name.trim().split(/\s+/).map(w => w[0]).join('') : email[0]).slice(0, 2).toUpperCase();
 
+/** Who is signed in, with the language setting: opened from the name at the foot of the sidebar. */
+function ProfilePopup({ onClose }: { onClose: () => void }) {
+  const { s, set } = useApp();
+  const { profile, roles } = useSignedIn();
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onDown = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) onClose(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); };
+  }, [onClose]);
+  const row = { display: 'grid', gridTemplateColumns: '84px 1fr', gap: 8, fontSize: 12.5 } as const;
+  return (
+    <div ref={box} role="dialog" aria-label="Profile details" style={{ position: 'absolute', left: 12, right: 12, bottom: 'calc(100% + 8px)', background: '#fff', color: '#1a1d18', borderRadius: 8, boxShadow: '0 12px 32px rgba(0,0,0,.28)', padding: 16, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 20 }}>
+      <div style={{ fontWeight: 600, fontSize: 13.5 }}>Profile details</div>
+      <div style={row}><span style={{ color: '#6b716a' }}>Name</span><span>{profile.full_name || '—'}</span></div>
+      <div style={row}><span style={{ color: '#6b716a' }}>Email</span><span style={{ overflowWrap: 'anywhere' }}>{profile.email}</span></div>
+      <div style={row}><span style={{ color: '#6b716a' }}>Roles</span><span>{roles.map(r => r.name).join(', ')}</span></div>
+      {profile.cohort ? <div style={row}><span style={{ color: '#6b716a' }}>Cohort</span><span>{profile.cohort}</span></div> : null}
+      <div style={{ ...row, alignItems: 'center' }}><span style={{ color: '#6b716a' }}>Language</span><PillToggle options={LANG_OPTIONS} value={s.lang} onChange={lang => set({ lang })} size="xs" /></div>
+    </div>
+  );
+}
+
 function Account() {
   const { profile, roles } = useSignedIn();
   const { signOut } = useAuth();
+  const [open, setOpen] = useState(false);
   return (
-    <div style={{ marginTop: 'auto', padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <Avatar initials={initialsOf(profile.full_name, profile.email)} tone="green" size={32} />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={profile.email}>{profile.full_name || profile.email}</div>
-        <div style={{ fontSize: 11.5, color: '#a9afa5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{roles.map(r => r.name).join(' · ')}</div>
-      </div>
+    <div style={{ position: 'relative', marginTop: 'auto', padding: '14px 18px', borderTop: '1px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      {open ? <ProfilePopup onClose={() => setOpen(false)} /> : null}
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        title="Profile details"
+        style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1, background: 'none', border: 0, padding: 0, font: 'inherit', textAlign: 'left', cursor: 'pointer', color: 'inherit' }}
+      >
+        <Avatar initials={initialsOf(profile.full_name, profile.email)} tone="green" size={32} />
+        <span style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.full_name || profile.email}</span>
+          <span style={{ display: 'block', fontSize: 11.5, color: '#a9afa5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{roles.map(r => r.name).join(' · ')}</span>
+        </span>
+      </button>
       <LinkButton tone="onDark" size={12} onClick={() => void signOut()}>Sign out</LinkButton>
     </div>
   );
@@ -52,9 +88,7 @@ function Sidebar() {
 }
 
 function Header() {
-  const { s, set, roles, setRole } = useApp();
-  const { signOut } = useAuth();
-  const { profile } = useSignedIn();
+  const { s, roles, setRole } = useApp();
   // Only roles the user holds; someone with a single role has nothing to switch.
   const options = ROLE_OPTIONS.filter(o => roles.includes(o.value));
   return (
@@ -66,10 +100,6 @@ function Header() {
           <SegmentedControl options={options} value={s.role} onChange={setRole} size="sm" />
         </>
       ) : null}
-      <PillToggle options={LANG_OPTIONS} value={s.lang} onChange={lang => set({ lang })} size="xs" />
-      <span style={{ width: 1, height: 24, background: '#e1e5dc' }} aria-hidden="true" />
-      <span style={{ fontSize: 12, color: '#5a6058', whiteSpace: 'nowrap' }}>{profile.email}</span>
-      <Button variant="secondary" size="sm" onClick={() => void signOut()}>Sign out</Button>
     </header>
   );
 }

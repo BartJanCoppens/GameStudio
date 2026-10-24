@@ -8,7 +8,7 @@ async function signInCreator(page: Page) {
   await page.getByLabel('Email').fill(emailFor('creator'));
   await page.getByLabel('Password').fill(password());
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('complementary').getByRole('button', { name: 'Sign out' })).toBeVisible();
 }
 
 const sse = (events: [string, unknown][]) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join('');
@@ -192,4 +192,41 @@ test('Retry while the other step is still running doesn’t start it twice', asy
   await page.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByRole('button', { name: 'Play test' })).toBeVisible({ timeout: 30_000 });
   expect(calls).toEqual({ data: 2, screens: 1, logic: 1 });
+});
+
+test('the creator hides and shows the chat, and views the design and the game full screen', async ({ page }) => {
+  const title = `Layout ${Date.now()}`;
+  const tiny = tinyGame();
+  const designKey = await seedGame(title, { ...tiny, phase: 'design', files: null, data: null, mockup: '<main><h1>Mock</h1></main>', concept: { ...tiny.concept, title } });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${designKey}`);
+  const chat = page.getByRole('region', { name: 'Conversation' });
+  await expect(chat).toBeVisible();
+  const before = (await page.locator('iframe[title="Mock-up"]').boundingBox())!.width;
+  await page.getByRole('button', { name: 'Hide chat' }).click();
+  await expect(chat).toHaveCount(0);
+  await expect.poll(async () => (await page.locator('iframe[title="Mock-up"]').boundingBox())!.width).toBeGreaterThan(before + 150);
+  await page.getByRole('button', { name: 'Show chat' }).click();
+  await expect(chat).toBeVisible();
+
+  await page.getByRole('button', { name: 'Full screen' }).click();
+  const viewport = page.viewportSize()!;
+  await expect.poll(async () => (await page.locator('iframe[title="Mock-up"]').boundingBox())!.width).toBeGreaterThan(viewport.width - 40);
+  await page.keyboard.press('Escape');
+  await expect.poll(async () => (await page.locator('iframe[title="Mock-up"]').boundingBox())!.width).toBeLessThan(viewport.width - 200);
+
+  const readyKey = await seedGame(`${title} ready`, { ...tiny, concept: { ...tiny.concept, title: `${title} ready` } });
+  await page.goto(`/#/studio?game=${readyKey}`);
+  await page.getByRole('button', { name: 'Play test' }).click();
+  // The test run has started (and its fresh frame has replaced the preview).
+  await expect(page.getByRole('button', { name: 'Restart test' })).toBeVisible();
+  const frame = page.frameLocator('iframe[title="Game"]');
+  await expect(frame.getByRole('heading', { name: tiny.data.questions[0].q })).toBeVisible();
+  await frame.getByRole('button', { name: tiny.data.questions[0].options[tiny.data.questions[0].answer], exact: true }).click();
+  await page.getByRole('button', { name: 'Full screen' }).click();
+  await expect.poll(async () => (await page.locator('iframe[title="Game"]').boundingBox())!.width).toBeGreaterThan(viewport.width - 40);
+  // Still the same game: the second question is showing, not the first.
+  await expect(frame.getByRole('heading', { name: tiny.data.questions[1].q })).toBeVisible();
+  await page.getByRole('button', { name: 'Exit full screen' }).click();
+  await expect.poll(async () => (await page.locator('iframe[title="Game"]').boundingBox())!.width).toBeLessThan(viewport.width - 200);
 });

@@ -9,7 +9,7 @@ async function signIn(page: Page, role: E2eRole) {
   await page.getByLabel('Email').fill(emailFor(role));
   await page.getByLabel('Password').fill(password());
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('complementary').getByRole('button', { name: 'Sign out' })).toBeVisible();
 }
 
 export async function newGame(page: Page, idea: string) {

@@ -13,6 +13,7 @@ import { BackLink, Screen } from '../../shell/ui';
 import { card } from '../../shell/styles';
 import { LookDialog } from './LookDialog';
 import { CodePanel } from './studio/CodePanel';
+import { FullScreen } from './studio/FullScreen';
 import { ConceptCard } from './studio/ConceptCard';
 import { PhaseBar } from './studio/PhaseBar';
 import { QuestionCard } from './studio/QuestionCard';
@@ -29,7 +30,24 @@ export function Elapsed({ since, label }: { since: number; label: string }) {
   return <div role="status" style={{ fontSize: 12.5, color: 'var(--tc-ink-3)' }}>{label} {Math.floor(s / 60)}:{String(s % 60).padStart(2, '0')}</div>;
 }
 
-function Conversation({ content, architect, builder }: { content: GameContent; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder> }) {
+/** The chat folded away: a slim rail that opens it again. */
+function ChatRail({ onShow, busy }: { onShow: () => void; busy: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onShow}
+      aria-label="Show chat"
+      title="Show chat"
+      style={{ ...card, width: 44, minHeight: 520, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '12px 0', cursor: 'pointer', font: 'inherit', color: 'var(--tc-ink-3)', position: 'sticky', top: 78 }}
+    >
+      <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>»</span>
+      <span style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase' }}>Design with AI</span>
+      {busy ? <span title="The AI is working" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--tc-amber)' }} /> : null}
+    </button>
+  );
+}
+
+function Conversation({ content, architect, builder, onHide }: { content: GameContent; architect: ReturnType<typeof useArchitect>; builder: ReturnType<typeof useBuilder>; onHide: () => void }) {
   const [text, setText] = useState('');
   const end = useRef<HTMLDivElement>(null);
   const [changeSince, setChangeSince] = useState(0);
@@ -53,7 +71,10 @@ function Conversation({ content, architect, builder }: { content: GameContent; a
 
   return (
     <section aria-label="Conversation" style={{ ...card, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 170px)', minHeight: 520, position: 'sticky', top: 78 }}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--tc-line-hair)', fontWeight: 600 }}>Design with AI</div>
+      <div style={{ padding: '8px 10px 8px 14px', borderBottom: '1px solid var(--tc-line-hair)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ flex: 1 }}>Design with AI</span>
+        <Button variant="secondary" size="sm" aria-label="Hide chat" title="Hide chat" onClick={onHide}>«</Button>
+      </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
         {content.brief.map((t, i) => {
           if (t === last && asking) return <QuestionCard key={i} turn={t} disabled={blocked} onAnswer={send} />;
@@ -106,7 +127,9 @@ function TestPlay({ gameKey, content }: { gameKey: string; content: GameContent 
         <span style={{ fontSize: 12.5, color: 'var(--tc-ink-4)' }}>{result ?? 'Test plays never reach leaderboards or goals.'}</span>
       </div>
       {error ? <Banner tone="warning">{error}</Banner> : null}
-      <GameFrame key={runId ?? 'preview'} gameKey={gameKey} content={content} runId={runId} test height={560} onFinished={score => setResult(score === null ? 'Test finished.' : `Test finished · score ${score}`)} />
+      <FullScreen label="Game preview">
+        {full => <GameFrame key={runId ?? 'preview'} gameKey={gameKey} content={content} runId={runId} test height={full ? '100%' : 560} onFinished={score => setResult(score === null ? 'Test finished.' : `Test finished · score ${score}`)} />}
+      </FullScreen>
     </div>
   );
 }
@@ -129,10 +152,11 @@ function Stage({ game, content, draftUpdatedAt, architect, builder, onLook }: { 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.2fr)', gap: 14, alignItems: 'start' }}>
           <ConceptCard concept={content.concept} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--tc-ink-4)' }}>Main screen · mock-up</div>
-            {content.mockup ? <MockupFrame html={content.mockup} height={460} /> : null}
-          </div>
+          {content.mockup ? (
+            <FullScreen label="Main screen · mock-up">
+              {full => <MockupFrame html={content.mockup!} height={full ? '100%' : 460} />}
+            </FullScreen>
+          ) : null}
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="secondary" size="lg" onClick={onLook} disabled={!!architect.busy}>Change look</Button>
@@ -152,7 +176,7 @@ function Stage({ game, content, draftUpdatedAt, architect, builder, onLook }: { 
 }
 
 export function Studio() {
-  const { go } = useApp();
+  const { s, set, go } = useApp();
   const { profile } = useSignedIn();
   const { game, draft, loading } = useGameContent();
   const architect = useArchitect();
@@ -185,8 +209,10 @@ export function Studio() {
         <h1 style={{ fontSize: 18, fontWeight: 600, lineHeight: 1.2, margin: 0 }}>{content.concept?.title ?? game.title}</h1>
         <div style={{ marginLeft: 'auto' }}><PhaseBar phase={content.phase} /></div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px,360px) minmax(0,1fr)', gap: 14, alignItems: 'start' }}>
-        <Conversation content={content} architect={architect} builder={builder} />
+      <div style={{ display: 'grid', gridTemplateColumns: `${s.studioChatOpen ? 'minmax(300px,360px)' : '44px'} minmax(0,1fr)`, gap: 14, alignItems: 'start' }}>
+        {s.studioChatOpen
+          ? <Conversation content={content} architect={architect} builder={builder} onHide={() => set({ studioChatOpen: false })} />
+          : <ChatRail onShow={() => set({ studioChatOpen: true })} busy={!!architect.busy || builder.changing} />}
         <Stage game={game} content={content} draftUpdatedAt={draft.updatedAt} architect={architect} builder={builder} onLook={() => setChoosingLook(true)} />
       </div>
       {choosingLook && content.concept ? (

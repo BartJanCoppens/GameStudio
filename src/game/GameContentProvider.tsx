@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApp } from '../app/useApp';
 import { useSignedIn } from '../auth/useAuth';
 import { supabase } from '../lib/supabase';
@@ -31,10 +31,14 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState<{ key: string; rows: Row[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // No game chosen yet (or it was deleted): the first game, if there is one.
+  // A game not in the list may be new (a link to it, or made in another tab): reload the list once before
+  // falling back to the first game.
+  const refreshedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (games && !games.some(g => g.key === gameKey) && games[0]) set({ gameKey: games[0].key });
-  }, [games, gameKey, set]);
+    if (!games || games.some(g => g.key === gameKey)) return;
+    if (gameKey && refreshedFor.current !== gameKey) { refreshedFor.current = gameKey; void reloadGames(); return; }
+    if (games[0]) set({ gameKey: games[0].key });
+  }, [games, gameKey, set, reloadGames]);
 
   useEffect(() => {
     if (!gameKey) return;

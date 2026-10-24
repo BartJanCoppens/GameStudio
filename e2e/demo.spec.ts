@@ -7,7 +7,7 @@ async function signIn(page: Page, role: E2eRole) {
   await page.getByLabel('Email').fill(emailFor(role));
   await page.getByLabel('Password').fill(password());
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(page.getByRole('banner').getByRole('button', { name: 'Sign out' })).toBeVisible();
+  await expect(page.getByRole('complementary').getByRole('button', { name: 'Sign out' })).toBeVisible();
 }
 
 /** The tiny quiz under its own title, so tests don't collide in the library. */
@@ -130,4 +130,20 @@ test('a platform admin exports a game’s code', async ({ page }) => {
   const download = page.waitForEvent('download');
   await row.getByRole('button', { name: 'Export' }).click();
   expect((await download).suggestedFilename()).toBe(`${key}.zip`);
+});
+
+test('profile details and the language sit behind the name in the sidebar', async ({ page }) => {
+  await signIn(page, 'creator');
+  const header = page.getByRole('banner');
+  await expect(header.getByRole('button', { name: 'Sign out' })).toHaveCount(0);
+  await expect(header.getByText(emailFor('creator'))).toHaveCount(0);
+  await expect(header.getByRole('button', { name: 'EN' })).toHaveCount(0);
+  await page.getByRole('complementary').getByRole('button', { name: /E2E creator/ }).click();
+  const profile = page.getByRole('dialog', { name: 'Profile details' });
+  await expect(profile).toContainText(emailFor('creator'));
+  await expect(profile).toContainText('Game creator');
+  await profile.getByRole('button', { name: 'NL' }).click();
+  await expect(profile.getByRole('button', { name: 'NL' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+  await expect(profile).toHaveCount(0);
 });
