@@ -7,6 +7,8 @@ import { resolveService } from './ai.ts';
 import { HttpError, assertPublicTarget } from './server.ts';
 
 const DEFAULT_CLAUDE_MODEL = 'claude-opus-5-5';
+/** For steps that must feel instant (the Studio's questions, in-game replies). */
+const FAST_CLAUDE_MODEL = 'claude-sonnet-5-5';
 /** Claude models that take the server-side refusal fallback. */
 const FALLBACK_MODELS = ['claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5', 'claude-fable-5-1'];
 
@@ -41,6 +43,13 @@ export interface Turn {
   content: string;
 }
 
+export interface AskOptions {
+  effort?: 'low' | 'medium' | 'high';
+  maxTokens?: number;
+  /** With Claude, use the faster model; other providers keep the admin's choice. */
+  fastModel?: boolean;
+}
+
 export interface StructuredReply {
   /** The model's JSON answer, or null when it declined. */
   json: string | null;
@@ -73,17 +82,32 @@ function claudeCost(model: string, u: { input_tokens?: number | null; output_tok
   return Math.round(usd * 10_000) / 10_000;
 }
 
-async function askClaude(ai: Assistant, system: string, turns: Turn[], schema: unknown): Promise<StructuredReply> {
-  const client = new Anthropic({ apiKey: ai.key! });
+function claudeParams(ai: Assistant, system: string, turns: Turn[], opts: AskOptions, format?: unknown): Record<string, unknown> {
+  const model = opts.fastModel ? FAST_CLAUDE_MODEL : ai.model;
   const params: Record<string, unknown> = {
-    model: ai.model,
-    max_tokens: 16000,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
+    model,
+    max_tokens: opts.maxTokens ?? 16000,
+    output_config: { effort: opts.effort ?? 'medium', ...(format ? { format } : {}) },
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: turns,
   };
   // Server-side fallbacks: if a safety classifier declines, the API re-runs the request on a fallback model.
-  if (FALLBACK_MODELS.includes(ai.model)) Object.assign(params, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+  if (FALLBACK_MODELS.includes(model)) Object.assign(params, { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' });
+  return params;
+}
+
+function claudeError(ai: Assistant, e: unknown): never {
+  if (e instanceof HttpError) throw e;
+  if (e instanceof Anthropic.RateLimitError) throw new HttpError(429, 'Claude is busy. Try again in a minute.');
+  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new HttpError(503, 'The Claude key was rejected. Check it in Admin › AI services.');
+  if (e instanceof Anthropic.NotFoundError) throw new HttpError(503, `Claude doesn’t know the model “${ai.model}”. Choose another in Admin › AI services.`);
+  if (e instanceof Anthropic.APIError) { console.error('Anthropic API error', e.status, e.message); throw new HttpError(502, 'Claude returned an error. Try again.'); }
+  throw e;
+}
+
+async function askClaude(ai: Assistant, system: string, turns: Turn[], schema: unknown, opts: AskOptions): Promise<StructuredReply> {
+  const client = new Anthropic({ apiKey: ai.key! });
+  const params = claudeParams(ai, system, turns, opts, { type: 'json_schema', schema });
   try {
     // deno-lint-ignore no-explicit-any
     const response = await client.beta.messages.create(params as any);
@@ -95,12 +119,7 @@ async function askClaude(ai: Assistant, system: string, turns: Turn[], schema: u
     if (!text) throw new HttpError(502, 'The model returned no answer');
     return { json: text.text, usage };
   } catch (e) {
-    if (e instanceof HttpError) throw e;
-    if (e instanceof Anthropic.RateLimitError) throw new HttpError(429, 'Claude is busy. Try again in a minute.');
-    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new HttpError(503, 'The Claude key was rejected. Check it in Admin › AI services.');
-    if (e instanceof Anthropic.NotFoundError) throw new HttpError(503, `Claude doesn’t know the model “${ai.model}”. Choose another in Admin › AI services.`);
-    if (e instanceof Anthropic.APIError) { console.error('Anthropic API error', e.status, e.message); throw new HttpError(502, 'Claude returned an error. Try again.'); }
-    throw e;
+    claudeError(ai, e);
   }
 }
 
@@ -137,6 +156,52 @@ async function askOpenAiCompatible(ai: Assistant, system: string, turns: Turn[],
   return { json: choice.message.content, usage };
 }
 
-export function askStructured(ai: Assistant, system: string, turns: Turn[], schema: unknown, schemaName: string): Promise<StructuredReply> {
-  return ai.def.api === 'anthropic' ? askClaude(ai, system, turns, schema) : askOpenAiCompatible(ai, system, turns, schema, schemaName);
+export function askStructured(ai: Assistant, system: string, turns: Turn[], schema: unknown, schemaName: string, opts: AskOptions = {}): Promise<StructuredReply> {
+  return ai.def.api === 'anthropic' ? askClaude(ai, system, turns, schema, opts) : askOpenAiCompatible(ai, system, turns, schema, schemaName);
+}
+
+export interface StreamedText {
+  text: string;
+  usage: Usage;
+}
+
+/** Plain text (e.g. a code file), passed on as it is written. OpenAI-compatible providers answer in one piece. */
+export async function streamText(ai: Assistant, system: string, turns: Turn[], opts: AskOptions, onDelta: (text: string) => void): Promise<StreamedText> {
+  if (ai.def.api !== 'anthropic') {
+    const reply = await askOpenAiText(ai, system, turns);
+    onDelta(reply.text);
+    return reply;
+  }
+  const client = new Anthropic({ apiKey: ai.key! });
+  try {
+    // deno-lint-ignore no-explicit-any
+    const stream = client.beta.messages.stream(claudeParams(ai, system, turns, opts) as any);
+    stream.on('text', (delta: string) => onDelta(delta));
+    const message = await stream.finalMessage();
+    const usage: Usage = { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens, costUsd: claudeCost(message.model, message.usage) };
+    if (message.stop_reason === 'refusal') throw new HttpError(422, 'The model declined to write this. Try a different request.');
+    if (message.stop_reason === 'max_tokens') throw new HttpError(422, 'The file got too long for one step. Ask for a simpler game.');
+    const text = message.content.flatMap(b => (b.type === 'text' ? [b.text] : [])).join('');
+    return { text, usage };
+  } catch (e) {
+    claudeError(ai, e);
+  }
+}
+
+async function askOpenAiText(ai: Assistant, system: string, turns: Turn[]): Promise<StreamedText> {
+  const { def, base, key, model } = ai;
+  if (!base) throw new HttpError(503, `${def.name} has no address`);
+  if (!def.baseUrl) await assertPublicTarget(base);
+  const r = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+    body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...turns] }),
+    redirect: 'manual',
+    signal: AbortSignal.timeout(120_000),
+  }).catch(() => { throw new HttpError(502, `Couldn’t reach ${def.name}`); });
+  if (!r.ok) throw new HttpError(502, `${def.name} returned HTTP ${r.status}. Try again.`);
+  const body = await r.json().catch(() => null) as { model?: string; usage?: { prompt_tokens?: number; completion_tokens?: number }; choices?: { message?: { content?: string | null } }[] } | null;
+  const text = body?.choices?.[0]?.message?.content;
+  if (!text) throw new HttpError(502, `${def.name} returned no answer`);
+  return { text, usage: { model: body?.model ?? model, inputTokens: body?.usage?.prompt_tokens ?? 0, outputTokens: body?.usage?.completion_tokens ?? 0, costUsd: null } };
 }

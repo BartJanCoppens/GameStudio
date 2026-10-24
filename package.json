@@ -14,6 +14,7 @@
     "demo:reset": "node --env-file-if-exists=.env.seed scripts/demo-reset.mjs",
     "test": "vitest run",
     "test:sql": "scripts/test-sql.sh",
+    "check:functions": "cd supabase/functions && npx -y deno@2.5.6 check --node-modules-dir=none */index.ts _shared/*.ts",
     "e2e": "playwright test"
   },
   "dependencies": {

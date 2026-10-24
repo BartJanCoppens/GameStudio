@@ -8,7 +8,7 @@ import { HttpError } from './server.ts';
 import type { Usage } from './llm.ts';
 
 export type Kind = 'studio' | 'design' | 'game';
-const BUILT_IN = { perHour: 30, perDay: 150 };
+const BUILT_IN = { perHour: 120, perDay: 400 };
 
 interface Limit {
   calls_per_day: number | null;
