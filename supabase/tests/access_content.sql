@@ -168,6 +168,29 @@ begin
   execute 'reset role';
   results := array_append(results, case when ok then 'ok n' else 'FAIL n: players_for_access wrong' end);
 
+  -- (o) someone with no role reads no live content, even of an open game
+  update public.games set access = 'everyone' where key = 'sqltest3-game';
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-4000-8000-0000000000aa', 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) = 0 from public.game_content where game_key = 'sqltest3-game' into ok;
+  results := array_append(results, case when ok then 'ok o' else 'FAIL o: a user without a role read live content' end);
+  execute 'reset role';
+  update public.games set access = 'restricted' where key = 'sqltest3-game';
+
+  -- (p) syncing or taking in live content clears the draft's undo point (undo would bring the old content back)
+  update public.game_content set content = jsonb_set(jsonb_set(content, '{data}', '{"q":[1,2,3,4]}'), '{previous}', '{"files":null,"data":{"q":[1]}}') where game_key = 'sqltest3-game' and stage = 'draft';
+  perform public.publish_live_content('sqltest3-game', '{"q":[1,2,3,4,5]}', 'fp3', gadmin);
+  select not (content ? 'previous') from public.game_content where game_key = 'sqltest3-game' and stage = 'draft' into ok;
+  results := array_append(results, case when ok then 'ok p' else 'FAIL p: draft kept its undo point after the sync' end);
+
+  -- (q) a publish built on an older live version is refused
+  begin
+    perform public.publish_live_content('sqltest3-game', '{"q":[1,2,3,4,5,6]}', 'fp4', gadmin, 1);
+    results := array_append(results, 'FAIL q: published content built on an old version');
+  exception when others then
+    results := array_append(results, case when sqlerrm like 'The game changed while%' then 'ok q' else 'FAIL q: ' || sqlerrm end);
+  end;
+
   -- (h) a player can't call publish_live_content
   perform set_config('request.jwt.claims', json_build_object('sub', listed, 'role', 'authenticated')::text, true);
   execute as_user;

@@ -53,6 +53,13 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
   }, [gameKey]);
 
   const rows = loaded?.key === gameKey ? loaded.rows : null;
+  // The draft version this tab last loaded or saved. A tab's own saves follow each other quickly (the creator's
+  // message, then the AI's answer), before the reload: this keeps them from refusing each other.
+  const draftVersion = useRef<{ key: string; version: number } | null>(null);
+  useEffect(() => {
+    const row = rows?.find(r => r.stage === 'draft');
+    draftVersion.current = row ? { key: gameKey, version: row.version } : null;
+  }, [rows, gameKey]);
   const reload = useCallback(async () => { setLoaded({ key: gameKey, rows: await fetchRows(gameKey) }); await reloadGames(); }, [gameKey, reloadGames]);
 
   const game = games?.find(g => g.key === gameKey) ?? null;
@@ -64,15 +71,22 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
   const saveDraft = useCallback(async (content: GameContent) => {
     const problems = contentProblems(content);
     if (problems.length) throw new Error(problems[0]);
-    const exists = (rows ?? []).some(r => r.stage === 'draft');
-    const { data, error: e } = exists
-      ? await supabase.from('game_content').update({ content }).eq('game_key', gameKey).eq('stage', 'draft').select('stage')
-      : await supabase.from('game_content').insert({ game_key: gameKey, stage: 'draft', content }).select('stage');
+    const current = draftVersion.current?.key === gameKey ? draftVersion.current.version : null;
+    // Only over the draft this tab has: a game admin's addition may have changed it since.
+    const { data, error: e } = current !== null
+      ? await supabase.from('game_content').update({ content }).eq('game_key', gameKey).eq('stage', 'draft').eq('version', current).select('version')
+      : await supabase.from('game_content').insert({ game_key: gameKey, stage: 'draft', content }).select('version');
     if (e) throw e;
-    // Row level security skips refused writes without an error.
-    if (!data?.length) throw new Error('Only the game’s creator can save its draft');
+    if (!data?.length) {
+      // Row level security skips refused writes without an error, as does a draft that moved on.
+      const fresh = await fetchRows(gameKey);
+      const moved = current !== null && fresh.find(r => r.stage === 'draft')?.version !== current;
+      await reload();
+      throw new Error(moved ? 'The draft changed in the meantime (perhaps a game admin added content). It has been reloaded; try again.' : 'Only the game’s creator can save its draft');
+    }
+    draftVersion.current = { key: gameKey, version: data[0].version as number };
     await reload();
-  }, [rows, gameKey, reload]);
+  }, [gameKey, reload]);
 
   // A game admin added content to the live game after the draft was based on it.
   const liveRow = rows?.find(r => r.stage === 'live');

@@ -212,19 +212,36 @@ const jsonType = (v: unknown) => (v === null ? 'null' : Array.isArray(v) ? 'arra
  * What would break a game if its content changed this way: content added by a game admin must keep every
  * top-level key with its type, and no list (at the top level, or directly inside a top-level object) may shrink.
  */
+/** JSON text with object keys sorted, so two values compare equal whatever order their keys came in. */
+function canonical(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v).sort().map(k => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}`;
+  return JSON.stringify(v) ?? 'null';
+}
+
+export function sameData(a: unknown, b: unknown): boolean {
+  return canonical(a) === canonical(b);
+}
+
+/** Additions only: a list may grow, but what was there stays as it was. */
+function listProblems(name: string, before: unknown[], after: unknown): string[] {
+  if (!Array.isArray(after) || after.length < before.length) return [`${name} lost items`];
+  return before.every((item, i) => sameData(item, after[i])) ? [] : [`${name} changed existing items`];
+}
+
 export function dataShapeProblems(before: unknown, after: unknown): string[] {
   if (jsonType(before) !== jsonType(after)) return ['The content changed type'];
-  if (jsonType(before) !== 'object') return Array.isArray(before) && (after as unknown[]).length < before.length ? ['The content lost items'] : [];
+  if (jsonType(before) !== 'object') return Array.isArray(before) ? listProblems('The content', before, after) : [];
   const p: string[] = [];
   const b = before as Record<string, unknown>, a = after as Record<string, unknown>;
+  for (const key of Object.keys(a)) if (!(key in b)) p.push(`The new content adds a new part ${key} the game doesn’t read`);
   for (const [key, value] of Object.entries(b)) {
     if (!(key in a)) { p.push(`The new content dropped ${key}`); continue; }
     if (jsonType(value) !== jsonType(a[key])) { p.push(`${key} changed type`); continue; }
-    if (Array.isArray(value) && (a[key] as unknown[]).length < value.length) p.push(`${key} lost items`);
+    if (Array.isArray(value)) p.push(...listProblems(key, value, a[key]));
     if (jsonType(value) === 'object') {
       for (const [inner, v] of Object.entries(value as Record<string, unknown>)) {
-        const next = (a[key] as Record<string, unknown>)[inner];
-        if (Array.isArray(v) && (!Array.isArray(next) || next.length < v.length)) p.push(`${key}.${inner} lost items`);
+        if (Array.isArray(v)) p.push(...listProblems(`${key}.${inner}`, v, (a[key] as Record<string, unknown>)[inner]));
       }
     }
   }

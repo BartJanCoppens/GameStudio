@@ -251,3 +251,23 @@ test('a creator takes in content a game admin added', async ({ page }) => {
   const { data: after } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
   expect(after!.content.data.questions).toHaveLength(11);
 });
+
+test('a stale Studio tab can’t overwrite a draft that changed underneath it', async ({ page }) => {
+  const title = `Stale tab ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  await page.route('**/functions/v1/game-builder', route => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' },
+    body: `event: done\ndata: ${JSON.stringify({ reply: 'Changed.', files: { 'game.js': `${tiny.files['game.js']}\n// changed` } })}\n\n` }));
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByRole('button', { name: 'Play test' })).toBeVisible();
+  // Meanwhile the draft changes on the server (as when a game admin's addition syncs into it).
+  const more = { questions: [...tiny.data.questions, { q: 'Synced?', options: ['Yes', 'No'], answer: 0, source: 'p-number' }] };
+  const { data: row } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  await adminClient().from('game_content').update({ content: { ...row!.content, data: more } }).eq('game_key', key).eq('stage', 'draft');
+  await page.getByRole('textbox', { name: 'Message the AI about this game' }).fill('Change something');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByText(/The draft changed in the meantime/)).toBeVisible();
+  const { data: after } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  expect(after!.content.data.questions).toHaveLength(11);
+});

@@ -14,7 +14,7 @@ import { resolveAssistant, streamText, type Turn } from '../_shared/llm.ts';
 import { finishQuota, takeQuota } from '../_shared/quota.ts';
 import { filesProblems, scanGameFiles } from '../_shared/codeScan.ts';
 import { FONTS } from '../_shared/design.ts';
-import { BRIDGE_API, CHANGE_SCHEMA, FILE_NAMES, conceptProblems, dataShapeProblems, type GameConcept, type GameContent } from '../_shared/gameModel.ts';
+import { BRIDGE_API, CHANGE_SCHEMA, FILE_NAMES, conceptProblems, dataShapeProblems, sameData, type GameConcept, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { sseResponse } from '../_shared/stream.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
@@ -144,11 +144,13 @@ Deno.serve(async req => {
     const body = readBody(await req.json().catch(() => null));
     const game = await gameOf(admin, body.gameKey);
     let secret: unknown = null;
+    let liveVersion: number | null = null;
     if (body.step === 'extend') {
       // Game admins add content to the live game: its concept, content and the AI role's knowledge are read here.
       requirePermission(c, 'live.edit', 'Add content to a live game');
-      const { data: live } = await admin.from('game_content').select('content').eq('game_key', game.key).eq('stage', 'live').maybeSingle();
+      const { data: live } = await admin.from('game_content').select('content, version').eq('game_key', game.key).eq('stage', 'live').maybeSingle();
       if (!live) throw new HttpError(404, 'This game isn’t published');
+      liveVersion = live.version as number;
       const content = live.content as GameContent;
       if (!content.concept) throw new HttpError(409, 'This game has no design');
       Object.assign(body, { concept: content.concept, data: content.data, notes: content.dataNotes ?? '' });
@@ -156,13 +158,13 @@ Deno.serve(async req => {
     } else {
       requireEditable(c, game);
     }
-    ctx = { c, body, game, secret };
+    ctx = { c, body, game, secret, liveVersion };
   } catch (e) {
     if (e instanceof HttpError) return json(e.status, { error: e.message });
     console.error(e);
     return json(500, { error: 'Unexpected error' });
   }
-  const { c, body, game, secret } = ctx;
+  const { c, body, game, secret, liveVersion } = ctx;
 
   return sseResponse(async send => {
     let callId: number | null = await takeQuota(admin, c.id, 'studio', game.key);
@@ -207,11 +209,14 @@ Deno.serve(async req => {
         const out = await streamText(ai, EXTEND(rules), turns, { ...opts, effort: 'low', maxTokens: 16_000 }, delta);
         usage = out.usage;
         const parsed = parseJson(unfence(out.text), 'new content', LIMITS.dataChars + 2000) as { data?: unknown; reply?: unknown };
+        // Without new content the model explains why (a request that doesn't fit the game, for instance).
+        if (parsed.data === undefined || parsed.data === null) throw new HttpError(422, String(parsed.reply ?? 'Nothing was added. Try asking differently.').slice(0, 600));
+        if (sameData(body.data, parsed.data)) throw new HttpError(422, `Nothing was added. ${String(parsed.reply ?? '').slice(0, 500)}`.trim());
         const shape = dataShapeProblems(body.data, parsed.data);
         if (shape.length) throw new HttpError(422, `The new content would break the game (${shape[0]}). Try again.`);
         const scanned = scanGameFiles({ 'index.html': '-', content: JSON.stringify(parsed.data) }).filter(p => p.startsWith('content '));
         if (scanned.length) throw new HttpError(422, `The new content broke a platform rule (${scanned[0]}). Try again.`);
-        send('done', { data: parsed.data, reply: String(parsed.reply ?? '').slice(0, 600) });
+        send('done', { data: parsed.data, reply: String(parsed.reply ?? '').slice(0, 600), version: liveVersion });
       } else {
         const turns: Turn[] = [{ role: 'user', content: `${concept}\n\n<files>\n${asData(body.files)}\n</files>\n\n<data>\n${asData(body.data ?? null)}\n</data>\n\n${inTag('request', body.instruction)}` }];
         const out = await streamText(ai, CHANGE(rules), turns, { ...opts, maxTokens: 16_000, schema: CHANGE_SCHEMA }, delta);

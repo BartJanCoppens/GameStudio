@@ -6,8 +6,8 @@
 // 3. Where it goes: on a pass, publish_live_content writes the new live content, its check and an untouched
 //    draft in one transaction. The AI role's hidden knowledge stays as it is.
 //
-// Body: { game_key: string, data: unknown }
-import { dataShapeProblems, type GameContent } from '../_shared/gameModel.ts';
+// Body: { game_key: string, data: unknown, based_on_version?: number } (the live version the additions were written for)
+import { dataShapeProblems, sameData, type GameContent } from '../_shared/gameModel.ts';
 import { reviewGame } from '../_shared/review.ts';
 import { CORS, HttpError, adminClient, caller, gameOf, json, requirePermission } from '../_shared/server.ts';
 
@@ -25,13 +25,17 @@ Deno.serve(async req => {
   try {
     const c = await caller(admin, req);
     requirePermission(c, 'live.edit', 'Add content to a live game');
-    const body = await req.json().catch(() => null) as { game_key?: unknown; data?: unknown } | null;
+    const body = await req.json().catch(() => null) as { game_key?: unknown; data?: unknown; based_on_version?: unknown } | null;
     const game = await gameOf(admin, body?.game_key);
     if (JSON.stringify(body?.data ?? null).length > MAX_DATA_CHARS) throw new HttpError(400, 'The content is too large');
 
-    const { data: live } = await admin.from('game_content').select('content').eq('game_key', game.key).eq('stage', 'live').maybeSingle();
+    const { data: live } = await admin.from('game_content').select('content, version').eq('game_key', game.key).eq('stage', 'live').maybeSingle();
     if (!live) throw new HttpError(404, 'This game isn’t published');
+    if (typeof body?.based_on_version === 'number' && body.based_on_version !== live.version) {
+      throw new HttpError(409, 'The game changed since you generated these additions. Generate again.');
+    }
     const current = live.content as GameContent;
+    if (sameData(current.data, body?.data)) throw new HttpError(400, 'Nothing was added: the new content is the same as the live content');
     const shape = dataShapeProblems(current.data, body?.data);
     if (shape.length) throw new HttpError(400, `The new content would break the game: ${shape[0]}`);
 
@@ -44,6 +48,7 @@ Deno.serve(async req => {
     }
     const { data: version, error } = await admin.rpc('publish_live_content', {
       p_game_key: game.key, p_data: candidate.data, p_fingerprint: await fingerprint({ candidate, secret: secretRow?.ai ?? null }), p_checked_by: c.id,
+      p_expected_version: live.version,
     });
     if (error) throw new HttpError(409, error.message);
     return json(200, { passed: true, reasons: [], version });

@@ -56,7 +56,9 @@ Deno.serve(async req => {
       else requirePermission(c, 'live.edit', 'Add content to a live game');
     } else {
       // Access is checked as the caller, the same rule the database applies to live content and runs.
-      const { data: allowed } = await userClient(req).rpc('can_play', { p_game_key: game.key });
+      const { data: allowed, error } = await userClient(req).rpc('can_play', { p_game_key: game.key });
+      // A failed check is a server fault (500), not a refusal the player can do anything about.
+      if (error) throw new Error(`can_play failed: ${error.message}`);
       if (allowed !== true) throw new HttpError(403, 'You don’t have access to this game');
     }
 

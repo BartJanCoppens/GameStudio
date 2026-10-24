@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { adminClient } from './accounts';
 import { callAs, seedGame, streamAs, tinyGame, userClient } from './games';
 
 // Edge Function behaviour that needs no model call (each request is refused before the AI is asked).
@@ -103,4 +104,45 @@ test('a game admin extends a game with AI and publishes it', async () => {
   const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data: done.data });
   expect(status).toBe(200);
   expect(body.passed).toBe(true);
+});
+
+async function playerRun(role: 'player' | 'player2', gameKey: string): Promise<string> {
+  const { client } = await userClient(role);
+  const { data, error } = await client.from('game_runs').insert({ game_key: gameKey, content_version: 1 }).select('id').single();
+  if (error) throw error;
+  return data.id as string;
+}
+
+test('game-ai lets a player with access through to the game (real run, no AI call)', async () => {
+  const key = await seedGame('AI access open', tinyGame(), { publish: true });
+  const runId = await playerRun('player', key);
+  const { status, body } = await callAs('player', 'game-ai', { game_key: key, run_id: runId, messages: [{ role: 'player', text: 'Hi' }], state: {} });
+  // Past the access check, the game has no AI role: proof can_play answered yes.
+  expect(status).toBe(400);
+  expect(body.error).toBe('This game has no AI role');
+});
+
+test('game-ai refuses a player who lost access to a restricted game', async () => {
+  const key = await seedGame('AI access closed', tinyGame(), { publish: true });
+  const runId = await playerRun('player2', key);
+  await adminClient().from('games').update({ access: 'restricted' }).eq('key', key);
+  const { status, body } = await callAs('player2', 'game-ai', { game_key: key, run_id: runId, messages: [{ role: 'player', text: 'Hi' }], state: {} });
+  expect(status).toBe(403);
+  expect(body.error).toBe('You don’t have access to this game');
+});
+
+test('game-content refuses an addition that adds nothing', async () => {
+  const key = await seedGame('Content noop', tinyGame(), { publish: true });
+  const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data: tinyGame().data });
+  expect(status).toBe(400);
+  expect(String(body.error)).toContain('Nothing was added');
+});
+
+test('game-content refuses content generated on an older live version', async () => {
+  const key = await seedGame('Content stale', tinyGame(), { publish: true });
+  const data = tinyGame().data;
+  data.questions.push({ q: 'New?', options: ['a', 'b'], answer: 0, source: 'p-number' });
+  const { status, body } = await callAs('gameadmin', 'game-content', { game_key: key, data, based_on_version: 999 });
+  expect(status).toBe(409);
+  expect(String(body.error)).toContain('Generate again');
 });

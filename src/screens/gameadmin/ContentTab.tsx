@@ -20,7 +20,7 @@ export function ContentTab({ game, live }: { game: GameMeta; live: StoredContent
   const [request, setRequest] = useState('');
   const [busy, setBusy] = useState<null | 'generating' | 'publishing'>(null);
   const [streamed, setStreamed] = useState('');
-  const [proposal, setProposal] = useState<{ data: unknown; reply: string } | null>(null);
+  const [proposal, setProposal] = useState<{ data: unknown; reply: string; version: number } | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<{ tone: 'success' | 'warning'; text: string; reasons?: string[] } | null>(null);
 
@@ -34,7 +34,7 @@ export function ContentTab({ game, live }: { game: GameMeta; live: StoredContent
     setRunId(null);
     setStreamed('');
     try {
-      const result = await streamFunction('game-builder', { game_key: game.key, step: 'extend', instruction: request.trim() }, d => setStreamed(s => s + d)) as { data: unknown; reply: string };
+      const result = await streamFunction('game-builder', { game_key: game.key, step: 'extend', instruction: request.trim() }, d => setStreamed(s => s + d)) as { data: unknown; reply: string; version: number };
       setProposal(result);
     } catch (e) {
       setOutcome({ tone: 'warning', text: errorMessage(e) });
@@ -48,7 +48,7 @@ export function ContentTab({ game, live }: { game: GameMeta; live: StoredContent
     setBusy('publishing');
     setOutcome(null);
     try {
-      const r = await callFunction<{ passed: boolean; reasons: string[] }>('game-content', { game_key: game.key, data: proposal.data });
+      const r = await callFunction<{ passed: boolean; reasons: string[] }>('game-content', { game_key: game.key, data: proposal.data, based_on_version: proposal.version });
       if (r.passed) {
         setOutcome({ tone: 'success', text: 'Published · players get the new content in their next game' });
         setProposal(null);
