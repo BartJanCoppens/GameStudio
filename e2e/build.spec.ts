@@ -19,6 +19,32 @@ async function approvedGame(title: string) {
   return seedGame(title, { ...tiny, phase: 'code', concept: { ...tiny.concept, title }, files: null, data: null });
 }
 
+test('a long game logic is written in parts', async ({ page }) => {
+  const title = `Long logic ${Date.now()}`;
+  const key = await approvedGame(title);
+  const tiny = tinyGame();
+  const js: string = tiny.files['game.js'];
+  const cut = Math.floor(js.length / 2);
+  const logicBodies: Record<string, unknown>[] = [];
+  await page.route('**/functions/v1/game-builder', async (route: Route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    const sse = (event: string, data: unknown) => route.fulfill({ status: 200, headers: { 'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*' }, body: `event: ${event}\ndata: ${JSON.stringify(data)}\n\n` });
+    if (body.step === 'data') return sse('done', { data: tiny.data, notes: 'questions[]' });
+    if (body.step === 'screens') return sse('done', { file: 'index.html', content: tiny.files['index.html'] });
+    logicBodies.push(body);
+    // The first answer reaches its length limit; the second finishes the file.
+    return body.so_far ? sse('done', { file: 'game.js', content: js }) : sse('done', { partial: true, text: js.slice(0, cut) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByRole('button', { name: 'Play test' })).toBeVisible({ timeout: 30_000 });
+  expect(logicBodies).toHaveLength(2);
+  expect(logicBodies[1].so_far).toBe(js.slice(0, cut));
+  expect(logicBodies[1].part).toBe(2);
+  const { data } = await adminClient().from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
+  expect(data!.content.files['game.js']).toBe(js);
+});
+
 test('a failed build step keeps the previous files and offers Retry', async ({ page }) => {
   const title = `Build failure ${Date.now()}`;
   const key = await approvedGame(title);

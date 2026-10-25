@@ -242,3 +242,14 @@ test('game-match refuses a second invitation while one is open', async () => {
   expect(String(again.body.error)).toContain('already');
 });
 
+test('game-builder refuses a continuation that is too long or has too many parts', async () => {
+  const key = await seedGame(`Parts ${Date.now()}`, { ...tinyGame(), phase: 'code', files: null, data: null });
+  const concept = tinyGame().concept;
+  const tooLong = await callAs('creator', 'game-builder', { game_key: key, step: 'screens', concept, so_far: 'x'.repeat(290_000), part: 2 });
+  expect(tooLong.status).toBe(400);
+  expect(String(tooLong.body.error)).toContain('too long');
+  const tooMany = await callAs('creator', 'game-builder', { game_key: key, step: 'screens', concept, so_far: '<main>', part: 6 });
+  expect(tooMany.status).toBe(400);
+  expect(String(tooMany.body.error)).toContain('parts');
+});
+

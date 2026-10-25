@@ -50,6 +50,8 @@ export interface AskOptions {
   schema?: unknown;
   /** With Claude, use the faster model; other providers keep the admin's choice. */
   fastModel?: boolean;
+  /** streamText only: an answer that reaches maxTokens comes back with cut: true (to be continued) instead of failing. */
+  allowCut?: boolean;
 }
 
 export interface StructuredReply {
@@ -165,6 +167,8 @@ export function askStructured(ai: Assistant, system: string, turns: Turn[], sche
 export interface StreamedText {
   text: string;
   usage: Usage;
+  /** The answer reached its length limit (only with allowCut): the text is the first part of a longer file. */
+  cut?: boolean;
 }
 
 /** Plain text (e.g. a code file), passed on as it is written. OpenAI-compatible providers answer in one piece. */
@@ -182,8 +186,11 @@ export async function streamText(ai: Assistant, system: string, turns: Turn[], o
     const message = await stream.finalMessage();
     const usage: Usage = { model: message.model, inputTokens: message.usage.input_tokens, outputTokens: message.usage.output_tokens, costUsd: claudeCost(message.model, message.usage) };
     if (message.stop_reason === 'refusal') throw new HttpError(422, 'The model declined to write this. Try a different request.');
-    if (message.stop_reason === 'max_tokens') throw new HttpError(422, 'The file got too long for one step. Ask for a simpler game.');
     const text = message.content.flatMap(b => (b.type === 'text' ? [b.text] : [])).join('');
+    if (message.stop_reason === 'max_tokens') {
+      if (opts.allowCut && text) return { text, usage, cut: true };
+      throw new HttpError(422, 'The file got too long for one step. Ask for a simpler game.');
+    }
     return { text, usage };
   } catch (e) {
     claudeError(ai, e);

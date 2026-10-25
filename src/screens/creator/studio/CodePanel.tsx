@@ -27,7 +27,7 @@ export function CodePanel({ steps, live, onRetry }: { steps: BuildStep[]; live: 
         {steps.map(s => (
           <li key={s.id} aria-label={`${s.label}: ${s.status}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px', borderTop: s.id === 'data' ? 0 : '1px solid var(--tc-line-hair)' }}>
             <span aria-hidden="true" style={{ width: 16, color: s.status === 'done' ? 'var(--tc-green-text)' : s.status === 'failed' ? 'var(--tc-red-text)' : 'var(--tc-ink-4)', fontWeight: 700 }}>{ICON[s.status]}</span>
-            <span style={{ flex: 1, fontWeight: s.status === 'running' ? 600 : 400 }}>{s.label}{s.error ? <span style={{ display: 'block', fontSize: 12, color: 'var(--tc-red-text)' }}>{s.error}</span> : null}</span>
+            <span style={{ flex: 1, fontWeight: s.status === 'running' ? 600 : 400 }}>{s.label}{s.error ? <span style={{ display: 'block', fontSize: 12, color: 'var(--tc-red-text)' }}>{s.error}</span> : null}{s.note && !s.error ? <span style={{ display: 'block', fontSize: 12, color: 'var(--tc-ink-4)', fontWeight: 400 }}>{s.note}</span> : null}</span>
             <StepTimer step={s} />
             {s.status === 'failed' ? <Button variant="secondary" size="sm" onClick={() => onRetry(s.id)}>Retry</Button> : null}
           </li>

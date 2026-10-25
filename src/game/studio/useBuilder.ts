@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameContent, GameFiles } from '../content';
 import { useGameContent } from '../useGameContent';
 import { streamFunction } from './sse';
+import { MAX_PARTS, joinContinuation } from '../../../supabase/functions/_shared/continuation.ts';
 import { jsSyntaxProblem } from './syntax';
 
 export type StepId = 'data' | 'screens' | 'logic';
@@ -15,6 +16,8 @@ export interface BuildStep {
   started: number;
   seconds: number;
   error?: string;
+  /** Shown under the label while it runs, e.g. which part of a long file is being written. */
+  note?: string;
 }
 
 const STEPS: { id: StepId; label: string }[] = [
@@ -50,14 +53,24 @@ export function useBuilder() {
 
   const runStep = useCallback(async (id: StepId, content: GameContent): Promise<boolean> => {
     const t0 = Date.now();
-    patch(id, { status: 'running', started: t0, error: undefined });
+    patch(id, { status: 'running', started: t0, error: undefined, note: undefined });
     let text = '';
     try {
       const p = parts.current;
-      const result = await streamFunction('game-builder', {
-        game_key: game!.key, step: id, concept: content.concept,
-        ...(id === 'logic' ? { notes: p.notes ?? '', files: { 'index.html': p.html } } : {}),
-      }, d => { text += d; setLive({ step: id, text }); }) as Record<string, unknown>;
+      // A long file comes in parts: each answer that reaches its length limit is continued by the next call.
+      let soFar = '';
+      let result: Record<string, unknown>;
+      for (let part = 1; ; part++) {
+        result = await streamFunction('game-builder', {
+          game_key: game!.key, step: id, concept: content.concept,
+          ...(id === 'logic' ? { notes: p.notes ?? '', files: { 'index.html': p.html } } : {}),
+          ...(soFar ? { so_far: soFar, part } : {}),
+        }, d => { text += d; setLive({ step: id, text }); }) as Record<string, unknown>;
+        if (!result.partial) break;
+        if (part >= MAX_PARTS) throw new Error('The file is too long even in several parts. Ask for a simpler game.');
+        soFar = joinContinuation(soFar, String(result.text ?? ''));
+        patch(id, { note: `Long file · writing part ${part + 1}` });
+      }
       if (id === 'data') { p.data = result.data; p.notes = String(result.notes ?? ''); }
       if (id === 'screens') p.html = String(result.content);
       if (id === 'logic') {
@@ -66,7 +79,7 @@ export function useBuilder() {
         if (problem) throw new Error(problem);
         p.js = String(result.content);
       }
-      patch(id, { status: 'done', seconds: Math.round((Date.now() - t0) / 1000) });
+      patch(id, { status: 'done', seconds: Math.round((Date.now() - t0) / 1000), note: undefined });
       return true;
     } catch (e) {
       patch(id, { status: 'failed', seconds: Math.round((Date.now() - t0) / 1000), error: e instanceof Error ? e.message : 'The step failed' });
