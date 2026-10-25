@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataShapeProblems, echoedSecrets } from '../../supabase/functions/_shared/gameModel.ts';
+import { dataShapeProblems, echoedSecrets, progressDelta } from '../../supabase/functions/_shared/gameModel.ts';
 
 const before = { title: 'Quiz', questions: [{ q: 1 }, { q: 2 }], meta: { levels: [1, 2], name: 'x' } };
 
@@ -22,4 +22,23 @@ describe('echoedSecrets', () => {
     expect(echoedSecrets({ q: ['look at the vat number on invoice 2'] }, secret)).toHaveLength(1));
   it('ignores short values that would match by chance', () => expect(echoedSecrets({ q: ['debts'] }, secret)).toEqual([]));
   it('finds nothing without hidden knowledge', () => expect(echoedSecrets({ q: ['x'] }, null)).toEqual([]));
+  it('sees through changed case, spacing and punctuation', () =>
+    expect(echoedSecrets({ q: ['THE  bookkeeper, forged invoice-3'] }, secret)).toHaveLength(1));
+  it('checks a reply as well as content', () =>
+    expect(echoedSecrets('Added cases. Note: "the bookkeeper forged invoice 3".', secret)).toHaveLength(1));
+});
+
+describe('progressDelta', () => {
+  const sent: [string, unknown][] = [];
+  const send = (event: string, data: unknown) => { sent.push([event, data]); };
+  it('sends progress without the model’s text when adding content', () => {
+    sent.length = 0;
+    progressDelta('extend', send)('{"culprit":"the bookkeeper"}');
+    expect(sent).toEqual([['delta', '.'.repeat(28)]]);
+  });
+  it('streams the text for the creator’s own build steps', () => {
+    sent.length = 0;
+    progressDelta('logic', send)('let x = 1;');
+    expect(sent).toEqual([['delta', 'let x = 1;']]);
+  });
 });

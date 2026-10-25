@@ -229,20 +229,37 @@ function listProblems(name: string, before: unknown[], after: unknown): string[]
   return before.every((item, i) => sameData(item, after[i])) ? [] : [`${name} changed existing items`];
 }
 
+/** Letters and digits only, lower case, single spaces: "The  bookkeeper, forged invoice-3" → "the bookkeeper forged invoice 3". */
+function normalised(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function textsOf(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(textsOf);
+  if (value && typeof value === 'object') return Object.values(value).flatMap(textsOf);
+  return [];
+}
+
 /**
- * Text from the AI role's hidden knowledge that the content repeats (12 characters or more, ignoring case):
- * additions are shown to the game admin and to players, so they must not give the secret away.
+ * Text from the AI role's hidden knowledge that a value repeats (12 characters or more, ignoring case, spacing and
+ * punctuation). Additions and the AI's reply are shown to the game admin and players, so they must not give the
+ * secret away. Best effort: a paraphrase gets through.
  */
-export function echoedSecrets(data: unknown, secret: unknown): string[] {
-  const texts: string[] = [];
-  const walk = (v: unknown) => {
-    if (typeof v === 'string') { if (v.trim().length >= 12) texts.push(v.trim()); }
-    else if (Array.isArray(v)) v.forEach(walk);
-    else if (v && typeof v === 'object') Object.values(v).forEach(walk);
-  };
-  walk(secret);
-  const haystack = JSON.stringify(data ?? null).toLowerCase();
-  return texts.filter(t => haystack.includes(t.toLowerCase()));
+export function echoedSecrets(value: unknown, secret: unknown): string[] {
+  const shown = textsOf(value).map(normalised);
+  return textsOf(secret).map(t => t.trim()).filter(t => {
+    const n = normalised(t);
+    return n.length >= 12 && shown.some(s => s.includes(n));
+  });
+}
+
+/**
+ * How a build step reports progress while the model writes. Adding content to a live game has the AI role's
+ * hidden knowledge in its prompt, so only the length goes out (as dots) until the result has been checked.
+ */
+export function progressDelta(step: string, send: (event: 'delta', data: string) => void): (text: string) => void {
+  return step === 'extend' ? text => send('delta', '.'.repeat(text.length)) : text => send('delta', text);
 }
 
 export function dataShapeProblems(before: unknown, after: unknown): string[] {

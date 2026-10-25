@@ -79,9 +79,10 @@ export function ContentTab({ game, live }: { game: GameMeta; live: StoredContent
         </Field>
         <div><Button variant="primary" size="lg" onClick={() => void generate()} disabled={!!busy || request.trim().length < 5}>{busy === 'generating' ? 'Writing…' : 'Generate'}</Button></div>
         {busy === 'generating' ? (
-          <pre aria-label="Content being written" style={{ margin: 0, maxHeight: 160, overflow: 'auto', background: '#14171a', color: '#d6e2c4', borderRadius: 8, padding: '10px 12px', fontSize: 11.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {streamed.slice(-2000) || 'Starting…'}
-          </pre>
+          // Only progress arrives while the AI writes: the content is shown once it has been checked.
+          <div aria-label="Content being written" style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>
+            {streamed.length ? `Writing… ${streamed.length.toLocaleString('en-GB')} characters so far` : 'Starting…'}
+          </div>
         ) : null}
       </div>
       {outcome ? (
