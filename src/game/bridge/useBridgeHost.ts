@@ -97,8 +97,12 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
           return c.match ? c.match.view : standIn.current.view();
         case 'makeMove': {
           if (concept?.mode !== 'turns') throw new Error('This isn’t a turn-taking game');
-          const move = { move: req.move, state: req.state, mine: req.mine, over: req.over };
-          if (c.match) { await c.match.move(move); return true; }
+          const move = { move: req.move, state: req.state, mine: req.mine, over: req.over, moveNo: req.moveNo };
+          if (c.match) {
+            if (req.moveNo == null) throw new Error('The game hasn’t seen the match yet: call getMatch() first');
+            await c.match.move(move);
+            return true;
+          }
           const view = standIn.current.move(move);
           c.onStandIn?.(view);
           frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', event: 'match', value: view }, '*');

@@ -1,28 +1,33 @@
 // Notifications for turn-taking games: a phone notification (Web Push) and an email, as the game's creator chose
 // and the player allows. Best effort: a failed notification never fails the action that caused it.
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.117.3';
-import webpush from 'npm:web-push@3.6.7';
 import { isPushEndpoint, notificationText, type NotificationKind } from './notifyText.ts';
 
 const APP_URL = Deno.env.get('APP_URL') ?? 'https://game-studio-flame.vercel.app';
 export const matchUrl = (matchId: string) => `${APP_URL}/#/match?id=${matchId}`;
 
-let vapidReady: boolean | null = null;
-function vapid(): boolean {
-  if (vapidReady !== null) return vapidReady;
-  const pub = Deno.env.get('VAPID_PUBLIC_KEY'), priv = Deno.env.get('VAPID_PRIVATE_KEY');
-  vapidReady = !!(pub && priv);
-  if (vapidReady) webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:gamestudio@example.com', pub!, priv!);
-  return vapidReady;
+// Loaded on first use: if the push library can't load, only phone notifications stop, never the match itself.
+type WebPush = typeof import('npm:web-push@3.6.7').default;
+let webpushReady: Promise<WebPush | null> | null = null;
+function webpush(): Promise<WebPush | null> {
+  webpushReady ??= (async () => {
+    const pub = Deno.env.get('VAPID_PUBLIC_KEY'), priv = Deno.env.get('VAPID_PRIVATE_KEY');
+    if (!pub || !priv) { console.warn('push skipped: VAPID keys not set'); return null; }
+    const lib = (await import('npm:web-push@3.6.7')).default;
+    lib.setVapidDetails(Deno.env.get('VAPID_SUBJECT') ?? 'mailto:gamestudio@example.com', pub, priv);
+    return lib;
+  })().catch(e => { console.error('push unavailable', e instanceof Error ? e.message : e); return null; });
+  return webpushReady;
 }
 
 async function push(admin: SupabaseClient, userId: string, text: string, url: string) {
-  if (!vapid()) { console.warn('push skipped: VAPID keys not set'); return; }
+  const lib = await webpush();
+  if (!lib) return;
   const { data: subs } = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
   for (const s of subs ?? []) {
     if (!isPushEndpoint(s.endpoint)) continue;
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: 'Game Studio', body: text, url }), { TTL: 86400 });
+      await lib.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: 'Game Studio', body: text, url }), { TTL: 86400 });
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode;
       // The device unsubscribed or the subscription expired: forget it.

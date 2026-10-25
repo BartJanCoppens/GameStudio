@@ -89,6 +89,7 @@ ${BRIDGE_API_TURNS}
 - Each turn ends with exactly one makeMove(move, state, { mine, over }).
 - Secrets: never put a player's secrets (their hand, ship positions, hidden choices) in state; keep them in mine. When a move needs the other player's secret (for example "is C3 a hit?"), the player whose turn it now is answers it with their own mine at the start of their turn and writes the answer into state as part of their own move. Example (battleship): A fires at C3 (move { shot: 'C3' }); on B's turn B's game checks C3 against B's mine.ships, records "C3: hit" in state, then B fires.
 - Set the starting position in state on the first move (b moves first); a player's own secrets are set up on their first turn.
+- In a live game a turn can pass because its time ran out: then it is your turn again with lastMove null. There is nothing to answer; just play.
 - End the game with over: { winner } and show a clear end screen for both players.`;
 
 const EXTEND = (rules: string) => `You add content to a published learning game on Game Studio, at a game admin's request.

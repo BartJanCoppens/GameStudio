@@ -19,7 +19,7 @@ export type BridgeRequest = { id: number } & (
 export type Side = 'a' | 'b';
 
 /** A move in a turn-taking game: what happened, the new shared state, the mover's own secrets, the end. */
-export interface MakeMove { move: unknown; state: unknown; mine?: unknown; over?: { winner: Side | null } }
+export interface MakeMove { move: unknown; state: unknown; mine?: unknown; over?: { winner: Side | null }; /** The match position the move was made on (null: the game never saw one). */ moveNo?: number | null }
 
 /** What a turn-taking game sees of its match. `mine` is only ever the viewer's own private state. */
 export interface MatchView {
@@ -71,7 +71,8 @@ export function parseBridgeRequest(raw: unknown): BridgeRequest | null {
       if (jsonSize(m.move) > LIMITS.moveBytes || jsonSize(m.state) > LIMITS.matchStateBytes || jsonSize(m.mine) > LIMITS.mineBytes) return null;
       const over = m.over as { winner?: unknown } | null | undefined;
       if (over != null && (typeof over !== 'object' || (over.winner !== 'a' && over.winner !== 'b' && over.winner !== null))) return null;
-      return { id, type: 'makeMove', move: m.move ?? null, state: m.state ?? null, mine: m.mine, over: over == null ? undefined : { winner: over.winner as Side | null } };
+      const moveNo = typeof m.moveNo === 'number' && Number.isInteger(m.moveNo) && m.moveNo >= 0 ? m.moveNo : null;
+      return { id, type: 'makeMove', move: m.move ?? null, state: m.state ?? null, mine: m.mine, over: over == null ? undefined : { winner: over.winner as Side | null }, moveNo };
     }
     default:
       return null;

@@ -9,12 +9,21 @@ self.addEventListener('push', event => {
   event.waitUntil(self.registration.showNotification(title, { body, icon: '/icon-192.png', badge: '/icon-192.png', data: { url } }));
 });
 
+// Take charge of open pages right away, so a tap on a notification can send them to the game.
+self.addEventListener('install', () => { self.skipWaiting(); });
+self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url) || self.location.origin;
   event.waitUntil((async () => {
     const open = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of open) if (c.url.startsWith(self.location.origin) && 'focus' in c) { await c.navigate(url).catch(() => null); return c.focus(); }
+    for (const c of open) {
+      if (!c.url.startsWith(self.location.origin) || !('navigate' in c)) continue;
+      // A page this worker doesn't control can't be sent elsewhere: open the game in a new one instead.
+      const moved = await c.navigate(url).then(() => true, () => false);
+      if (moved) return c.focus();
+    }
     return self.clients.openWindow(url);
   })());
 });

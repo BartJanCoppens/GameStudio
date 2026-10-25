@@ -12,6 +12,8 @@ import { intervalSeconds } from '../../game/turns';
 export function TurnPanel({ game, concept }: { game: GameMeta; concept: GameConcept }) {
   const { toast } = useApp();
   const [days, setDays] = useState('');
+  // The fields stay disabled until the saved values arrive, so typing can't be overwritten by them.
+  const [loaded, setLoaded] = useState(false);
   const [minutes, setMinutes] = useState('');
   const [matches, setMatches] = useState<MatchRow[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -22,6 +24,7 @@ export function TurnPanel({ game, concept }: { game: GameMeta; concept: GameConc
       if (cancelled || !data) return;
       setDays(String(Math.round((intervalSeconds(data.turn_limit_async as string) / 86400) * 10) / 10));
       setMinutes(String(Math.round(intervalSeconds(data.turn_limit_live as string) / 60)));
+      setLoaded(true);
     });
     supabase.from('matches').select('*').eq('game_key', game.key).eq('status', 'finished').order('finished_at', { ascending: false }).limit(50)
       .returns<MatchRow[]>().then(({ data }) => { if (!cancelled) setMatches(data ?? []); });
@@ -44,8 +47,8 @@ export function TurnPanel({ game, concept }: { game: GameMeta; concept: GameConc
         <div style={cardHead}>Longest time without a move</div>
         <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>After this, a game between colleagues is cancelled and counts for nothing.</div>
-          <Field label="Turn by turn, in days"><Input type="number" min={0.1} max={30} step={0.5} value={days} onChange={e => setDays(e.target.value)} /></Field>
-          <Field label="Live, in minutes"><Input type="number" min={1} max={1440} step={1} value={minutes} onChange={e => setMinutes(e.target.value)} /></Field>
+          <Field label="Turn by turn, in days"><Input type="number" min={0.1} max={30} step={0.5} value={days} disabled={!loaded} onChange={e => setDays(e.target.value)} /></Field>
+          <Field label="Live, in minutes"><Input type="number" min={1} max={1440} step={1} value={minutes} disabled={!loaded} onChange={e => setMinutes(e.target.value)} /></Field>
           <div><Button variant="primary" size="md" disabled={busy || !valid} onClick={() => void save()}>Save limits</Button></div>
         </div>
       </div>

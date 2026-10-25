@@ -38,9 +38,9 @@ describe('turn-taking requests', () => {
   const base = { source: 'gamestudio', id: 7 };
   it('parses getMatch and makeMove', () => {
     expect(parseBridgeRequest({ ...base, type: 'getMatch' })).toEqual({ id: 7, type: 'getMatch' });
-    expect(parseBridgeRequest({ ...base, type: 'makeMove', move: { shot: 'C3' }, state: { n: 1 }, mine: { ships: 'B5' }, over: { winner: 'a' } }))
-      .toEqual({ id: 7, type: 'makeMove', move: { shot: 'C3' }, state: { n: 1 }, mine: { ships: 'B5' }, over: { winner: 'a' } });
-    expect(parseBridgeRequest({ ...base, type: 'makeMove', move: {}, state: null })).toEqual({ id: 7, type: 'makeMove', move: {}, state: null, mine: undefined, over: undefined });
+    expect(parseBridgeRequest({ ...base, type: 'makeMove', move: { shot: 'C3' }, state: { n: 1 }, mine: { ships: 'B5' }, over: { winner: 'a' }, moveNo: 3 }))
+      .toEqual({ id: 7, type: 'makeMove', move: { shot: 'C3' }, state: { n: 1 }, mine: { ships: 'B5' }, over: { winner: 'a' }, moveNo: 3 });
+    expect(parseBridgeRequest({ ...base, type: 'makeMove', move: {}, state: null })).toEqual({ id: 7, type: 'makeMove', move: {}, state: null, mine: undefined, over: undefined, moveNo: null });
   });
   it('rejects an oversize state or a bad over', () => {
     expect(parseBridgeRequest({ ...base, type: 'makeMove', move: {}, state: { big: 'x'.repeat(33000) } })).toBeNull();

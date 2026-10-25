@@ -189,6 +189,31 @@ begin
   execute 'reset role';
   results := array_append(results, case when ok then 'ok lb1' else 'FAIL lb1: turn leaderboard wrong' end);
 
+  -- (r1) both players ready at once: the live match starts (each call sets only its own flag)
+  insert into public.matches (id, game_key, version, way, status, player_a, player_b, a_name, b_name) values
+    ('00000000-0000-4000-8000-000000000b01', k2, 1, 'live', 'waiting', pa, pb, 'A', 'B');
+  perform public.match_ready('00000000-0000-4000-8000-000000000b01', 'a', 30);
+  perform public.match_ready('00000000-0000-4000-8000-000000000b01', 'b', 30);
+  select status = 'active' and a_ready and b_ready and turn_ends_at is not null from public.matches where id = '00000000-0000-4000-8000-000000000b01' into ok;
+  results := array_append(results, case when ok then 'ok r1' else 'FAIL r1: both ready but not started' end);
+
+  -- (mv1) a move is saved in one step with the mover's secrets; the same move number again is refused
+  perform public.match_move('00000000-0000-4000-8000-000000000b01', 'b', 0, '{"shot":"C3"}', '{"n":1}', '{"ships":"A1"}', true, false, null, 30);
+  select (select move_no = 1 and turn = 'a' and last_move = '{"shot":"C3"}' from public.matches where id = '00000000-0000-4000-8000-000000000b01')
+     and exists (select 1 from public.match_private where match_id = '00000000-0000-4000-8000-000000000b01' and side = 'b' and state = '{"ships":"A1"}')
+     and exists (select 1 from public.match_moves where match_id = '00000000-0000-4000-8000-000000000b01' and move_no = 0) into ok;
+  begin
+    perform public.match_move('00000000-0000-4000-8000-000000000b01', 'b', 0, '{}', '{}', null, false, false, null, 30);
+    ok := false;
+  exception when others then ok := ok and sqlerrm like 'The game moved on%'; end;
+  results := array_append(results, case when ok then 'ok mv1' else 'FAIL mv1: move not saved in one step' end);
+
+  -- (ps1) a passed turn has no last move (it was the passer's own)
+  update public.matches set turn_ends_at = now() - interval '1 second' where id = '00000000-0000-4000-8000-000000000b01';
+  perform public.match_pass('00000000-0000-4000-8000-000000000b01', 'b', 1, 30);
+  select turn = 'b' and move_no = 2 and last_move is null from public.matches where id = '00000000-0000-4000-8000-000000000b01' into ok;
+  results := array_append(results, case when ok then 'ok ps1' else 'FAIL ps1: a pass kept the last move' end);
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;

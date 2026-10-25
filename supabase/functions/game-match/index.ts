@@ -61,6 +61,13 @@ async function update(admin: SupabaseClient, m: Match, expect: Record<string, un
 }
 
 const nameOf = (m: Match, s: Side) => (s === 'a' ? m.a_name : m.b_name);
+
+/** Notifications go out after the answer: a slow push service never makes a saved move look failed. */
+function later(work: Promise<unknown>) {
+  const runtime = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime;
+  if (runtime) runtime.waitUntil(work);
+  else void work;
+}
 const playerOf = (m: Match, s: Side) => (s === 'a' ? m.player_a : m.player_b);
 
 async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknown> {
@@ -90,7 +97,7 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       // The database keeps one open game per pair and game, even when two invitations cross.
       if (error?.code === '23505') throw new HttpError(409, 'You already have an invitation or a game with this colleague in this game');
       if (error) throw new Error(error.message);
-      await notify(admin, b.invitee, 'invite', name(c.id), title, row.id, turns.notify);
+      later(notify(admin, b.invitee, 'invite', name(c.id), title, row.id, turns.notify));
       return { match_id: row.id };
     }
     case 'accept':
@@ -103,20 +110,17 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       const status = b.action === 'accept' ? (m.way === 'live' ? 'waiting' : 'active') : b.action === 'decline' ? 'declined' : 'withdrawn';
       const done = b.action !== 'accept';
       const next = await update(admin, m, { status: 'invited' }, { status, last_activity_at: new Date().toISOString(), ...(done ? { finished_at: new Date().toISOString() } : {}) });
-      if (b.action !== 'withdraw') await notify(admin, m.player_a, b.action === 'accept' ? 'accepted' : 'declined', m.b_name, title, m.id, turns.notify);
+      if (b.action !== 'withdraw') later(notify(admin, m.player_a, b.action === 'accept' ? 'accepted' : 'declined', m.b_name, title, m.id, turns.notify));
       return { status: next.status };
     }
     case 'ready': {
       const { m, side } = await load(admin, c, b.match_id);
       if (m.way !== 'live' || m.status !== 'waiting') return { status: m.status };
       const { turns } = await turnsOf(admin, m.game_key, m.version);
-      const flags = { a_ready: m.a_ready || side === 'a', b_ready: m.b_ready || side === 'b' };
-      const both = flags.a_ready && flags.b_ready;
-      const now = Date.now();
-      const next = await update(admin, m, { status: 'waiting', [`${side}_ready`]: side === 'a' ? m.a_ready : m.b_ready }, {
-        ...flags, ...(both ? { status: 'active', turn_ends_at: new Date(now + turns.turnSeconds * 1000).toISOString(), last_activity_at: new Date(now).toISOString() } : {}),
-      });
-      return { status: next.status };
+      // One statement in the database: two players arriving at once can't overwrite each other's flag.
+      const { data: status, error } = await admin.rpc('match_ready', { p_match_id: m.id, p_side: side, p_turn_seconds: turns.turnSeconds });
+      if (error) throw new Error(error.message);
+      return { status: status ?? m.status };
     }
     case 'move': {
       const { m, side } = await load(admin, c, b.match_id);
@@ -128,16 +132,14 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       const over = b.over as { winner?: unknown } | undefined | null;
       if (over != null && (typeof over !== 'object' || (over.winner !== 'a' && over.winner !== 'b' && over.winner !== null))) throw new HttpError(400, 'over must be { winner: "a" | "b" | null }');
       const { turns, title } = await turnsOf(admin, m.game_key, m.version);
-      const now = new Date();
-      const next = await update(admin, m, { status: 'active', turn: side, move_no: m.move_no }, {
-        move_no: m.move_no + 1, turn: other(side), state: b.state ?? null, last_move: b.move ?? null, last_activity_at: now.toISOString(),
-        turn_ends_at: m.way === 'live' && !over ? new Date(now.getTime() + turns.turnSeconds * 1000).toISOString() : null,
-        ...(over ? { status: 'finished', winner: over.winner ?? null, finished_at: now.toISOString() } : {}),
+      // The match, the move log and the mover's secrets in one transaction, or nothing.
+      const { data: next, error } = await admin.rpc('match_move', {
+        p_match_id: m.id, p_side: side, p_move_no: m.move_no, p_move: b.move ?? null, p_state: b.state ?? null, p_mine: b.mine ?? null,
+        p_set_mine: b.mine !== undefined, p_finish: !!over, p_winner: over ? over.winner ?? null : null, p_turn_seconds: turns.turnSeconds,
       });
-      await admin.from('match_moves').insert({ match_id: m.id, move_no: m.move_no, side, move: b.move ?? null });
-      if (b.mine !== undefined) await admin.from('match_private').upsert({ match_id: m.id, side, state: b.mine ?? null });
-      if (m.way === 'async' && !over) await notify(admin, playerOf(m, other(side)), 'turn', nameOf(m, side), title, m.id, turns.notify);
-      return { move_no: next.move_no };
+      if (error) throw error.message.startsWith('The game moved on') ? new HttpError(409, 'The game moved on. It has been reloaded.') : new Error(error.message);
+      if (m.way === 'async' && !over) later(notify(admin, playerOf(m, other(side)), 'turn', nameOf(m, side), title, m.id, turns.notify));
+      return { move_no: next };
     }
     case 'pass': {
       const { m, side } = await load(admin, c, b.match_id);
@@ -145,10 +147,9 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       if (!m.turn_ends_at || new Date(m.turn_ends_at).getTime() > Date.now()) throw new HttpError(409, 'The turn’s time isn’t up yet');
       const { turns } = await turnsOf(admin, m.game_key, m.version);
       // A passed turn isn't activity: a game one player left still ends at the game admin's limit.
-      const next = await update(admin, m, { status: 'active', turn: m.turn, move_no: m.move_no }, {
-        turn: side, move_no: m.move_no + 1, turn_ends_at: new Date(Date.now() + turns.turnSeconds * 1000).toISOString(),
-      });
-      return { turn: next.turn };
+      const { data: turn, error } = await admin.rpc('match_pass', { p_match_id: m.id, p_side: side, p_move_no: m.move_no, p_turn_seconds: turns.turnSeconds });
+      if (error) throw new HttpError(409, 'There is no turn to pass yet');
+      return { turn };
     }
     case 'get': {
       const { m, side } = await load(admin, c, b.match_id);

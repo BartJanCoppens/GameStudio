@@ -5,10 +5,13 @@ export const BRIDGE_SCRIPT = `(() => {
   let next = 1;
   const waiting = new Map();
   const matchListeners = [];
+  // The position the game last saw: a move is made on it, and the platform refuses it if the match moved on.
+  let lastMoveNo = null;
+  const seen = v => { if (v && typeof v.moveNo === 'number') lastMoveNo = v.moveNo; return v; };
   window.addEventListener('message', e => {
     const m = e.data;
     if (e.source !== window.parent || !m || m.source !== 'gamestudio-host') return;
-    if (m.event === 'match') { for (const cb of matchListeners) { try { cb(m.value); } catch (_) {} } return; }
+    if (m.event === 'match') { seen(m.value); for (const cb of matchListeners) { try { cb(m.value); } catch (_) {} } return; }
     if (!waiting.has(m.id)) return;
     const { resolve, reject } = waiting.get(m.id);
     waiting.delete(m.id);
@@ -47,8 +50,8 @@ export const BRIDGE_SCRIPT = `(() => {
     contribute: (amount, note) => call('contribute', { amount, note }),
     askAI: ({ messages, state } = {}) => call('askAI', { messages, state }),
     finish: () => call('finish'),
-    getMatch: () => call('getMatch'),
-    makeMove: (move, state, opts) => call('makeMove', { move, state, mine: opts && opts.mine, over: opts && opts.over }),
+    getMatch: () => call('getMatch').then(seen),
+    makeMove: (move, state, opts) => call('makeMove', { move, state, mine: opts && opts.mine, over: opts && opts.over, moveNo: lastMoveNo }),
     onMatchChange: cb => { if (typeof cb === 'function') matchListeners.push(cb); },
   });
 })();`;

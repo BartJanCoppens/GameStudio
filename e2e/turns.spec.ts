@@ -97,6 +97,8 @@ test('the Studio test plays both sides', async ({ page }) => {
   await signIn(page, 'creator');
   await page.goto(`/#/studio?game=${key}`);
   await page.getByRole('button', { name: 'Play test' }).click();
+  // The preview frame is replaced by the test run's frame: play only once that has happened.
+  await expect(page.getByRole('button', { name: 'Restart test' })).toBeVisible();
   await expect(page.getByText('Testing both sides · playing as B')).toBeVisible();
   await scorePoint(page);
   await expect(page.getByText('Testing both sides · playing as A')).toBeVisible();
@@ -136,5 +138,54 @@ test('the players’ leaderboard counts wins, draws and losses', async ({ page }
   const winner = page.getByRole('row').filter({ hasText: 'E2E player' }).filter({ hasNotText: 'player2' });
   await expect(winner).toContainText('1 won · 0 drawn · 0 lost');
   await expect(page.getByRole('row').filter({ hasText: 'E2E player2' })).toContainText('0 won · 0 drawn · 1 lost');
+});
+
+async function liveMatch(title: string) {
+  const key = await seedTurnGame(title);
+  const invite = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'live' });
+  const id = invite.body.match_id as string;
+  await matchAs('player2', { action: 'accept', match_id: id });
+  await Promise.all([matchAs('player', { action: 'ready', match_id: id }), matchAs('player2', { action: 'ready', match_id: id })]);
+  return { key, id };
+}
+
+test('two players opening a live game at once both start it', async () => {
+  const { id } = await liveMatch(`Both ready ${Date.now()}`);
+  const view = await matchAs('player', { action: 'get', match_id: id });
+  expect((view.body.match as { status: string }).status).toBe('active');
+});
+
+test('a pass the server refuses is tried again', async ({ page }) => {
+  const title = `Retry pass ${Date.now()}`;
+  const { id } = await liveMatch(title);
+  // It is b's (player2's) turn; player waits. The turn's time is up on the server.
+  await adminClient().from('matches').update({ turn_ends_at: new Date(Date.now() - 1000).toISOString() }).eq('id', id);
+  let refused = 0;
+  await page.route('**/functions/v1/game-match', async route => {
+    const body = route.request().postDataJSON() as { action: string };
+    if (body.action === 'pass' && refused === 0) {
+      refused += 1;
+      return route.fulfill({ status: 409, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'The turn’s time isn’t up yet' }) });
+    }
+    return route.continue();
+  });
+  await signIn(page, 'player');
+  await row(page, title).getByRole('button', { name: 'Play' }).click();
+  await expect(frameOf(page).getByText('Your turn')).toBeVisible({ timeout: 15_000 });
+  expect(refused).toBe(1);
+});
+
+test('a game isn’t told about changes that didn’t happen', async ({ page }) => {
+  test.setTimeout(60_000);
+  const title = `Quiet duel ${Date.now()}`;
+  const key = await seedTurnGame(title);
+  const invite = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'async' });
+  await matchAs('player2', { action: 'accept', match_id: invite.body.match_id });
+  await signIn(page, 'player2');
+  await row(page, title).getByRole('button', { name: 'Play' }).click();
+  await expect(frameOf(page).getByText('Your turn')).toBeVisible();
+  // Two polls go by without a move.
+  await page.waitForTimeout(21_000);
+  await expect(frameOf(page).getByText('Changes: 0')).toBeVisible();
 });
 

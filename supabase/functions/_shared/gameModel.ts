@@ -222,7 +222,7 @@ export const AI_REPLY_SCHEMA = {
 /** Extra bridge calls for turn-taking games (mode "turns"). */
 export const BRIDGE_API_TURNS = `Turn-taking games (two players, "a" invited "b"; b moves first):
 - GameStudio.getMatch(): { you: 'a' | 'b', players: { a: { name }, b: { name } }, turn: 'a' | 'b', moveNo, state, lastMove, mine, way: 'live' | 'async', turnEndsAt, status, over }.
-  state: the shared state both players see (null before the first move). mine: your own private state, which the other player never receives (null at first). lastMove: the other player's last move.
+  state: the shared state both players see (null before the first move). mine: your own private state, which the other player never receives (null at first). lastMove: the other player's last move (null when their turn passed because time ran out).
 - GameStudio.makeMove(move, state, { mine, over }): only when it is your turn. move: a small object describing what you did; state: the new shared state; mine: your new private state (optional); over: { winner: 'a' | 'b' | null } to end the game (null winner: a draw).
 - GameStudio.onMatchChange(callback): callback(match) whenever the other player moves or the turn passes. Re-render from it.`;
 

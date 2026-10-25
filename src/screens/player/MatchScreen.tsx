@@ -11,6 +11,9 @@ import { BackLink, Screen } from '../../shell/ui';
 
 interface Loaded { match: MatchRow; you: Side; mine: unknown; content: GameContent }
 
+const sameMatch = (a: MatchRow, b: MatchRow) =>
+  a.move_no === b.move_no && a.status === b.status && a.turn === b.turn && a.turn_ends_at === b.turn_ends_at && a.a_ready === b.a_ready && a.b_ready === b.b_ready;
+
 /** Seconds left on the live turn, ticking. */
 function useSecondsLeft(until: string | null): number | null {
   const [now, setNow] = useState(() => Date.now());
@@ -31,7 +34,13 @@ export function MatchScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    try { setData(await callMatch<Loaded>('get', { match_id: id })); setError(null); } catch (e) { setError(errorMessage(e)); }
+    try {
+      const next = await callMatch<Loaded>('get', { match_id: id });
+      // Keep what the game has when nothing changed (it re-renders on every change notice), and never step back to
+      // an older position when two loads finish out of order.
+      setData(prev => (prev && (sameMatch(prev.match, next.match) || next.match.move_no < prev.match.move_no) ? prev : next));
+      setError(null);
+    } catch (e) { setError(errorMessage(e)); }
   }, [id]);
 
   // Open: a live game counts this player as present; then follow the match as it changes.
@@ -56,17 +65,23 @@ export function MatchScreen() {
   const secondsLeft = useSecondsLeft(m?.way === 'live' && m.status === 'active' ? m.turn_ends_at : null);
 
   // The other player's live turn ran out: pass it on (the server checks the time).
+  // A refused pass (clocks a little apart) is tried again two seconds later.
   const passed = useRef<number | null>(null);
+  const [passRetry, setPassRetry] = useState(0);
   useEffect(() => {
     if (!m || !data || secondsLeft !== 0 || m.turn === data.you || passed.current === m.move_no) return;
     passed.current = m.move_no;
-    void callMatch('pass', { match_id: m.id }).then(load, () => null);
-  }, [secondsLeft, m, data, load]);
+    void callMatch('pass', { match_id: m.id, move_no: m.move_no }).then(load, () => {
+      setTimeout(() => { passed.current = null; setPassRetry(r => r + 1); }, 2000);
+    });
+  }, [secondsLeft, m, data, load, passRetry]);
 
   const match = useMemo(() => (data ? {
     view: viewOf(data.match, data.you, data.mine),
     move: async (mv: MakeMove) => {
-      try { await callMatch('move', { match_id: data.match.id, move_no: data.match.move_no, ...mv }); } finally { await load(); }
+      // The move number is the position the game made its move on, not whatever this screen loaded since.
+      const { moveNo, ...rest } = mv;
+      try { await callMatch('move', { match_id: data.match.id, move_no: moveNo, ...rest }); } finally { await load(); }
     },
   } : undefined), [data, load]);
 
