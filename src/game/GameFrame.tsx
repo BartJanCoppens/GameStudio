@@ -19,6 +19,7 @@ interface Props {
   runId: string | null;
   test: boolean;
   onFinished?: (score: number | null) => void;
+  onScoreFailed?: (message: string) => void;
   height?: number | string;
 }
 
@@ -27,7 +28,7 @@ interface Props {
  * content security policy inside, and the bridge as its only way out. If the frame navigates away from the
  * page it was given, it is stopped.
  */
-export function GameFrame({ gameKey, content, runId, test, onFinished, height = 'calc(100dvh - 190px)' }: Props) {
+export function GameFrame({ gameKey, content, runId, test, onFinished, onScoreFailed, height = 'calc(100dvh - 190px)' }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [fontsCss, setFontsCss] = useState<string | null>(null);
   // Which page (and run) was stopped for leaving; a new page or run starts clean.
@@ -49,6 +50,7 @@ export function GameFrame({ gameKey, content, runId, test, onFinished, height = 
     gameKey, runId, test, content,
     onLeft: () => setLeftKey(frameKey),
     onFinished: score => onFinished?.(score),
+    onScoreFailed: message => onScoreFailed?.(message),
   });
 
   if (left) return <div role="alert" style={{ padding: 24, border: '1px solid var(--tc-red)', borderRadius: 8, background: 'var(--tc-red-bg-soft)', color: 'var(--tc-red-text)', fontWeight: 600 }}>{LEFT_MESSAGE}</div>;

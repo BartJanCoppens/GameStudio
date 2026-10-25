@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import { useSignedIn } from '../../auth/useAuth';
-import { callFunction, supabase } from '../../lib/supabase';
+import { callFunction, errorMessage, supabase } from '../../lib/supabase';
 import { PASSAGES, type GameContent } from '../content';
 import { contribute, goalTotal } from '../goal';
 import { finishRun, leaderboardOf, type RunRow } from '../runs';
@@ -17,6 +17,8 @@ export interface BridgeContext {
   onLeft: () => void;
   /** The game called finish(); the score it submitted, if any. */
   onFinished: (score: number | null) => void;
+  /** Saving the score failed (the game went offline, for instance): the player is told, and stays on the game. */
+  onScoreFailed: (message: string) => void;
 }
 
 async function leaderboard(gameKey: string) {
@@ -33,10 +35,11 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
   const latest = useRef(ctx);
   useEffect(() => { latest.current = ctx; });
   const submitted = useRef<number | null>(null);
+  const scoreFailed = useRef(false);
   // Contributions go one at a time, at most 50 per run (the database enforces the same).
   const contributions = useRef(limitedQueue(50));
 
-  useEffect(() => { submitted.current = null; contributions.current = limitedQueue(50); }, [ctx.runId]);
+  useEffect(() => { submitted.current = null; scoreFailed.current = false; contributions.current = limitedQueue(50); }, [ctx.runId]);
 
   useEffect(() => {
     const respond = (res: { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string }) => frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', ...res }, '*');
@@ -62,15 +65,22 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
           return { counted: true };
         case 'submitScore':
           if (submitted.current !== null) throw new Error('The score was already submitted');
+          if (c.runId) {
+            try { await finishRun(c.runId, req.score, req.details); } catch (e) {
+              scoreFailed.current = true;
+              c.onScoreFailed(errorMessage(e));
+              throw e;
+            }
+          }
           submitted.current = req.score;
-          if (c.runId) await finishRun(c.runId, req.score, req.details);
           return { saved: !!c.runId };
         case 'askAI':
           if (!concept?.aiRole) throw new Error('This game has no AI role');
           if (!c.runId) throw new Error('Start the game first');
           return callFunction('game-ai', { game_key: c.gameKey, run_id: c.runId, messages: req.messages, state: req.state });
         case 'finish':
-          c.onFinished(submitted.current);
+          // After a failed save the player stays where the message is, not on results without this game.
+          if (!scoreFailed.current) c.onFinished(submitted.current);
           return true;
       }
     }

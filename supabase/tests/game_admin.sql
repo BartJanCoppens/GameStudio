@@ -198,6 +198,50 @@ begin
   exception when others then results := array_append(results, 'FAIL v: ' || sqlerrm); end;
   execute 'reset role';
 
+  -- (w) a never-published draft is seen by its creator only, not by players or other creators
+  insert into public.games (key, title) values ('sqltest4-draft', 'D');
+  update public.games set created_by = owner_ where key = 'sqltest4-draft';
+  perform set_config('request.jwt.claims', json_build_object('sub', player, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) = 0 from public.games where key = 'sqltest4-draft' into ok;
+  results := array_append(results, case when ok then 'ok w' else 'FAIL w: a player saw an unpublished draft' end);
+  execute 'reset role';
+
+  -- (x) another game admin can't set the game's player limits nor read its AI services
+  insert into public.ai_services (scope, game_key, provider) values ('game', k, 'claude');
+  perform set_config('request.jwt.claims', json_build_object('sub', gadmin, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.usage_limits (audience, game_key, calls_per_day) values ('players', k, 0);
+    ok := false;
+  exception when others then ok := true; end;
+  results := array_append(results, case when ok then 'ok x' else 'FAIL x: a game admin who isn''t this game''s set its player limits' end);
+  execute 'reset role';
+  update public.games set game_admin = gadmin where key = k;
+  delete from public.usage_limits where game_key = k;
+  perform set_config('request.jwt.claims', json_build_object('sub', gadmin, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.usage_limits (audience, game_key, calls_per_day) values ('players', k, 0);
+  exception when others then results := array_append(results, 'FAIL x2: the game admin could not set limits ' || sqlerrm); end;
+  execute 'reset role';
+  insert into auth.users (id, email, aud, role) values ('00000000-0000-4000-8000-0000000000bb', 'sqltest4-ga3@example.com', 'authenticated', 'authenticated');
+  insert into public.user_roles (user_id, role_key) values ('00000000-0000-4000-8000-0000000000bb', 'gameadmin');
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-4000-8000-0000000000bb', 'role', 'authenticated')::text, true);
+  execute as_user;
+  select (select count(*) from public.ai_services where game_key = k) = 0 and (select count(*) from public.usage_limits where game_key = k and user_id is not null) = 0 into ok;
+  begin
+    update public.usage_limits set calls_per_day = 5 where game_key = k;
+    get diagnostics n = row_count;
+    ok := ok and n = 0;
+  exception when others then null; end;
+  begin
+    insert into public.usage_limits (audience, game_key, user_id, calls_per_day) values ('players', k, player, 0);
+    ok := false;
+  exception when others then null; end;
+  results := array_append(results, case when ok then 'ok x3' else 'FAIL x3: another game admin reached the game''s AI services or limits' end);
+  execute 'reset role';
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;

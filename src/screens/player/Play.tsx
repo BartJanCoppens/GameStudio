@@ -42,7 +42,10 @@ export function Play() {
           {runId ? <span style={{ fontSize: 12, color: 'var(--tc-ink-3)' }}>{concept.title}</span> : null}
         </div>
         {runId ? (
-          <GameFrame gameKey={game.key} content={live.content} runId={runId} test={false} onFinished={() => set({ resultsRunId: runId, screen: 'results' })} />
+          <>
+            {error ? <Banner tone="warning" title="Your score wasn’t saved">{error}</Banner> : null}
+            <GameFrame gameKey={game.key} content={live.content} runId={runId} test={false} onFinished={() => set({ resultsRunId: runId, screen: 'results' })} onScoreFailed={setError} />
+          </>
         ) : (
           <div style={{ ...card, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={eyebrow}>{concept.mode === 'common_goal' ? 'Common goal' : 'Solo'}{concept.aiRole ? ` · ${concept.aiRole.kind === 'opponent' ? 'against the AI' : 'with an AI game master'}` : ''}</div>

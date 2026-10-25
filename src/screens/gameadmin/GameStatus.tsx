@@ -15,7 +15,8 @@ export function GameStatus({ game }: { game: GameMeta }) {
   const { profile, permissions } = useSignedIn();
   const { reloadGames } = useGameContent();
   const platformAdmin = permissions.has('users.manage');
-  const [gameAdmins, setGameAdmins] = useState<GameAdmin[]>([]);
+  // null until loaded: no name is shown rather than a wrong one.
+  const [gameAdmins, setGameAdmins] = useState<GameAdmin[] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [changing, setChanging] = useState(false);
   const [chosen, setChosen] = useState('');
@@ -42,13 +43,14 @@ export function GameStatus({ game }: { game: GameMeta }) {
 
   const offline = !!game.offline_at;
   const gameAdminName = game.game_admin === profile.id ? 'you'
-    : gameAdmins.find(a => a.id === game.game_admin)?.full_name ?? (game.game_admin ? 'someone who can no longer look after games' : 'not set');
+    : !game.game_admin ? 'not set'
+      : gameAdmins ? gameAdmins.find(a => a.id === game.game_admin)?.full_name ?? 'someone who can no longer look after games' : null;
 
   return (
     <div style={{ ...card, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
       <Tag tone={offline ? 'amber' : 'green'}>{offline ? 'Offline' : 'Online'}</Tag>
       <Button variant="secondary" size="sm" disabled={busy} onClick={() => (offline ? void setOffline(false) : setConfirming(true))}>{offline ? 'Bring online' : 'Take offline'}</Button>
-      <span style={{ fontSize: 13, color: 'var(--tc-ink-3)', marginLeft: 'auto' }}>Game admin: {gameAdminName}</span>
+      <span style={{ fontSize: 13, color: 'var(--tc-ink-3)', marginLeft: 'auto' }}>{gameAdminName ? `Game admin: ${gameAdminName}` : null}</span>
       {platformAdmin && !changing ? <Button variant="secondary" size="sm" disabled={busy} onClick={() => { setChosen(''); setChanging(true); }}>Change game admin</Button> : null}
       {platformAdmin && changing ? (
         <>
@@ -57,7 +59,7 @@ export function GameStatus({ game }: { game: GameMeta }) {
             value={chosen}
             disabled={busy}
             onChange={e => setChosen(e.target.value)}
-            options={[{ value: '', label: 'Choose a game admin…' }, ...gameAdmins.filter(a => a.id !== game.game_admin).map(a => ({ value: a.id, label: a.full_name }))]}
+            options={[{ value: '', label: 'Choose a game admin…' }, ...(gameAdmins ?? []).filter(a => a.id !== game.game_admin).map(a => ({ value: a.id, label: a.full_name }))]}
           />
           <Button variant="primary" size="sm" disabled={busy || !chosen}
             onClick={() => void run(() => supabase.rpc('set_game_admin', { p_game_key: game.key, p_user: chosen }), 'Game admin changed').then(() => setChanging(false))}>Save</Button>

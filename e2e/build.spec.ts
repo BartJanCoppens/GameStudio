@@ -90,6 +90,19 @@ test('a creator names the game admin at publish and the game starts closed', asy
   expect(data).toHaveLength(0);
 });
 
+test('the Studio names the game admin without a wrong name while it loads', async ({ page }) => {
+  const title = `Named admin ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } }, { publish: true });
+  await page.route('**/rest/v1/rpc/game_admins_to_choose*', async route => { await new Promise(r => setTimeout(r, 2500)); await route.continue(); });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByText('Live: players have this version')).toBeVisible();
+  // Counted once, at this moment: an auto-retrying assertion would wait for the list to arrive.
+  expect(await page.getByText(/no longer look after games/).count()).toBe(0);
+  await expect(page.getByText('Game admin: E2E gameadmin')).toBeVisible();
+});
+
 test('publishing is refused after the draft changes', async ({ page }) => {
   const title = `Changed after check ${Date.now()}`;
   const key = await checkedGame(title);

@@ -40,6 +40,25 @@ test('a player plays a published game in the sealed-off frame and lands on the l
   await expect(page.getByRole('row').filter({ hasText: 'E2E player' })).toContainText('100');
 });
 
+test('a player who finishes after the game went offline is told so', async ({ page }) => {
+  const title = `Stopped quiz ${Date.now()}`;
+  const game = quiz(title);
+  const key = await seedGame(title, game, { publish: true });
+  await signIn(page, 'player');
+  await card(page, title).getByRole('button', { name: 'Play', exact: true }).click();
+  await page.getByRole('button', { name: 'Start' }).click();
+  const frame = page.frameLocator('iframe[title="Game"]');
+  await expect(frame.getByRole('heading', { name: game.data.questions[0].q })).toBeVisible();
+  // The game admin takes it offline mid-game.
+  await adminClient().from('games').update({ offline_at: new Date().toISOString() }).eq('key', key);
+  for (const q of game.data.questions) {
+    await expect(frame.getByRole('heading', { name: q.q })).toBeVisible();
+    await frame.getByRole('button', { name: q.options[q.answer], exact: true }).click();
+  }
+  await expect(page.getByText('This game is offline')).toBeVisible();
+  await expect(page.locator('header')).toContainText('Player · In game');
+});
+
 test('a game that navigates away is stopped', async ({ page }) => {
   const title = `Runaway quiz ${Date.now()}`;
   await seedGame(title, quiz(title, js => `${js}\nsetTimeout(() => { location.href = 'about:blank#escaped'; }, 300);`), { publish: true });

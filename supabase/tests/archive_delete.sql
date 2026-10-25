@@ -39,9 +39,10 @@ begin
   update public.games set archived_at = now() where key = 'sqltest2-b';
   get diagnostics n = row_count;
   delete from public.games where key = 'sqltest2-b';
-  select count(*) = 1 from public.games where key = 'sqltest2-b' into ok;
-  results := array_append(results, case when n = 0 and ok then 'ok b' else 'FAIL b: player changed a game' end);
   execute 'reset role';
+  -- Counted without a signed-in user: a player doesn't see a game that isn't open to them.
+  select count(*) = 1 and bool_and(archived_at is null) from public.games where key = 'sqltest2-b' into ok;
+  results := array_append(results, case when n = 0 and ok then 'ok b' else 'FAIL b: player changed a game' end);
 
   -- (c) the creator deletes their own published game, but not someone else's
   perform set_config('request.jwt.claims', json_build_object('sub', creator, 'role', 'authenticated')::text, true);

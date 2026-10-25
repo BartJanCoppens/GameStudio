@@ -60,7 +60,7 @@ When it's done, **Play test**: talk to the suspect for a moment. Its replies com
 ## 5 · Check and publish (30 s)
 
 1. **Check house rules.** The AI reviews the whole game against the rules: "✓ Passed the house-rules check."
-2. **Game admin** → choose **gameadmin** (the person who will look after the game), then **Publish to players**: "Published · the game admin decides who may play it."
+2. **Game admin** → choose **Demo Game Admin** (the person who will look after the game; not *Demo Admin*, the platform admin), then **Publish to players**: "Published · the game admin decides who may play it."
 
 Mention:
 - "If I change anything after the check, the database refuses to publish until it's checked again."
