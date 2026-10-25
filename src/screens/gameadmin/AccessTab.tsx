@@ -71,8 +71,7 @@ export function AccessTab({ game }: { game: GameMeta }) {
     const previous = access;
     setAccessShown(next);
     await run(async () => {
-      const r = await supabase.from('games').update({ access: next }).eq('key', game.key).select('key');
-      const failed = r.error ?? (r.data?.length ? null : { message: 'You can’t change who may play this game' });
+      const { error: failed } = await supabase.rpc('set_game_access', { p_game_key: game.key, p_access: next });
       if (failed) setAccessShown(previous);
       await reloadGames();
       return { error: failed };

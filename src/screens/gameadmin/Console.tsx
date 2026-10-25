@@ -10,6 +10,7 @@ import { card, cardHead, flush } from '../../shell/styles';
 import { AiServicesPanel } from '../admin/AiServices';
 import { AccessTab } from './AccessTab';
 import { ContentTab } from './ContentTab';
+import { GameStatus } from './GameStatus';
 import { useEffect } from 'react';
 
 interface PlayerRow {
@@ -44,9 +45,11 @@ const playerColumns: Column<PlayerRow>[] = [
 /** Per published game: who plays it, how they do, and the game's own AI keys. */
 export function Console() {
   const { s, set, openGame } = useApp();
-  const { permissions } = useSignedIn();
+  const { profile, permissions } = useSignedIn();
   const { game, games, live } = useGameContent();
-  const published = games.filter(g => g.liveVersion !== null && !g.archived_at);
+  // A game admin looks after the games assigned to them; platform admins after all.
+  const platformAdmin = permissions.has('users.manage');
+  const published = games.filter(g => g.liveVersion !== null && !g.archived_at && (platformAdmin || g.game_admin === profile.id));
   const current = game && published.includes(game) ? game : published[0] ?? null;
   const { runs, error } = useFinishedRuns(current?.key);
   const concept = current?.key === game?.key ? live?.content.concept : null;
@@ -55,7 +58,7 @@ export function Console() {
   const { total } = useGoal(concept?.mode === 'common_goal' ? current?.key : undefined);
   const all = runs ?? [];
 
-  if (!current) return <Screen label="Game administration"><PageHead eyebrow="Game administration" title="Games" lead="No published games yet. They appear here once a creator publishes one." /></Screen>;
+  if (!current) return <Screen label="Game administration"><PageHead eyebrow="Game administration" title="Games" lead={platformAdmin ? 'No published games yet. They appear here once a creator publishes one.' : 'No games are assigned to you yet. A creator names the game admin when they publish a game.'} /></Screen>;
 
   return (
     <Screen label="Game administration">
@@ -68,10 +71,11 @@ export function Console() {
         }
       />
       {error ? <Banner tone="warning" title="Could not load the results.">{error}</Banner> : null}
+      <GameStatus game={current} />
       <Tabs
         tabs={[
           ...(permissions.has('allocation.manage') ? [{ value: 'access' as const, label: current.access === 'restricted' ? 'Access · restricted' : 'Access · everyone' }] : []),
-          ...(permissions.has('live.edit') ? [{ value: 'content' as const, label: 'Content' }] : []),
+          ...(permissions.has('live.edit') || platformAdmin ? [{ value: 'content' as const, label: 'Content' }] : []),
           { value: 'players', label: `Players & results · ${playersOf(all).length}` },
           ...(permissions.has('ai.game') ? [{ value: 'ai' as const, label: 'AI services' }] : []),
         ]}
@@ -79,7 +83,7 @@ export function Console() {
         onChange={consoleTab => set({ consoleTab })}
       />
       {s.consoleTab === 'access' && permissions.has('allocation.manage') ? <AccessTab key={current.key} game={current} /> : null}
-      {s.consoleTab === 'content' && permissions.has('live.edit') && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
+      {s.consoleTab === 'content' && (permissions.has('live.edit') || platformAdmin) && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
       {s.consoleTab === 'players' ? (
         <div style={card}>
           <div style={cardHead}>Players</div>

@@ -32,7 +32,7 @@ export const NAV: Record<Role, [string, Screen, string?][]> = {
   player: [['Your games', 'library'], ['Results', 'results']],
   creator: [['My games', 'games'], ['Studio', 'studio'], ['Content domains', 'content']],
   gameadmin: [['Games', 'console']],
-  admin: [['Overview', 'dashboard'], ['Users', 'users'], ['Groups', 'groups'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['House rules', 'rules'], ['Content', 'content']],
+  admin: [['Overview', 'dashboard'], ['Game administration', 'console'], ['Users', 'users'], ['Groups', 'groups'], ['Roles & permissions', 'roles'], ['AI services', 'ai'], ['House rules', 'rules'], ['Content', 'content']],
 };
 
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };

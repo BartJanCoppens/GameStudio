@@ -265,3 +265,52 @@ test('a game admin previews and publishes content added with AI', async ({ page 
   await page.getByRole('button', { name: 'Check and publish' }).click();
   await expect(page.getByText('Published · players get the new content in their next game')).toBeVisible();
 });
+
+test('a game admin sees only the games assigned to them', async ({ page }) => {
+  const title = `Someone else’s quiz ${Date.now()}`;
+  await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'gameadmin2');
+  await expect(page.getByText('Game administration').first()).toBeVisible();
+  await expect(page.locator('select[aria-label="Game"] option', { hasText: title })).toHaveCount(0);
+});
+
+test('a game admin takes a game offline and players lose it', async ({ page, browser }) => {
+  const title = `Offline quiz ${Date.now()}`;
+  const key = await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'gameadmin');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('button', { name: 'Take offline' }).click();
+  await page.getByRole('dialog', { name: `Take “${title}” offline?` }).getByRole('button', { name: 'Take offline' }).click();
+  await expect(page.getByText('Offline', { exact: true })).toBeVisible();
+
+  const player = await browser.newPage();
+  await signIn(player, 'player');
+  await expect(player.getByText(title, { exact: true })).toHaveCount(0);
+  await player.goto(`/#/play?game=${key}`);
+  await expect(player.getByText('This game isn’t available.')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Bring online' }).click();
+  await expect(page.getByText('Online', { exact: true })).toBeVisible();
+  await player.goto('/#/library');
+  await player.reload();
+  await expect(player.getByText(title, { exact: true })).toBeVisible();
+});
+
+test('a platform admin hands a game to another game admin', async ({ page, browser }) => {
+  const title = `Handed-over quiz ${Date.now()}`;
+  const key = await seedGame(title, quiz(title), { publish: true });
+  await signIn(page, 'admin');
+  await page.getByRole('button', { name: 'Game administration' }).click();
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await expect(page.getByText('Game admin: E2E gameadmin', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Change game admin' }).click();
+  await page.getByRole('combobox', { name: 'New game admin' }).selectOption({ label: 'E2E gameadmin2' });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Game admin: E2E gameadmin2', { exact: false })).toBeVisible();
+
+  const second = await browser.newPage();
+  await signIn(second, 'gameadmin2');
+  await expect(second.locator('select[aria-label="Game"] option', { hasText: title })).toHaveCount(1);
+  const { data } = await adminClient().from('games').select('game_admin').eq('key', key).single();
+  expect(data!.game_admin).not.toBeNull();
+});
