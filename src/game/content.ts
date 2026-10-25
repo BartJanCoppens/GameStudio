@@ -1,5 +1,5 @@
 // A game's content in the app: the shared model plus the checks the browser runs before saving.
-export { EMPTY_CONTENT, FILE_NAMES, type AiRole, type BriefTurn, type FileName, type GameConcept, type GameContent, type GameFiles, type GameGoal } from '../../supabase/functions/_shared/gameModel.ts';
+export { EMPTY_CONTENT, FILE_NAMES, type AiRole, type BriefTurn, type FileName, type GameConcept, type GameContent, type GameFiles, type GameGoal, type TurnsConfig } from '../../supabase/functions/_shared/gameModel.ts';
 export { PASSAGES, SOURCE_DOCUMENT, type Passage } from '../../supabase/functions/_shared/source.ts';
 import type { GameContent } from '../../supabase/functions/_shared/gameModel.ts';
 

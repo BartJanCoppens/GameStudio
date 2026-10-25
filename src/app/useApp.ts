@@ -12,6 +12,8 @@ export interface AppState {
   // player
   /** The run the Results screen shows; null = the player's latest finished run. */
   resultsRunId: string | null;
+  /** The turn-taking game the match screen shows. */
+  matchId: string | null;
   // creator
   studioChatOpen: boolean;
   /** The sidebar menu is open (else folded to a rail). */

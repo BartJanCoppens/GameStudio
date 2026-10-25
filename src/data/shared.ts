@@ -1,17 +1,17 @@
 export type Role = 'player' | 'creator' | 'gameadmin' | 'admin';
 export type Screen =
-  | 'library' | 'play' | 'results'
+  | 'library' | 'play' | 'results' | 'match'
   | 'games' | 'studio'
   | 'console'
   | 'dashboard' | 'users' | 'groups' | 'roles' | 'ai' | 'rules' | 'content';
 
-export const SCREENS: Screen[] = ['library', 'play', 'results', 'games', 'studio', 'console', 'dashboard', 'users', 'groups', 'roles', 'ai', 'rules', 'content'];
+export const SCREENS: Screen[] = ['library', 'play', 'results', 'match', 'games', 'studio', 'console', 'dashboard', 'users', 'groups', 'roles', 'ai', 'rules', 'content'];
 
 export const ROLE_HOME: Record<Role, Screen> = { player: 'library', creator: 'games', gameadmin: 'console', admin: 'dashboard' };
 
 /** The role whose navigation a screen belongs to (content is shared by creators and admins). */
 export const SCREEN_ROLES: Record<Screen, Role[]> = {
-  library: ['player'], play: ['player'], results: ['player'],
+  library: ['player'], play: ['player'], results: ['player'], match: ['player'],
   games: ['creator'], studio: ['creator'],
   console: ['gameadmin'],
   dashboard: ['admin'], users: ['admin'], groups: ['admin'], roles: ['admin'], ai: ['admin'], rules: ['admin'], content: ['creator', 'admin'],
@@ -38,7 +38,7 @@ export const NAV: Record<Role, [string, Screen, string?][]> = {
 export const NAV_GROUP: Record<Role, string> = { player: 'Play', creator: 'Create', gameadmin: 'Administer games', admin: 'Platform' };
 
 export const SCREEN_TITLES: Record<Screen, string> = {
-  library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', games: 'Creator · My games', studio: 'Creator · Studio',
+  library: 'Player · Library', play: 'Player · In game', results: 'Player · Results', match: 'Player · Game with a colleague', games: 'Creator · My games', studio: 'Creator · Studio',
   console: 'Game administration', dashboard: 'Admin · Overview', users: 'Admin · Users', groups: 'Admin · Groups',
   roles: 'Admin · Roles', ai: 'Admin · AI services', rules: 'Admin · House rules', content: 'Content domains',
 };

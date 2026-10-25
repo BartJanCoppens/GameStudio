@@ -10,6 +10,7 @@ import { ThemeScope } from '../../game/theme';
 import { headingFont } from '../../game/themeVars';
 import { supabase } from '../../lib/supabase';
 import { PageHead, Screen } from '../../shell/ui';
+import { Matches } from './Matches';
 import { playableGames } from './playable';
 
 /** Every published game's live content, by game key. */
@@ -38,7 +39,7 @@ function GameCard({ game, content, mine }: { game: GameMeta; content: GameConten
       <div style={{ flex: 1, background: 'var(--tc-surface)', border: '1px solid var(--tc-line-soft)', borderRadius: 'var(--game-radius, 6px)', padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            <Tag tone="neutral">{concept?.mode === 'common_goal' ? 'Common goal' : 'Solo'}</Tag>
+            <Tag tone="neutral">{concept?.mode === 'common_goal' ? 'Common goal' : concept?.mode === 'turns' ? 'With a colleague' : 'Solo'}</Tag>
             {concept?.aiRole ? <Tag tone="neutral">{concept.aiRole.kind === 'opponent' ? 'Play against AI' : 'AI game master'}</Tag> : null}
             {concept?.leaderboard ? <Tag tone="muted">Leaderboard</Tag> : null}
           </div>
@@ -74,6 +75,7 @@ export function Library() {
         title="Your games"
         lead={contents ? `${playable.length} ${playable.length === 1 ? 'game' : 'games'} · ${mine.length ? `played ${mine.length} ${mine.length === 1 ? 'time' : 'times'}` : 'not played yet'}` : 'Loading…'}
       />
+      <Matches />
       {contents && !playable.length ? <div style={{ color: 'var(--tc-ink-5)' }}>No games yet. They appear here once a creator publishes one.</div> : null}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(340px,1fr))', gap: 14 }}>
         {playable.map(g => <GameCard key={g.key} game={g} content={contents!.get(g.key)!} mine={mine.filter(r => r.game_key === g.key)} />)}

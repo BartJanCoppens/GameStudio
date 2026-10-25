@@ -12,6 +12,8 @@ import { Library } from './screens/player/Library';
 import { Play } from './screens/player/Play';
 import { Results } from './screens/player/Results';
 import { MyGames } from './screens/creator/MyGames';
+import { MatchScreen } from './screens/player/MatchScreen';
+import { MatchNotifier } from './screens/player/Matches';
 import { Studio } from './screens/creator/Studio';
 import { Console } from './screens/gameadmin/Console';
 import { Dashboard } from './screens/admin/Dashboard';
@@ -23,7 +25,7 @@ import { Groups } from './screens/admin/Groups';
 import { Content } from './screens/admin/Content';
 
 const SCREENS: Record<Screen, ComponentType> = {
-  library: Library, play: Play, results: Results,
+  library: Library, play: Play, results: Results, match: MatchScreen,
   games: MyGames, studio: Studio,
   console: Console,
   dashboard: Dashboard, users: Users, groups: Groups, roles: Roles, ai: AiServicesScreen, rules: HouseRules, content: Content,
@@ -59,6 +61,7 @@ function Gate() {
       <GameContentProvider>
         <Shell>
           <CurrentScreen />
+          {views.includes('player') ? <MatchNotifier /> : null}
         </Shell>
       </GameContentProvider>
     </AppProvider>

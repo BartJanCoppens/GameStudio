@@ -5,17 +5,18 @@ import { AppContext, type AppApi, type AppState, type Patch } from './useApp';
 
 const INITIAL_STATE: AppState = {
   role: 'player', screen: 'library', lang: 'EN', toast: null, gameKey: '',
-  resultsRunId: null, studioChatOpen: true, navOpen: true, consoleTab: 'access',
+  resultsRunId: null, matchId: null, studioChatOpen: true, navOpen: true, consoleTab: 'access',
 };
 
-/** `#/console?game=key` → that screen, the first of the user's roles it belongs to, and the game; anything else → null. */
-function fromHash(allowed: Role[]): Pick<AppState, 'role' | 'screen' | 'gameKey'> | null {
+/** `#/console?game=key` (or `#/match?id=…`) → that screen, the first of the user's roles it belongs to, and the game or match; anything else → null. */
+function fromHash(allowed: Role[]): Pick<AppState, 'role' | 'screen' | 'gameKey' | 'matchId'> | null {
   const [path, query = ''] = window.location.hash.replace(/^#\/?/, '').split('?');
   const screen = path as Screen;
   if (!SCREENS.includes(screen)) return null;
   const role = SCREEN_ROLES[screen].find(r => allowed.includes(r));
-  const game = new URLSearchParams(query).get('game');
-  return role ? { role, screen, gameKey: game && /^[a-z0-9][a-z0-9-]{2,59}$/.test(game) ? game : '' } : null;
+  const params = new URLSearchParams(query);
+  const game = params.get('game'), match = params.get('id');
+  return role ? { role, screen, gameKey: game && /^[a-z0-9][a-z0-9-]{2,59}$/.test(game) ? game : '', matchId: match && /^[0-9a-f-]{36}$/.test(match) ? match : null } : null;
 }
 
 /** Studio chats and unsaved AI changes belong to one game. */
@@ -36,10 +37,10 @@ export function AppProvider({ roles, children }: { roles: Role[]; children: Reac
   // The URL follows the screen (so back/forward and links work), and the screen follows the URL.
   const firstScreen = useRef(true);
   useEffect(() => {
-    const target = `#/${s.screen}${s.gameKey ? `?game=${s.gameKey}` : ''}`;
+    const target = s.screen === 'match' ? `#/match${s.matchId ? `?id=${s.matchId}` : ''}` : `#/${s.screen}${s.gameKey ? `?game=${s.gameKey}` : ''}`;
     if (window.location.hash !== target) window.history[firstScreen.current ? 'replaceState' : 'pushState'](null, '', target);
     firstScreen.current = false;
-  }, [s.screen, s.gameKey]);
+  }, [s.screen, s.gameKey, s.matchId]);
   useEffect(() => {
     const onHash = () => {
       const next = fromHash(roles);

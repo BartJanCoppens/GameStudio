@@ -9,6 +9,7 @@ import { headingFont } from '../../game/themeVars';
 import { useGameContent } from '../../game/useGameContent';
 import { errorMessage } from '../../lib/supabase';
 import { BackLink, Screen } from '../../shell/ui';
+import { InviteDialog } from './InviteDialog';
 import { card, eyebrow } from '../../shell/styles';
 
 export function Play() {
@@ -17,6 +18,7 @@ export function Play() {
   const [runId, setRunId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const concept = live?.content.concept;
 
   if (!game || !live || !concept) {
@@ -63,7 +65,15 @@ export function Play() {
               </div>
             ) : null}
             {error ? <Banner tone="warning">{error}</Banner> : null}
-            <div><Button variant="primary" size="xl" onClick={() => void start()} disabled={busy}>{busy ? 'Starting…' : 'Start'}</Button></div>
+            {concept.mode === 'turns' && concept.turns ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <Button variant="primary" size="xl" onClick={() => setInviting(true)}>Invite a colleague</Button>
+                <span style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Played by two, taking turns. Your invitations and games are listed under Your games.</span>
+                {inviting ? <InviteDialog gameKey={game.key} title={concept.title} turns={concept.turns} onClose={() => setInviting(false)} /> : null}
+              </div>
+            ) : (
+              <div><Button variant="primary" size="xl" onClick={() => void start()} disabled={busy}>{busy ? 'Starting…' : 'Start'}</Button></div>
+            )}
           </div>
         )}
       </Screen>
