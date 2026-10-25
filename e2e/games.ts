@@ -11,8 +11,22 @@ function env() {
   return { url: process.env.VITE_SUPABASE_URL!, key: process.env.VITE_SUPABASE_PUBLISHABLE_KEY! };
 }
 
+type Session = { client: SupabaseClient; token: string; userId: string };
+// One sign-in per account per test worker: Supabase rate-limits sign-ins, and a full run makes hundreds of calls.
+const sessions = new Map<E2eRole, Promise<Session>>();
+
 /** A browser-like client signed in as one of the e2e accounts. */
-export async function userClient(role: E2eRole): Promise<{ client: SupabaseClient; token: string; userId: string }> {
+export function userClient(role: E2eRole): Promise<Session> {
+  let s = sessions.get(role);
+  if (!s) {
+    s = signIn(role);
+    s.catch(() => sessions.delete(role));
+    sessions.set(role, s);
+  }
+  return s;
+}
+
+async function signIn(role: E2eRole): Promise<Session> {
   const { url, key } = env();
   const client = createClient(url, key, { auth: { persistSession: false } });
   const { data, error } = await client.auth.signInWithPassword({ email: emailFor(role), password: password() });
