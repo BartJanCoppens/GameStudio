@@ -12,6 +12,8 @@ import { createClient } from '@supabase/supabase-js';
 import { existsSync, readFileSync } from 'node:fs';
 
 const CREATOR = 'creator@deloitte.com';
+const GAME_ADMIN = 'gameadmin@deloitte.com';
+const GROUP = 'Analysts';
 const FIXTURE = new URL('./fixtures/plan-b-game.json', import.meta.url);
 
 const { SUPABASE_URL, SUPABASE_SECRET_KEY } = process.env;
@@ -51,7 +53,14 @@ if (process.argv.includes('--plan-b')) {
     check(await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: true, reasons: [], checked_by: creator.id }), 'Plan B check');
     check(await admin.from('game_content').insert({ game_key: key, stage: 'live', content: planB.content }), 'Plan B live');
     check(await admin.from('game_secrets').insert({ game_key: key, stage: 'live', ai: planB.secret ?? {} }), 'Plan B live secret');
-    state = 'published, owned by';
+    // As a first publish does: a named game admin, closed; then opened to Analysts, as the game admin would.
+    const gameAdmin = users.users.find(u => u.email === GAME_ADMIN);
+    if (!gameAdmin) { console.error(`${GAME_ADMIN} doesn’t exist; run npm run seed:users first.`); process.exit(1); }
+    check(await admin.from('games').update({ game_admin: gameAdmin.id, access: 'restricted' }).eq('key', key), 'Plan B game admin');
+    const { data: group } = await admin.from('user_groups').select('id').eq('name', GROUP).maybeSingle();
+    if (group) check(await admin.from('game_access').insert({ game_key: key, group_id: group.id }), 'Plan B access');
+    else console.log(`Group ${GROUP} not found: Plan B is closed until the game admin opens it`);
+    state = `published (game admin ${GAME_ADMIN}${group ? `, open to ${GROUP}` : ', closed'}), owned by`;
   }
   console.log(`Added “${planB.title}”, ${state} ${CREATOR}`);
 }

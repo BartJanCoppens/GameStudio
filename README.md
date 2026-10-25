@@ -9,10 +9,11 @@ Implemented from the Claude Design prototype `Game Studio.dc.html` with the TaxC
 1. **Questions** (`game-architect`, fast model): up to six questions with clickable choices.
 2. **Design** (`game-architect`): a concept card and a static mock-up of the main screen; revise by chatting, change the look, approve.
 3. **Code** (`game-builder`, streamed): the content and the screens are written side by side, then the logic. Each step is scanned before it is accepted; a failed step can be retried on its own.
-4. **Test & publish**: play-test (never counted), **Check house rules** (`game-check`), **Publish to players** (the database's `publish_game` refuses any version whose fingerprint didn't pass the check), **Export code** for platform admins.
+4. **Test & publish**: play-test (never counted), **Check house rules** (`game-check`), **Publish to players** (the database's `publish_game` refuses any version whose fingerprint didn't pass the check), **Export code** for platform admins. The first publish names the game's **game admin**; the game then starts closed.
 
-**Looking after a game** (Game administration, for game admins):
-- **Access:** everyone, or selected groups and people. The database enforces it on live content, runs, leaderboards and the in-game AI. Groups are kept by platform admins under **Admin › Groups**.
+**Looking after a game** (Game administration). Each game has one game admin, named by its creator at first publish; only they (and platform admins, who can hand a game to another game admin) see and look after it:
+- **Online / offline:** one switch stops the game for every player, runs in progress included; bringing it back keeps who may play.
+- **Access:** everyone, or selected groups and people; nobody until the game admin chooses. The database enforces it on live content, runs, leaderboards and the in-game AI. Groups are kept by platform admins under **Admin › Groups**.
 - **Content:** describe what to add; the AI writes it in the game's own shape (nothing existing may be dropped or retyped). It then gets the same house-rules review, and goes live with `publish_live_content`. A creator whose draft has fallen behind takes the live content in before republishing.
 - **Players & results** and **AI services** as before.
 
