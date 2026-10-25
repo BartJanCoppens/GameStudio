@@ -11,6 +11,7 @@ import { AiServicesPanel } from '../admin/AiServices';
 import { AccessTab } from './AccessTab';
 import { ContentTab } from './ContentTab';
 import { GameStatus } from './GameStatus';
+import { TurnPanel } from './TurnPanel';
 import { consoleTabs, gamesToLookAfter, shownTab } from './consoleTabs';
 import { useEffect } from 'react';
 
@@ -86,13 +87,14 @@ export function Console() {
       />
       {tab === 'access' ? <AccessTab key={current.key} game={current} /> : null}
       {tab === 'content' && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
-      {tab === 'players' ? (
+      {tab === 'players' && concept?.mode === 'turns' ? <TurnPanel key={current.key} game={current} concept={concept} /> : null}
+      {tab === 'players' && concept?.mode !== 'turns' ? (
         <div style={card}>
           <div style={cardHead}>Players</div>
           {all.length ? <Table columns={playerColumns} rows={playersOf(all)} rowKey="userId" compact style={flush} /> : <div style={{ padding: 18, color: 'var(--tc-ink-5)' }}>Nobody has finished this game yet.</div>}
         </div>
       ) : null}
-      {tab === 'players' ? (
+      {tab === 'players' && concept?.mode !== 'turns' ? (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ ...card, flex: '1 1 420px' }}>
             <div style={cardHead}>Leaderboard · best game per player</div>

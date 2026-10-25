@@ -2,6 +2,16 @@ import { expect, test, type Page } from '@playwright/test';
 import { adminClient, emailFor, password, type E2eRole } from './accounts';
 import { idOf, matchAs, seedTurnGame } from './games';
 
+async function finishedMatch(title: string) {
+  const key = await seedTurnGame(title);
+  const invite = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'async' });
+  const id = invite.body.match_id as string;
+  await matchAs('player2', { action: 'accept', match_id: id });
+  await matchAs('player2', { action: 'move', match_id: id, move_no: 0, move: {}, state: { a: 0, b: 1 } });
+  await matchAs('player', { action: 'move', match_id: id, move_no: 1, move: {}, state: { a: 3, b: 1 }, over: { winner: 'a' } });
+  return key;
+}
+
 async function signIn(page: Page, role: E2eRole) {
   await page.goto('/');
   await page.getByLabel('Email').fill(emailFor(role));
@@ -91,3 +101,40 @@ test('the Studio test plays both sides', async ({ page }) => {
   await scorePoint(page);
   await expect(page.getByText('Testing both sides · playing as A')).toBeVisible();
 });
+
+test('a game admin sets the longest time without a move', async ({ page }) => {
+  const title = `Limits duel ${Date.now()}`;
+  await seedTurnGame(title);
+  await signIn(page, 'gameadmin');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('tab', { name: /Players & results/ }).click();
+  await page.getByLabel('Turn by turn, in days').fill('2');
+  await page.getByLabel('Live, in minutes').fill('5');
+  await page.getByRole('button', { name: 'Save limits' }).click();
+  await expect(page.getByText('Limits saved')).toBeVisible();
+  await page.reload();
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('tab', { name: /Players & results/ }).click();
+  await expect(page.getByLabel('Turn by turn, in days')).toHaveValue('2');
+  await expect(page.getByLabel('Live, in minutes')).toHaveValue('5');
+});
+
+test('a game admin sees who played whom', async ({ page }) => {
+  const title = `Results duel ${Date.now()}`;
+  await finishedMatch(title);
+  await signIn(page, 'gameadmin');
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('tab', { name: /Players & results/ }).click();
+  await expect(page.getByText('E2E player – E2E player2 · E2E player won')).toBeVisible();
+});
+
+test('the players’ leaderboard counts wins, draws and losses', async ({ page }) => {
+  const title = `Ranked duel ${Date.now()}`;
+  const key = await finishedMatch(title);
+  await signIn(page, 'player2');
+  await page.goto(`/#/results?game=${key}`);
+  const winner = page.getByRole('row').filter({ hasText: 'E2E player' }).filter({ hasNotText: 'player2' });
+  await expect(winner).toContainText('1 won · 0 drawn · 0 lost');
+  await expect(page.getByRole('row').filter({ hasText: 'E2E player2' })).toContainText('0 won · 0 drawn · 1 lost');
+});
+

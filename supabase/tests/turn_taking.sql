@@ -164,10 +164,17 @@ begin
   -- (s2) signing in on a shared device takes its notifications over from the previous person
   perform set_config('request.jwt.claims', json_build_object('sub', pb, 'role', 'authenticated')::text, true);
   execute as_user;
-  perform public.claim_push_subscription('https://fcm.googleapis.com/fcm/send/sqltest5', 'k2', 'a2');
+  perform public.claim_push_subscription('https://fcm.googleapis.com/fcm/send/sqltest5', 'k', 'a');
   execute 'reset role';
-  select user_id = pb and p256dh = 'k2' from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/sqltest5' into ok;
+  select user_id = pb from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/sqltest5' into ok;
   results := array_append(results, case when ok then 'ok s2' else 'FAIL s2: the device still notifies the previous person' end);
+  -- (s3) without the device's own keys, nobody takes it over
+  perform set_config('request.jwt.claims', json_build_object('sub', pc, 'role', 'authenticated')::text, true);
+  execute as_user;
+  perform public.claim_push_subscription('https://fcm.googleapis.com/fcm/send/sqltest5', 'evil', 'evil');
+  execute 'reset role';
+  select user_id = pb and p256dh = 'k' from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/sqltest5' into ok;
+  results := array_append(results, case when ok then 'ok s3' else 'FAIL s3: a device was taken over without its keys' end);
 
   -- (lb1) the leaderboard counts finished games only: wins, draws, losses per player
   insert into public.matches (game_key, version, way, status, player_a, player_b, a_name, b_name, winner, finished_at) values

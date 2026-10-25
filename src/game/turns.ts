@@ -6,3 +6,10 @@ export function turnsLabel(t: NonNullable<GameConcept['turns']>): string {
   const notify = t.notify.map(n => (n === 'push' ? 'phone' : 'email')).join(' and ');
   return `Turn-taking · ${ways} · notified by ${notify}`;
 }
+
+/** "3 days", "00:10:00" or "2 days 00:05:00" (Postgres intervals as the API returns them) → seconds. */
+export function intervalSeconds(v: string): number {
+  const days = Number(/(\d+) days?/.exec(v)?.[1] ?? 0);
+  const t = /(\d+):(\d+):(\d+)/.exec(v);
+  return days * 86400 + (t ? Number(t[1]) * 3600 + Number(t[2]) * 60 + Number(t[3]) : 0);
+}

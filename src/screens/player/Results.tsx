@@ -8,6 +8,7 @@ import { ThemeScope } from '../../game/theme';
 import { headingFont } from '../../game/themeVars';
 import { useGameContent } from '../../game/useGameContent';
 import { BackLink, Screen } from '../../shell/ui';
+import { TurnLeaderboard } from './TurnLeaderboard';
 import { card, cardHead, eyebrow } from '../../shell/styles';
 
 export function Results() {
@@ -19,6 +20,18 @@ export function Results() {
   const concept = live?.content.concept;
   const mine = (runs ?? []).filter(r => r.user_id === profile.id);
   const run = (s.resultsRunId ? mine.find(r => r.id === s.resultsRunId) : null) ?? mine[0];
+
+  // Turn-taking games have no solo runs: their results are the games between colleagues.
+  if (concept?.mode === 'turns' && game) {
+    return (
+      <ThemeScope tokens={concept.look.tokens} page>
+        <Screen label="Player · Results" narrow={860}>
+          <BackLink onClick={() => go('library')}>← Back to your games</BackLink>
+          {concept.leaderboard ? <TurnLeaderboard gameKey={game.key} /> : <Banner tone="info">This game has no leaderboard. Your games with colleagues are listed under Your games.</Banner>}
+        </Screen>
+      </ThemeScope>
+    );
+  }
 
   return (
     <ThemeScope tokens={concept?.look.tokens} page>

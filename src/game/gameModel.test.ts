@@ -56,3 +56,13 @@ describe('turnsLabel', () => {
     expect(turnsLabel({ ways: ['live', 'async'], turnSeconds: 60, notify: ['push', 'email'], results: true })).toBe('Turn-taking · live (60 s a turn) or turn by turn · notified by phone and email');
   });
 });
+
+describe('intervalSeconds', () => {
+  it('reads Postgres intervals as the API returns them', async () => {
+    const { intervalSeconds } = await import('./turns');
+    expect(intervalSeconds('3 days')).toBe(259200);
+    expect(intervalSeconds('00:10:00')).toBe(600);
+    expect(intervalSeconds('2 days 00:05:00')).toBe(173100);
+    expect(intervalSeconds('1 day')).toBe(86400);
+  });
+});
