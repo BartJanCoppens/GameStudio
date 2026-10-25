@@ -1,7 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 import { emailFor, password } from './accounts';
 import { adminClient } from './accounts';
-import { seedGame, tinyGame } from './games';
+import { seedGame, tinyGame, userClient } from './games';
 
 async function signInCreator(page: Page) {
   await page.goto('/');
@@ -73,14 +73,21 @@ async function checkedGame(title: string) {
   return key;
 }
 
-test('a creator publishes a checked game', async ({ page }) => {
+test('a creator names the game admin at publish and the game starts closed', async ({ page }) => {
   const title = `Publishable ${Date.now()}`;
   const key = await checkedGame(title);
   await signInCreator(page);
   await page.goto(`/#/studio?game=${key}`);
   await expect(page.getByText('Passed the house-rules check')).toBeVisible();
-  await page.getByRole('button', { name: 'Publish to players' }).click();
-  await expect(page.getByText('Published · players can play it now')).toBeVisible();
+  const publish = page.getByRole('button', { name: 'Publish to players' });
+  await expect(publish).toBeDisabled();
+  await page.getByRole('combobox', { name: 'Game admin' }).selectOption({ label: 'E2E gameadmin' });
+  await publish.click();
+  await expect(page.getByText('Published · the game admin decides who may play it')).toBeVisible();
+  await expect(page.getByText('Game admin: E2E gameadmin')).toBeVisible();
+  const { client } = await userClient('player');
+  const { data } = await client.from('games').select('key').eq('key', key);
+  expect(data).toHaveLength(0);
 });
 
 test('publishing is refused after the draft changes', async ({ page }) => {
@@ -93,6 +100,7 @@ test('publishing is refused after the draft changes', async ({ page }) => {
   await signInCreator(page);
   await page.goto(`/#/studio?game=${key}`);
   await expect(page.getByText('The game changed since the last check')).toBeVisible();
+  await page.getByRole('combobox', { name: 'Game admin' }).selectOption({ label: 'E2E gameadmin' });
   await page.getByRole('button', { name: 'Publish to players' }).click();
   await expect(page.getByText(/The game changed since the house-rules check/)).toBeVisible();
 });

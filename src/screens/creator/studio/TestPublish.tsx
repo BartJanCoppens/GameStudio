@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Banner, Button } from '../../../ds';
+import { Banner, Button, Select } from '../../../ds';
 import { useSignedIn } from '../../../auth/useAuth';
 import type { GameContent } from '../../../game/content';
 import { exportGame } from '../../../game/exportZip';
@@ -7,6 +7,8 @@ import type { GameMeta } from '../../../game/games';
 import { useGameContent } from '../../../game/useGameContent';
 import { callFunction, errorMessage, supabase } from '../../../lib/supabase';
 import { card } from '../../../shell/styles';
+
+interface GameAdmin { id: string; full_name: string }
 
 interface Check {
   passed: boolean;
@@ -21,6 +23,15 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
   const [check, setCheck] = useState<Check | null>(null);
   const [busy, setBusy] = useState<null | 'checking' | 'publishing'>(null);
   const [message, setMessage] = useState<{ tone: 'success' | 'warning'; text: string } | null>(null);
+  const [gameAdmins, setGameAdmins] = useState<GameAdmin[]>([]);
+  const [chosen, setChosen] = useState('');
+  useEffect(() => {
+    if (!permissions.has('workflow.publish')) return;
+    let cancelled = false;
+    supabase.rpc('game_admins_to_choose').then(({ data }) => { if (!cancelled) setGameAdmins((data ?? []) as GameAdmin[]); });
+    return () => { cancelled = true; };
+  }, [permissions]);
+  const gameAdminName = game.game_admin ? gameAdmins.find(a => a.id === game.game_admin)?.full_name ?? 'someone who can no longer look after games' : 'not set';
 
   const loadCheck = useCallback(async () => {
     const { data } = await supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).order('id', { ascending: false }).limit(1).maybeSingle<Check>();
@@ -45,20 +56,32 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
   const doPublish = async () => {
     setBusy('publishing');
     setMessage(null);
-    try { await publish(); setMessage({ tone: 'success', text: 'Published · players can play it now' }); } catch (e) { setMessage({ tone: 'warning', text: errorMessage(e) }); } finally { setBusy(null); }
+    const first = !published;
+    try { await publish(first ? chosen : undefined); setMessage({ tone: 'success', text: first ? 'Published · the game admin decides who may play it' : 'Published · players get this version in their next game' }); } catch (e) { setMessage({ tone: 'warning', text: errorMessage(e) }); } finally { setBusy(null); }
   };
 
   return (
     <div style={{ ...card, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <Button variant="secondary" size="md" onClick={() => void runCheck()} disabled={!!busy}>{busy === 'checking' ? 'Checking…' : 'Check house rules'}</Button>
-        <Button variant="primary" size="md" onClick={() => void doPublish()} disabled={!!busy || !permissions.has('workflow.publish')} title={permissions.has('workflow.publish') ? undefined : 'Needs “Approve and publish a version”'}>
+        {!published && permissions.has('workflow.publish') ? (
+          <Select
+            aria-label="Game admin"
+            value={chosen}
+            disabled={!!busy}
+            onChange={e => setChosen(e.target.value)}
+            options={[{ value: '', label: 'Choose a game admin…' }, ...gameAdmins.map(a => ({ value: a.id, label: a.full_name }))]}
+          />
+        ) : null}
+        <Button variant="primary" size="md" onClick={() => void doPublish()} disabled={!!busy || !permissions.has('workflow.publish') || (!published && !chosen)} title={permissions.has('workflow.publish') ? undefined : 'Needs “Approve and publish a version”'}>
           {busy === 'publishing' ? 'Publishing…' : 'Publish to players'}
         </Button>
         {permissions.has('users.manage') ? <Button variant="secondary" size="md" onClick={() => exportGame(game, content)} disabled={!!busy}>Export code</Button> : null}
         {content.previous ? <Button variant="secondary" size="md" onClick={() => void onUndo()} disabled={!!busy}>Undo last change</Button> : null}
         <span style={{ fontSize: 12.5, color: 'var(--tc-ink-4)', marginLeft: 'auto' }}>{live_ ? 'Live: players have this version' : published ? 'Live: an earlier version' : 'Not published yet'}</span>
       </div>
+      {published ? <div style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Game admin: {gameAdminName} · they decide who may play it</div> : null}
+      {game.offline_at ? <Banner tone="warning" title="Offline · taken offline by the game admin">Players can’t play it until the game admin brings it back. Publishing a new version doesn’t change that.</Banner> : null}
       {draftBehind ? (
         <Banner
           tone="info"

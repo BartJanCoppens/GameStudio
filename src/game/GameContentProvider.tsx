@@ -99,8 +99,9 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     await reload();
   }, [gameKey, reload]);
 
-  const publish = useCallback(async () => {
-    const { error: e } = await supabase.rpc('publish_game', { p_game_key: gameKey });
+  const publish = useCallback(async (gameAdmin?: string) => {
+    // The game admin is named on the first publish only; the database keeps it on later ones.
+    const { error: e } = await supabase.rpc('publish_game', { p_game_key: gameKey, ...(gameAdmin ? { p_game_admin: gameAdmin } : {}) });
     if (e) throw e;
     await reload();
   }, [gameKey, reload]);

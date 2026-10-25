@@ -18,11 +18,15 @@ export interface GameMeta {
   archived_at: string | null;
   /** everyone, or only the groups and people its game admins listed. */
   access?: 'everyone' | 'restricted';
+  /** The one game admin who looks after it, named by the creator at first publish. */
+  game_admin?: string | null;
+  /** Taken offline by its game admin: nobody plays it until it is brought back. */
+  offline_at?: string | null;
 }
 
 async function fetchGames(): Promise<GameMeta[]> {
   const [games, live] = await Promise.all([
-    supabase.from('games').select('key, title, description, created_by, created_at, archived_at, access').order('created_at'),
+    supabase.from('games').select('key, title, description, created_by, created_at, archived_at, access, game_admin, offline_at').order('created_at'),
     supabase.from('game_content').select('game_key, version').eq('stage', 'live'),
   ]);
   if (games.error) throw games.error;

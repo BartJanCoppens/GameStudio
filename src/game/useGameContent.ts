@@ -30,7 +30,7 @@ export interface GameContentApi {
   error: string | null;
   saveDraft: (content: GameContent) => Promise<void>;
   /** Publishes the draft (needs "Approve and publish a version" and a passed house-rules check). */
-  publish: () => Promise<void>;
+  publish: (gameAdmin?: string) => Promise<void>;
 }
 
 export const GameContentContext = createContext<GameContentApi | null>(null);
