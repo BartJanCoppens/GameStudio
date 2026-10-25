@@ -40,6 +40,8 @@ begin
   end loop;
   select not exists (select 1 from public.game_admins_to_choose() c where c.id in (gone, player)) and exists (select 1 from public.game_admins_to_choose() c where c.id = gadmin) into ok;
   results := array_append(results, case when ok then 'ok u2' else 'FAIL u2: wrong people to choose from' end);
+  select bool_and(c.email is null) from public.game_admins_to_choose() c into ok;
+  results := array_append(results, case when ok then 'ok u3' else 'FAIL u3: a creator saw game admins'' email addresses' end);
 
   -- (b) publishing with a game admin assigns it and starts closed
   perform public.publish_game(k, gadmin);
@@ -185,6 +187,15 @@ begin
   execute as_user;
   select not public.is_game_admin(k) into ok;
   results := array_append(results, case when ok then 'ok r' else 'FAIL r: kept the game without the role' end);
+  execute 'reset role';
+
+  -- (v) a creator still creates a game and gets it back (the new row isn't visible to lookups by key yet)
+  perform set_config('request.jwt.claims', json_build_object('sub', owner_, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.games (key, title) values ('sqltest4-new', 'N') returning key into msg;
+    results := array_append(results, 'ok v');
+  exception when others then results := array_append(results, 'FAIL v: ' || sqlerrm); end;
   execute 'reset role';
 
   raise exception 'RESULTS: %', array_to_string(results, ', ');

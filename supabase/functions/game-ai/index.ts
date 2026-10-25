@@ -14,7 +14,7 @@ import { finishQuota, takeQuota } from '../_shared/quota.ts';
 import { AI_REPLY_SCHEMA, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
-import { CORS, HttpError, adminClient, caller, gameOf, json, requirePermission, userClient } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, caller, gameOf, json, requireGameAdmin, userClient } from '../_shared/server.ts';
 import { asData } from '../_shared/promptData.ts';
 
 const LIMITS = { messages: 20, messageChars: 1000, stateChars: 4000, sayChars: 1200 };
@@ -53,7 +53,7 @@ Deno.serve(async req => {
     if (run.test) {
       const editor = c.permissions.has('games.create') && (game.created_by === c.id || c.permissions.has('users.manage'));
       if (editor) stage = 'draft';
-      else requirePermission(c, 'live.edit', 'Add content to a live game');
+      else requireGameAdmin(c, game);
     } else {
       // Access is checked as the caller, the same rule the database applies to live content and runs.
       const { data: allowed, error } = await userClient(req).rpc('can_play', { p_game_key: game.key });

@@ -67,14 +67,21 @@ export interface Game {
   key: string;
   title: string;
   created_by: string | null;
+  game_admin: string | null;
 }
 
 /** The game a request names; 404 when it doesn't exist. */
 export async function gameOf(admin: SupabaseClient, key: unknown): Promise<Game> {
   if (typeof key !== 'string' || !/^[a-z0-9][a-z0-9-]{2,59}$/.test(key)) throw new HttpError(400, 'Say which game (game_key)');
-  const { data } = await admin.from('games').select('key, title, created_by').eq('key', key).maybeSingle<Game>();
+  const { data } = await admin.from('games').select('key, title, created_by, game_admin').eq('key', key).maybeSingle<Game>();
   if (!data) throw new HttpError(404, 'That game no longer exists');
   return data;
+}
+
+/** Same rule as private.is_game_admin: the game's own game admin (still holding the role), or a platform admin. */
+export function requireGameAdmin(c: Caller, game: Game) {
+  if (c.permissions.has('users.manage')) return;
+  if (game.game_admin !== c.id || !c.permissions.has('live.edit')) throw new HttpError(403, 'Only this game’s game admin can do that');
 }
 
 /** Same rule as private.can_edit_game: its creator or a platform admin. */

@@ -7,7 +7,7 @@
 // for a game" (ai.game). Keys go into Supabase Vault and never come back to the browser.
 import { providerById } from '../_shared/providers.ts';
 import { secretOf, testService, type ServiceRow } from '../_shared/ai.ts';
-import { CORS, HttpError, adminClient, assertPublicTarget, caller, gameOf, json, requirePermission, type Caller } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, assertPublicTarget, caller, gameOf, json, requireGameAdmin, requirePermission, type Caller } from '../_shared/server.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.117.3';
 
 const PUBLIC_COLUMNS = 'id, scope, game_key, provider, enabled, address, model, models, key_hint, test_status, test_message, tested_at, updated_at';
@@ -21,7 +21,9 @@ async function scopeOf(admin: SupabaseClient, body: Body, c: Caller): Promise<{ 
   }
   if (body.scope === 'game') {
     requirePermission(c, 'ai.game', 'Set AI services for a game');
-    return { scope: 'game', gameKey: (await gameOf(admin, body.game_key)).key };
+    const game = await gameOf(admin, body.game_key);
+    requireGameAdmin(c, game);
+    return { scope: 'game', gameKey: game.key };
   }
   throw new HttpError(400, 'scope must be platform or game');
 }

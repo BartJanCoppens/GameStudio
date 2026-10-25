@@ -29,7 +29,18 @@ export async function callAs(role: E2eRole, fn: string, body: unknown): Promise<
 }
 
 /** A game owned by the e2e creator with the given draft; optionally checked and published (no AI involved). */
-export async function seedGame(title: string, content: unknown, opts: { secret?: object; publish?: boolean } = {}): Promise<string> {
+/** The id of an e2e account. */
+export async function idOf(role: E2eRole): Promise<string> {
+  const { data, error } = await adminClient().from('profiles').select('id').eq('email', emailFor(role)).single();
+  if (error) throw error;
+  return data.id as string;
+}
+
+/**
+ * Published games get the e2e game admin, and are opened to everyone unless `closed`: most tests are about
+ * something else than who may play.
+ */
+export async function seedGame(title: string, content: unknown, opts: { secret?: object; publish?: boolean; closed?: boolean } = {}): Promise<string> {
   const { client } = await userClient('creator');
   const key = `e2e-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}`;
   const games = await client.from('games').insert({ key, title }).select('key');
@@ -46,8 +57,12 @@ export async function seedGame(title: string, content: unknown, opts: { secret?:
     if (error) throw error;
     const check = await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: true, reasons: [] });
     if (check.error) throw check.error;
-    const pub = await client.rpc('publish_game', { p_game_key: key });
+    const pub = await client.rpc('publish_game', { p_game_key: key, p_game_admin: await idOf('gameadmin') });
     if (pub.error) throw pub.error;
+    if (!opts.closed) {
+      const open = await admin.from('games').update({ access: 'everyone' }).eq('key', key);
+      if (open.error) throw open.error;
+    }
   }
   return key;
 }

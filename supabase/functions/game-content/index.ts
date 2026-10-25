@@ -1,6 +1,6 @@
 // game-content: a game admin publishes content added to a live game (more levels, questions, cases).
 //
-// 1. Who: holders of "Add content to a live game" (live.edit).
+// 1. Who: the game's own game admin (holding "Add content to a live game", live.edit), or a platform admin.
 // 2. What is checked: the new content keeps the game's content shape (nothing dropped, same types, no list
 //    shorter), then the full game with the new content gets the house-rules review: static checks and the model.
 // 3. Where it goes: on a pass, publish_live_content writes the new live content, its check and an untouched
@@ -9,7 +9,7 @@
 // Body: { game_key: string, data: unknown, based_on_version?: number } (the live version the additions were written for)
 import { dataShapeProblems, sameData, type GameContent } from '../_shared/gameModel.ts';
 import { reviewGame } from '../_shared/review.ts';
-import { CORS, HttpError, adminClient, caller, gameOf, json, requirePermission } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, caller, gameOf, json, requireGameAdmin } from '../_shared/server.ts';
 
 const MAX_DATA_CHARS = 120_000;
 
@@ -24,9 +24,9 @@ Deno.serve(async req => {
   const admin = adminClient();
   try {
     const c = await caller(admin, req);
-    requirePermission(c, 'live.edit', 'Add content to a live game');
     const body = await req.json().catch(() => null) as { game_key?: unknown; data?: unknown; based_on_version?: unknown } | null;
     const game = await gameOf(admin, body?.game_key);
+    requireGameAdmin(c, game);
     if (JSON.stringify(body?.data ?? null).length > MAX_DATA_CHARS) throw new HttpError(400, 'The content is too large');
 
     const { data: live } = await admin.from('game_content').select('content, version').eq('game_key', game.key).eq('stage', 'live').maybeSingle();

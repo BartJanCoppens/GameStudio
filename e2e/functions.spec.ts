@@ -48,6 +48,27 @@ test('game-ai refuses a game without an AI role', async () => {
   expect(body.error).toBe('This game has no AI role');
 });
 
+test('game-content refuses a game admin who isn’t this game’s', async () => {
+  const key = await seedGame('Content other admin', tinyGame(), { publish: true });
+  const data = tinyGame().data;
+  data.questions.push({ q: 'Extra?', options: ['Yes', 'No'], answer: 0, source: 'p-number' });
+  const { status, body } = await callAs('gameadmin2', 'game-content', { game_key: key, data });
+  expect(status).toBe(403);
+  expect(String(body.error)).toContain('Only this game’s game admin can do that');
+});
+
+test('game-builder extend refuses a game admin who isn’t this game’s', async () => {
+  const key = await seedGame('Extend other admin', tinyGame(), { publish: true });
+  await expect(streamAs('gameadmin2', 'game-builder', { game_key: key, step: 'extend', instruction: 'Add two questions' })).rejects.toThrow('Only this game’s game admin can do that');
+});
+
+test('ai-services refuses setting a game’s AI for a game admin who isn’t this game’s', async () => {
+  const key = await seedGame('AI other admin', tinyGame(), { publish: true });
+  const { status, body } = await callAs('gameadmin2', 'ai-services', { action: 'remove', scope: 'game', game_key: key, provider: 'claude' });
+  expect(status).toBe(403);
+  expect(String(body.error)).toContain('Only this game’s game admin can do that');
+});
+
 // Live AI: a few cents, only with E2E_LIVE_AI=1.
 test('the AI opponent replies in role and only with allowed actions', async () => {
   test.skip(!process.env.E2E_LIVE_AI, 'set E2E_LIVE_AI=1 to call the real model');

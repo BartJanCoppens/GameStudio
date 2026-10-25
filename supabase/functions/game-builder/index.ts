@@ -18,7 +18,7 @@ import { BRIDGE_API, CHANGE_SCHEMA, FILE_NAMES, conceptProblems, dataShapeProble
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { sseResponse } from '../_shared/stream.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
-import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable, requirePermission } from '../_shared/server.ts';
+import { CORS, HttpError, adminClient, caller, gameOf, json, requireEditable, requireGameAdmin } from '../_shared/server.ts';
 import { asData, inTag } from '../_shared/promptData.ts';
 
 const LIMITS = { dataChars: 120_000, aiChars: 60_000, instruction: 2000, maxTokens: 12_000 };
@@ -147,7 +147,7 @@ Deno.serve(async req => {
     let liveVersion: number | null = null;
     if (body.step === 'extend') {
       // Game admins add content to the live game: its concept, content and the AI role's knowledge are read here.
-      requirePermission(c, 'live.edit', 'Add content to a live game');
+      requireGameAdmin(c, game);
       const { data: live } = await admin.from('game_content').select('content, version').eq('game_key', game.key).eq('stage', 'live').maybeSingle();
       if (!live) throw new HttpError(404, 'This game isn’t published');
       liveVersion = live.version as number;
