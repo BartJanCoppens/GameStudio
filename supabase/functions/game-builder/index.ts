@@ -224,7 +224,9 @@ Deno.serve(async req => {
         send('done', { file: 'index.html', content: html });
       } else if (body.step === 'logic') {
         const system = body.concept?.mode === 'turns' ? `${LOGIC(rules)}\n\n${TURNS_LOGIC}` : LOGIC(rules);
-        const text = await write(system, `${concept}\n\n${inTag('data_notes', body.notes)}\n\n${inTag('index_html', body.files['index.html'])}\n\nWrite game.js.`, 'medium');
+        // Low effort: the model can't stop thinking (Opus 5.5), and its thinking counts against the same output limit as
+        // the file. At medium, a complex game used the whole answer thinking and wrote nothing to continue from.
+        const text = await write(system, `${concept}\n\n${inTag('data_notes', body.notes)}\n\n${inTag('index_html', body.files['index.html'])}\n\nWrite game.js.`, 'low');
         if (text === null) { await finishQuota(admin, callId, 'answer', usage); callId = null; return; }
         const js = unfence(text);
         const problems = scanGameFiles({ 'index.html': body.files['index.html'], 'game.js': js });
