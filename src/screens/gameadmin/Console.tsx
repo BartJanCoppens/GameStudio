@@ -11,6 +11,7 @@ import { AiServicesPanel } from '../admin/AiServices';
 import { AccessTab } from './AccessTab';
 import { ContentTab } from './ContentTab';
 import { GameStatus } from './GameStatus';
+import { consoleTabs, gamesToLookAfter, shownTab } from './consoleTabs';
 import { useEffect } from 'react';
 
 interface PlayerRow {
@@ -47,9 +48,10 @@ export function Console() {
   const { s, set, openGame } = useApp();
   const { profile, permissions } = useSignedIn();
   const { game, games, live } = useGameContent();
-  // A game admin looks after the games assigned to them; platform admins after all.
   const platformAdmin = permissions.has('users.manage');
-  const published = games.filter(g => g.liveVersion !== null && !g.archived_at && (platformAdmin || g.game_admin === profile.id));
+  const published = gamesToLookAfter(games, profile.id, permissions);
+  const tabs = consoleTabs(permissions);
+  const tab = shownTab(s.consoleTab, tabs);
   const current = game && published.includes(game) ? game : published[0] ?? null;
   const { runs, error } = useFinishedRuns(current?.key);
   const concept = current?.key === game?.key ? live?.content.concept : null;
@@ -74,23 +76,23 @@ export function Console() {
       <GameStatus game={current} />
       <Tabs
         tabs={[
-          ...(permissions.has('allocation.manage') ? [{ value: 'access' as const, label: current.access === 'restricted' ? 'Access · restricted' : 'Access · everyone' }] : []),
-          ...(permissions.has('live.edit') || platformAdmin ? [{ value: 'content' as const, label: 'Content' }] : []),
-          { value: 'players', label: `Players & results · ${playersOf(all).length}` },
-          ...(permissions.has('ai.game') ? [{ value: 'ai' as const, label: 'AI services' }] : []),
+          ...(tabs.includes('access') ? [{ value: 'access' as const, label: current.access === 'restricted' ? 'Access · restricted' : 'Access · everyone' }] : []),
+          ...(tabs.includes('content') ? [{ value: 'content' as const, label: 'Content' }] : []),
+          { value: 'players' as const, label: `Players & results · ${playersOf(all).length}` },
+          ...(tabs.includes('ai') ? [{ value: 'ai' as const, label: 'AI services' }] : []),
         ]}
-        value={s.consoleTab}
+        value={tab}
         onChange={consoleTab => set({ consoleTab })}
       />
-      {s.consoleTab === 'access' && permissions.has('allocation.manage') ? <AccessTab key={current.key} game={current} /> : null}
-      {s.consoleTab === 'content' && (permissions.has('live.edit') || platformAdmin) && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
-      {s.consoleTab === 'players' ? (
+      {tab === 'access' ? <AccessTab key={current.key} game={current} /> : null}
+      {tab === 'content' && live && current.key === game?.key ? <ContentTab key={current.key} game={current} live={live} /> : null}
+      {tab === 'players' ? (
         <div style={card}>
           <div style={cardHead}>Players</div>
           {all.length ? <Table columns={playerColumns} rows={playersOf(all)} rowKey="userId" compact style={flush} /> : <div style={{ padding: 18, color: 'var(--tc-ink-5)' }}>Nobody has finished this game yet.</div>}
         </div>
       ) : null}
-      {s.consoleTab === 'players' ? (
+      {tab === 'players' ? (
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'flex-start' }}>
           <div style={{ ...card, flex: '1 1 420px' }}>
             <div style={cardHead}>Leaderboard · best game per player</div>
@@ -104,7 +106,7 @@ export function Console() {
           </div>
         </div>
       ) : null}
-      {s.consoleTab === 'ai' && permissions.has('ai.game') ? <AiServicesPanel scope="game" gameKey={current.key} /> : null}
+      {tab === 'ai' ? <AiServicesPanel scope="game" gameKey={current.key} /> : null}
     </Screen>
   );
 }

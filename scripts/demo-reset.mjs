@@ -56,6 +56,11 @@ if (process.argv.includes('--plan-b')) {
     // As a first publish does: a named game admin, closed; then opened to Analysts, as the game admin would.
     const gameAdmin = users.users.find(u => u.email === GAME_ADMIN);
     if (!gameAdmin) { console.error(`${GAME_ADMIN} doesn’t exist; run npm run seed:users first.`); process.exit(1); }
+    // The same rule as a publish: an active holder of "Add content to a live game". Otherwise nobody looks after Plan B.
+    const { data: profile } = await admin.from('profiles').select('status').eq('id', gameAdmin.id).single();
+    const { data: roles } = await admin.from('user_roles').select('role_key').eq('user_id', gameAdmin.id);
+    const { data: grants } = await admin.from('role_permissions').select('role_key').in('role_key', (roles ?? []).map(r => r.role_key)).eq('permission_key', 'live.edit').eq('level', 1);
+    if (profile?.status !== 'active' || !grants?.length) console.log(`Warning: ${GAME_ADMIN} is inactive or no longer a game admin: only platform admins will see Plan B until a platform admin hands it to someone else.`);
     check(await admin.from('games').update({ game_admin: gameAdmin.id, access: 'restricted' }).eq('key', key), 'Plan B game admin');
     const { data: group } = await admin.from('user_groups').select('id').eq('name', GROUP).maybeSingle();
     if (group) check(await admin.from('game_access').insert({ game_key: key, group_id: group.id }), 'Plan B access');

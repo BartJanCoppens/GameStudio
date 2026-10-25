@@ -34,13 +34,14 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
   }, [permissions]);
   const gameAdminName = !game.game_admin ? 'not set' : gameAdmins ? gameAdmins.find(a => a.id === game.game_admin)?.full_name ?? 'someone who can no longer look after games' : null;
 
+  // The draft's own checks: a game admin's check of added live content (fingerprint sha256:…) isn't one.
   const loadCheck = useCallback(async () => {
-    const { data } = await supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).order('id', { ascending: false }).limit(1).maybeSingle<Check>();
+    const { data } = await supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).not('fingerprint', 'like', 'sha256:%').order('id', { ascending: false }).limit(1).maybeSingle<Check>();
     setCheck(data ?? null);
   }, [game.key]);
   useEffect(() => {
     let cancelled = false;
-    supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).order('id', { ascending: false }).limit(1).maybeSingle<Check>()
+    supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).not('fingerprint', 'like', 'sha256:%').order('id', { ascending: false }).limit(1).maybeSingle<Check>()
       .then(({ data }) => { if (!cancelled) setCheck(data ?? null); });
     return () => { cancelled = true; };
   }, [game.key]);

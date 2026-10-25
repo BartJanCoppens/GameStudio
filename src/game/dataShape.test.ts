@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataShapeProblems } from '../../supabase/functions/_shared/gameModel.ts';
+import { dataShapeProblems, echoedSecrets } from '../../supabase/functions/_shared/gameModel.ts';
 
 const before = { title: 'Quiz', questions: [{ q: 1 }, { q: 2 }], meta: { levels: [1, 2], name: 'x' } };
 
@@ -12,4 +12,14 @@ describe('dataShapeProblems', () => {
   it('refuses rewritten existing items', () => expect(dataShapeProblems(before, { ...before, questions: [{ q: 9 }, { q: 2 }, { q: 3 }] }).join(' ')).toContain('questions changed existing items'));
   it('refuses new top-level keys the game doesn’t read', () => expect(dataShapeProblems(before, { ...before, cases: [1] }).join(' ')).toContain('new part cases'));
   it('refuses content that is not an object', () => expect(dataShapeProblems(before, [1, 2]).join(' ')).toContain('changed type'));
+});
+
+describe('echoedSecrets', () => {
+  const secret = { culprit: 'The bookkeeper forged invoice 3', motive: 'debts', clues: ['Look at the VAT number on invoice 2'] };
+  it('finds hidden knowledge repeated in the content', () =>
+    expect(echoedSecrets({ cases: [{ hint: 'Remember: the bookkeeper forged invoice 3!' }] }, secret)).toEqual(['The bookkeeper forged invoice 3']));
+  it('finds it in nested lists, ignoring case', () =>
+    expect(echoedSecrets({ q: ['look at the vat number on invoice 2'] }, secret)).toHaveLength(1));
+  it('ignores short values that would match by chance', () => expect(echoedSecrets({ q: ['debts'] }, secret)).toEqual([]));
+  it('finds nothing without hidden knowledge', () => expect(echoedSecrets({ q: ['x'] }, null)).toEqual([]));
 });

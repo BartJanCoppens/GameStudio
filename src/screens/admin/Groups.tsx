@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Banner, Button, Dialog, Field, Input, Select, Table, type Column } from '../../ds';
+import { Banner, Button, Dialog, Field, Input, Table, type Column } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
 import { errorMessage, supabase } from '../../lib/supabase';
@@ -12,6 +12,11 @@ interface Group {
   name: string;
   description: string;
   members: string[];
+}
+
+/** A group name is unique: say so instead of the database's wording. */
+function groupError(e: unknown): string {
+  return e && typeof e === 'object' && 'code' in e && e.code === '23505' ? 'A group with that name already exists' : errorMessage(e);
 }
 
 async function fetchGroups(): Promise<Group[]> {
@@ -29,17 +34,20 @@ function GroupDetail({ group, users, onChanged, onDeleted }: { group: Group; use
   const [name, setName] = useState(group.name);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState('');
   const run = async (work: () => PromiseLike<{ error: { message: string } | null }>, done?: string) => {
     setBusy(true);
     try {
       const { error } = await work();
-      if (error) throw new Error(error.message);
+      if (error) throw error;
       await onChanged();
       if (done) toast(done);
-    } catch (e) { toast(errorMessage(e)); } finally { setBusy(false); }
+    } catch (e) { toast(groupError(e)); } finally { setBusy(false); }
   };
   const members = users.filter(u => group.members.includes(u.id));
   const candidates = users.filter(u => u.status === 'active' && !group.members.includes(u.id));
+  const q = query.trim().toLowerCase();
+  const matches = q.length < 2 ? [] : candidates.filter(u => u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)).slice(0, 8);
   const columns: Column<DirectoryUser>[] = [
     { key: 'full_name', label: 'Name', width: 'minmax(160px,1fr)', strong: true, render: u => u.full_name || u.email },
     { key: 'email', label: 'Email', width: 'minmax(200px,1.2fr)', muted: true },
@@ -52,15 +60,16 @@ function GroupDetail({ group, users, onChanged, onDeleted }: { group: Group; use
         <Button variant="secondary" size="md" disabled={busy || !name.trim() || name.trim() === group.name} onClick={() => void run(() => supabase.from('user_groups').update({ name: name.trim() }).eq('id', group.id), 'Group renamed')}>Rename</Button>
         <Button variant="secondary" size="md" disabled={busy} onClick={() => setConfirming(true)} style={{ color: 'var(--tc-red-text)' }}>Delete group</Button>
       </div>
-      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--tc-line-hair)' }}>
-        <Select
-          aria-label="Add a member"
-          value=""
-          disabled={busy || !candidates.length}
-          onChange={e => { const id = e.target.value; if (id) void run(() => supabase.from('group_members').insert({ group_id: group.id, user_id: id }), 'Member added'); }}
-          options={[{ value: '', label: candidates.length ? 'Add a member…' : 'Everyone is already in this group' }, ...candidates.map(u => ({ value: u.id, label: u.full_name || u.email }))]}
-          style={{ minWidth: 280 }}
-        />
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--tc-line-hair)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <Input aria-label="Find a person to add" value={query} disabled={busy} maxLength={100} placeholder={candidates.length ? 'Find a person to add: name or email' : 'Everyone is already in this group'} onChange={e => setQuery(e.target.value)} style={{ maxWidth: 360 }} />
+        {q.length >= 2 && !matches.length ? <div style={{ fontSize: 13, color: 'var(--tc-ink-4)' }}>Nobody found who isn’t in the group yet.</div> : null}
+        {matches.map(u => (
+          <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1 }}>{u.full_name || u.email}<span style={{ color: 'var(--tc-ink-5)' }}> · {u.email}</span></span>
+            <Button variant="secondary" size="sm" aria-label={`Add ${u.full_name || u.email}`} disabled={busy}
+              onClick={() => void run(() => supabase.from('group_members').insert({ group_id: group.id, user_id: u.id }), 'Member added').then(() => setQuery(''))}>Add</Button>
+          </div>
+        ))}
       </div>
       {members.length ? <Table columns={columns} rows={members} rowKey="id" compact style={flush} /> : <div style={{ padding: 18, color: 'var(--tc-ink-5)' }}>No members yet.</div>}
       {confirming ? (
@@ -105,7 +114,7 @@ export function Groups() {
 
   const create = async () => {
     const { data: row, error: e } = await supabase.from('user_groups').insert({ name: newName.trim() }).select('id').single();
-    if (e) { toast(errorMessage(e)); return; }
+    if (e) { toast(groupError(e)); return; }
     setCreating(false);
     setNewName('');
     await reload();

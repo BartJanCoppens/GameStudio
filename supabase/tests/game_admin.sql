@@ -242,6 +242,59 @@ begin
   results := array_append(results, case when ok then 'ok x3' else 'FAIL x3: another game admin reached the game''s AI services or limits' end);
   execute 'reset role';
 
+  -- (y) an archived game is closed to its players too
+  perform set_config('request.jwt.claims', '', true);
+  update public.games set archived_at = now() where key = k;
+  perform set_config('request.jwt.claims', json_build_object('sub', player, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) = 0 from public.game_content where game_key = k into ok;
+  results := array_append(results, case when ok then 'ok y' else 'FAIL y: a player read an archived game' end);
+  execute 'reset role';
+  perform set_config('request.jwt.claims', '', true);
+  update public.games set archived_at = null where key = k;
+
+  -- (z) no common-goal contributions while offline
+  update public.games set offline_at = now() where key = k;
+  perform set_config('request.jwt.claims', json_build_object('sub', player, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.game_contributions (game_key, run_id, amount) values (k, run_id, 1);
+    results := array_append(results, 'FAIL z: a contribution landed while offline');
+  exception when others then
+    results := array_append(results, case when sqlerrm like 'This game is offline%' then 'ok z' else 'FAIL z: wrong error ' || sqlerrm end);
+  end;
+  execute 'reset role';
+
+  -- (z2) offline: the creator can still test, but can't start a counted run
+  perform set_config('request.jwt.claims', json_build_object('sub', owner_, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.game_runs (game_key, content_version, test) values (k, 1, true);
+    ok := true;
+  exception when others then ok := false; end;
+  begin
+    insert into public.game_runs (game_key, content_version) values (k, 1);
+    ok := false;
+  exception when others then null; end;
+  results := array_append(results, case when ok then 'ok z2' else 'FAIL z2: offline run rules wrong for the creator' end);
+  execute 'reset role';
+  update public.games set offline_at = null where key = k;
+
+  -- (z3) an unknown game is an error, not a silent no-op
+  perform set_config('request.jwt.claims', json_build_object('sub', padmin, 'role', 'authenticated')::text, true);
+  execute as_user;
+  ok := true;
+  begin
+    perform public.set_game_offline('sqltest4-nope', true);
+    ok := false;
+  exception when others then ok := ok and sqlstate = 'P0002'; end;
+  begin
+    perform public.set_game_admin('sqltest4-nope', gadmin);
+    ok := false;
+  exception when others then ok := ok and sqlstate = 'P0002'; end;
+  results := array_append(results, case when ok then 'ok z3' else 'FAIL z3: unknown game accepted' end);
+  execute 'reset role';
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;

@@ -103,6 +103,20 @@ test('the Studio names the game admin without a wrong name while it loads', asyn
   await expect(page.getByText('Game admin: E2E gameadmin')).toBeVisible();
 });
 
+test('the Studio doesn’t show a game admin’s check of added content as the draft’s check', async ({ page }) => {
+  const title = `Admin checked ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  const admin = adminClient();
+  // The creator's own check failed; then a game admin's addition passed (game-content's fingerprints start with sha256:).
+  await admin.from('game_checks').insert({ game_key: key, fingerprint: 'f'.repeat(32), passed: false, reasons: ['Too violent'] });
+  await admin.from('game_checks').insert({ game_key: key, fingerprint: 'sha256:' + '0'.repeat(64), passed: true, reasons: [] });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await expect(page.getByText('Didn’t pass the house-rules check')).toBeVisible();
+  await expect(page.getByText('Passed the house-rules check')).toHaveCount(0);
+});
+
 test('publishing is refused after the draft changes', async ({ page }) => {
   const title = `Changed after check ${Date.now()}`;
   const key = await checkedGame(title);

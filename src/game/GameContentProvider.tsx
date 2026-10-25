@@ -40,7 +40,7 @@ export function GameContentProvider({ children }: { children: ReactNode }) {
     if (!games || games.some(g => g.key === gameKey)) return;
     if (gameKey && refreshedFor.current !== gameKey) { refreshedFor.current = gameKey; void reloadGames(); return; }
     // A link to a game the player may not (or no longer) play says so, rather than opening another game.
-    if (s.screen === 'play') return;
+    if (s.screen === 'play' || s.screen === 'results') return;
     if (games[0]) set({ gameKey: games[0].key });
   }, [games, gameKey, set, reloadGames, s.screen]);
 

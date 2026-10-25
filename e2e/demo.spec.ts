@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { adminClient, emailFor, password, type E2eRole } from './accounts';
-import { seedGame, tinyGame } from './games';
+import { idOf, seedGame, tinyGame } from './games';
 
 async function signIn(page: Page, role: E2eRole) {
   await page.goto('/');
@@ -224,7 +224,8 @@ test('a platform admin creates a group and manages its members', async ({ page }
   await page.getByRole('dialog').getByLabel('Name').fill(name);
   await page.getByRole('dialog').getByRole('button', { name: 'Create group' }).click();
   const detail = page.getByRole('region', { name });
-  await detail.getByLabel('Add a member').selectOption({ label: 'E2E player' });
+  await detail.getByLabel('Find a person to add').fill('e2e-player@');
+  await detail.getByRole('button', { name: 'Add E2E player' }).click();
   await expect(detail.getByRole('row').filter({ hasText: 'E2E player' })).toBeVisible();
   await expect(page.getByRole('button', { name: new RegExp(`${name}.*1 member`) })).toBeVisible();
   await detail.getByRole('row').filter({ hasText: 'E2E player' }).getByRole('button', { name: 'Remove' }).click();
@@ -304,7 +305,9 @@ test('a game admin takes a game offline and players lose it', async ({ page, bro
 
   const player = await browser.newPage();
   await signIn(player, 'player');
-  await expect(player.getByText(title, { exact: true })).toHaveCount(0);
+  await expect(player.getByRole('heading', { name: 'Your games' })).toBeVisible();
+  await expect(player.getByText(/\d+ games? ·/).first()).toBeVisible();
+  expect(await player.getByText(title, { exact: true }).count()).toBe(0);
   await player.goto(`/#/play?game=${key}`);
   await expect(player.getByText('This game isn’t available.')).toBeVisible();
 
@@ -331,5 +334,43 @@ test('a platform admin hands a game to another game admin', async ({ page, brows
   await signIn(second, 'gameadmin2');
   await expect(second.locator('select[aria-label="Game"] option', { hasText: title })).toHaveCount(1);
   const { data } = await adminClient().from('games').select('game_admin').eq('key', key).single();
-  expect(data!.game_admin).not.toBeNull();
+  expect(data!.game_admin).toBe(await idOf('gameadmin2'));
+  const first = await browser.newPage();
+  await signIn(first, 'gameadmin');
+  await expect(first.getByText('Game administration').first()).toBeVisible();
+  await expect(first.locator('select[aria-label="Game"]')).toBeVisible();
+  expect(await first.locator('select[aria-label="Game"] option', { hasText: title }).count()).toBe(0);
+});
+
+test('a duplicate group name gets a plain message', async ({ page }) => {
+  const name = `E2E Twice ${Date.now()}`;
+  await adminClient().from('user_groups').insert({ name });
+  await signIn(page, 'admin');
+  await page.getByRole('button', { name: 'Groups' }).click();
+  await page.getByRole('button', { name: 'New group' }).click();
+  await page.getByRole('dialog').getByLabel('Name').fill(name);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create group' }).click();
+  await expect(page.getByText('A group with that name already exists')).toBeVisible();
+});
+
+test('a results link to a game the player may not see doesn’t show another game', async ({ page }) => {
+  const title = `Closed results ${Date.now()}`;
+  const key = await seedGame(title, quiz(title), { publish: true, closed: true });
+  await signIn(page, 'player');
+  await page.goto(`/#/results?game=${key}`);
+  await expect(page.getByText('This game isn’t available.')).toBeVisible();
+});
+
+test('a failed hand-over keeps the game admin picker open', async ({ page }) => {
+  const title = `Failed hand-over ${Date.now()}`;
+  await seedGame(title, quiz(title), { publish: true });
+  await page.route('**/rest/v1/rpc/set_game_admin*', route => route.fulfill({ status: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'P0001', message: 'Choose a game admin who can look after games' }) }));
+  await signIn(page, 'admin');
+  await page.getByRole('button', { name: 'Game administration' }).click();
+  await page.getByRole('combobox', { name: 'Game' }).selectOption({ label: title });
+  await page.getByRole('button', { name: 'Change game admin' }).click();
+  await page.getByRole('combobox', { name: 'New game admin' }).selectOption({ label: 'E2E gameadmin2' });
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Choose a game admin who can look after games')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'New game admin' })).toBeVisible();
 });

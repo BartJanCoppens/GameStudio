@@ -229,6 +229,22 @@ function listProblems(name: string, before: unknown[], after: unknown): string[]
   return before.every((item, i) => sameData(item, after[i])) ? [] : [`${name} changed existing items`];
 }
 
+/**
+ * Text from the AI role's hidden knowledge that the content repeats (12 characters or more, ignoring case):
+ * additions are shown to the game admin and to players, so they must not give the secret away.
+ */
+export function echoedSecrets(data: unknown, secret: unknown): string[] {
+  const texts: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === 'string') { if (v.trim().length >= 12) texts.push(v.trim()); }
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === 'object') Object.values(v).forEach(walk);
+  };
+  walk(secret);
+  const haystack = JSON.stringify(data ?? null).toLowerCase();
+  return texts.filter(t => haystack.includes(t.toLowerCase()));
+}
+
 export function dataShapeProblems(before: unknown, after: unknown): string[] {
   if (jsonType(before) !== jsonType(after)) return ['The content changed type'];
   if (jsonType(before) !== 'object') return Array.isArray(before) ? listProblems('The content', before, after) : [];

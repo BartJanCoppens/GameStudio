@@ -1,4 +1,4 @@
-import { Button } from '../../ds';
+import { Banner, Button } from '../../ds';
 import { useApp } from '../../app/useApp';
 import { useSignedIn } from '../../auth/useAuth';
 import { useGoal } from '../../game/goal';
@@ -13,7 +13,7 @@ import { card, cardHead, eyebrow } from '../../shell/styles';
 export function Results() {
   const { s, go } = useApp();
   const { profile } = useSignedIn();
-  const { game, live } = useGameContent();
+  const { game, live, loading } = useGameContent();
   const { runs, error } = useFinishedRuns(game?.key);
   const { total } = useGoal(live?.content.concept?.mode === 'common_goal' ? game?.key : undefined);
   const concept = live?.content.concept;
@@ -24,7 +24,8 @@ export function Results() {
     <ThemeScope tokens={concept?.look.tokens} page>
       <Screen label="Player · Results" narrow={860}>
         <BackLink onClick={() => go('library')}>← Back to your games</BackLink>
-        {!runs ? <div style={{ color: 'var(--tc-ink-5)' }}>{error ?? 'Loading…'}</div> : null}
+        {!game && !loading ? <Banner tone="info">This game isn’t available.</Banner> : null}
+        {game && !runs ? <div style={{ color: 'var(--tc-ink-5)' }}>{error ?? 'Loading…'}</div> : null}
         {runs && !run ? (
           <div style={{ ...card, padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
             <div style={{ fontSize: 18, fontWeight: 600, ...headingFont }}>No finished game yet</div>

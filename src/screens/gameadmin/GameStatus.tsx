@@ -29,14 +29,16 @@ export function GameStatus({ game }: { game: GameMeta }) {
     return () => { cancelled = true; };
   }, [platformAdmin]);
 
-  const run = async (work: () => PromiseLike<{ error: { message: string } | null }>, done: string) => {
+  /** True when it worked; on failure the toast says why and dialogs stay open. */
+  const run = async (work: () => PromiseLike<{ error: { message: string } | null }>, done: string): Promise<boolean> => {
     setBusy(true);
     try {
       const { error } = await work();
       if (error) throw new Error(error.message);
       await reloadGames();
       toast(done);
-    } catch (e) { toast(errorMessage(e)); } finally { setBusy(false); }
+      return true;
+    } catch (e) { toast(errorMessage(e)); return false; } finally { setBusy(false); }
   };
   const setOffline = (offline: boolean) => run(() => supabase.rpc('set_game_offline', { p_game_key: game.key, p_offline: offline }),
     offline ? `“${game.title}” is offline` : `“${game.title}” is back online`);
@@ -62,7 +64,7 @@ export function GameStatus({ game }: { game: GameMeta }) {
             options={[{ value: '', label: 'Choose a game admin…' }, ...(gameAdmins ?? []).filter(a => a.id !== game.game_admin).map(a => ({ value: a.id, label: a.full_name }))]}
           />
           <Button variant="primary" size="sm" disabled={busy || !chosen}
-            onClick={() => void run(() => supabase.rpc('set_game_admin', { p_game_key: game.key, p_user: chosen }), 'Game admin changed').then(() => setChanging(false))}>Save</Button>
+            onClick={() => void run(() => supabase.rpc('set_game_admin', { p_game_key: game.key, p_user: chosen }), 'Game admin changed').then(ok => { if (ok) setChanging(false); })}>Save</Button>
           <Button variant="secondary" size="sm" disabled={busy} onClick={() => setChanging(false)}>Cancel</Button>
         </>
       ) : null}
@@ -73,7 +75,7 @@ export function GameStatus({ game }: { game: GameMeta }) {
           onClose={busy ? undefined : () => setConfirming(false)}
           footer={
             <>
-              <Button variant="primary" size="xl" disabled={busy} onClick={() => void setOffline(true).then(() => setConfirming(false))}>Take offline</Button>
+              <Button variant="primary" size="xl" disabled={busy} onClick={() => void setOffline(true).then(ok => { if (ok) setConfirming(false); })}>Take offline</Button>
               <Button variant="secondary" size="xl" disabled={busy} onClick={() => setConfirming(false)}>Cancel</Button>
             </>
           }

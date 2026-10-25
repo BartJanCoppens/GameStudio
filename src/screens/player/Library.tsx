@@ -10,6 +10,7 @@ import { ThemeScope } from '../../game/theme';
 import { headingFont } from '../../game/themeVars';
 import { supabase } from '../../lib/supabase';
 import { PageHead, Screen } from '../../shell/ui';
+import { playableGames } from './playable';
 
 /** Every published game's live content, by game key. */
 function useLiveContents(): Map<string, GameContent> | null {
@@ -65,7 +66,7 @@ export function Library() {
   const { runs } = useFinishedRuns();
   const contents = useLiveContents();
   const mine = (runs ?? []).filter(r => r.user_id === profile.id);
-  const playable = games.filter(g => contents?.has(g.key) && !g.archived_at);
+  const playable = contents ? playableGames(games, new Set(contents.keys())) : [];
 
   return (
     <Screen label="Player · Library">

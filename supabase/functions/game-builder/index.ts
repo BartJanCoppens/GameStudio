@@ -14,7 +14,7 @@ import { resolveAssistant, streamText, type Turn } from '../_shared/llm.ts';
 import { finishQuota, takeQuota } from '../_shared/quota.ts';
 import { filesProblems, scanGameFiles } from '../_shared/codeScan.ts';
 import { FONTS } from '../_shared/design.ts';
-import { BRIDGE_API, CHANGE_SCHEMA, FILE_NAMES, conceptProblems, dataShapeProblems, sameData, type GameConcept, type GameContent } from '../_shared/gameModel.ts';
+import { BRIDGE_API, CHANGE_SCHEMA, FILE_NAMES, conceptProblems, dataShapeProblems, echoedSecrets, sameData, type GameConcept, type GameContent } from '../_shared/gameModel.ts';
 import { houseRulesPrompt, loadHouseRules } from '../_shared/houseRules.ts';
 import { sseResponse } from '../_shared/stream.ts';
 import { PASSAGES, SOURCE_DOCUMENT } from '../_shared/source.ts';
@@ -214,6 +214,8 @@ Deno.serve(async req => {
         if (sameData(body.data, parsed.data)) throw new HttpError(422, `Nothing was added. ${String(parsed.reply ?? '').slice(0, 500)}`.trim());
         const shape = dataShapeProblems(body.data, parsed.data);
         if (shape.length) throw new HttpError(422, `The new content would break the game (${shape[0]}). Try again.`);
+        // The hidden knowledge is in the prompt so additions fit the character; it must not end up in them.
+        if (echoedSecrets(parsed.data, secret).length) throw new HttpError(422, 'The new content repeats the AI role’s hidden knowledge. Try again.');
         const scanned = scanGameFiles({ 'index.html': '-', content: JSON.stringify(parsed.data) }).filter(p => p.startsWith('content '));
         if (scanned.length) throw new HttpError(422, `The new content broke a platform rule (${scanned[0]}). Try again.`);
         send('done', { data: parsed.data, reply: String(parsed.reply ?? '').slice(0, 600), version: liveVersion });
