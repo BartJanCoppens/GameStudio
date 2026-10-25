@@ -132,6 +132,18 @@ begin
   select ok and turn_limit_async = interval '1 day' and turn_limit_live = interval '5 minutes' from public.games where key = k into ok;
   results := array_append(results, case when ok then 'ok l1' else 'FAIL l1: turn limits rules wrong' end);
 
+  -- (v4) someone without a role reads no versions, even of an open game; (c2) nor lists colleagues
+  insert into auth.users (id, email, aud, role) values ('00000000-0000-4000-8000-0000000000c1', 'sqltest5-norole@example.com', 'authenticated', 'authenticated');
+  perform set_config('request.jwt.claims', json_build_object('sub', '00000000-0000-4000-8000-0000000000c1', 'role', 'authenticated')::text, true);
+  execute as_user;
+  select count(*) = 0 from public.game_versions where game_key = k into ok;
+  results := array_append(results, case when ok then 'ok v4' else 'FAIL v4: a user without a role read game versions' end);
+  begin
+    perform * from public.match_candidates(k);
+    results := array_append(results, 'FAIL c2: a user without a role listed colleagues');
+  exception when others then results := array_append(results, 'ok c2'); end;
+  execute 'reset role';
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;

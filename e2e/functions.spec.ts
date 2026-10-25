@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { adminClient } from './accounts';
-import { callAs, seedGame, streamAs, tinyGame, userClient } from './games';
+import { callAs, idOf, matchAs, seedGame, seedTurnGame, streamAs, tinyGame, userClient } from './games';
 
 // Edge Function behaviour that needs no model call (each request is refused before the AI is asked).
 
@@ -167,3 +167,71 @@ test('game-content refuses content generated on an older live version', async ()
   expect(status).toBe(409);
   expect(String(body.error)).toContain('Generate again');
 });
+
+async function invited(title: string, way: 'live' | 'async' = 'async') {
+  const key = await seedTurnGame(title);
+  const invite = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way });
+  expect(invite.status).toBe(200);
+  return { key, id: invite.body.match_id as string };
+}
+
+test('game-match: invite, accept and alternate moves', async () => {
+  const { id } = await invited(`Duel ${Date.now()}`);
+  expect((await matchAs('player2', { action: 'accept', match_id: id })).body.status).toBe('active');
+  const first = await matchAs('player2', { action: 'move', match_id: id, move_no: 0, move: { point: 'b' }, state: { a: 0, b: 1 } });
+  expect(first.status).toBe(200);
+  const second = await matchAs('player', { action: 'move', match_id: id, move_no: 1, move: { point: 'a' }, state: { a: 1, b: 1 } });
+  expect(second.status).toBe(200);
+  const view = await matchAs('player2', { action: 'get', match_id: id });
+  expect((view.body.match as { turn: string; move_no: number }).turn).toBe('b');
+  expect((view.body.match as { move_no: number }).move_no).toBe(2);
+  expect((view.body.content as { data: { marker: string } }).data.marker).toBe('version one');
+});
+
+test('game-match refuses a second move for the same turn', async () => {
+  const { id } = await invited(`Duel twice ${Date.now()}`);
+  await matchAs('player2', { action: 'accept', match_id: id });
+  const [one, two] = await Promise.all([0, 0].map(() => matchAs('player2', { action: 'move', match_id: id, move_no: 0, move: {}, state: { a: 0, b: 1 } })));
+  expect([one.status, two.status].sort()).toEqual([200, 409]);
+  expect(String((one.status === 409 ? one : two).body.error)).toContain('The game moved on');
+});
+
+test('game-match refuses a move out of turn', async () => {
+  const { id } = await invited(`Duel out of turn ${Date.now()}`);
+  await matchAs('player2', { action: 'accept', match_id: id });
+  const r = await matchAs('player', { action: 'move', match_id: id, move_no: 0, move: {}, state: {} });
+  expect(r.status).toBe(403);
+  expect(String(r.body.error)).toContain('It isn’t your turn');
+});
+
+test('getMatch never contains the other side’s secrets', async () => {
+  const { id } = await invited(`Duel secrets ${Date.now()}`);
+  await matchAs('player2', { action: 'accept', match_id: id });
+  await matchAs('player2', { action: 'move', match_id: id, move_no: 0, move: { shot: 'C3' }, state: { a: 0, b: 1 }, mine: { ships: 'B5-SECRET' } });
+  const view = await matchAs('player', { action: 'get', match_id: id });
+  expect(JSON.stringify(view.body)).not.toContain('B5-SECRET');
+  const own = await matchAs('player2', { action: 'get', match_id: id });
+  expect(JSON.stringify(own.body.mine)).toContain('B5-SECRET');
+  const { client } = await userClient('player');
+  const { data } = await client.from('match_private').select('state').eq('match_id', id);
+  expect(JSON.stringify(data)).not.toContain('B5-SECRET');
+});
+
+test('game-match refuses a move after access is withdrawn', async () => {
+  const { key, id } = await invited(`Duel withdrawn ${Date.now()}`);
+  await matchAs('player2', { action: 'accept', match_id: id });
+  await adminClient().from('games').update({ access: 'restricted' }).eq('key', key);
+  const r = await matchAs('player2', { action: 'move', match_id: id, move_no: 0, move: {}, state: {} });
+  expect(r.status).toBe(403);
+  expect(String(r.body.error)).toContain('This game isn’t available');
+});
+
+test('game-match refuses inviting someone outside the game', async () => {
+  const key = await seedTurnGame(`Duel closed ${Date.now()}`);
+  const admin = adminClient();
+  await admin.from('games').update({ access: 'restricted' }).eq('key', key);
+  await admin.from('game_access').insert({ game_key: key, user_id: await idOf('player') });
+  const r = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'async' });
+  expect(r.status).toBe(403);
+});
+

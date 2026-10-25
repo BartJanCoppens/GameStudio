@@ -1,0 +1,61 @@
+{
+ "phase": "ready",
+ "brief": [
+  {
+   "role": "creator",
+   "text": "A tiny quiz"
+  }
+ ],
+ "concept": {
+  "title": "Tiny duel",
+  "pitch": "Two colleagues race to three points, one turn at a time.",
+  "howToPlay": [
+   "On your turn, score a point",
+   "First to three wins"
+  ],
+  "winCondition": "Reach three points first",
+  "scoring": "One point per turn",
+  "mode": "turns",
+  "goal": null,
+  "leaderboard": true,
+  "aiRole": null,
+  "sources": [
+   "p-number"
+  ],
+  "look": {
+   "name": "Harbour Blue",
+   "tokens": {
+    "accent": "#0B5FFF",
+    "accentInk": "#FFFFFF",
+    "ink": "#14213D",
+    "muted": "#4A5568",
+    "page": "#EEF3FA",
+    "surface": "#FFFFFF",
+    "line": "#D6DFEB",
+    "radius": 10,
+    "bodyFont": "inter",
+    "headingFont": "inter"
+   }
+  },
+  "turns": {
+   "ways": [
+    "live",
+    "async"
+   ],
+   "turnSeconds": 30,
+   "notify": [
+    "push"
+   ],
+   "results": true
+  }
+ },
+ "mockup": null,
+ "files": {
+  "index.html": "<main id=\"app\">\n  <h1 id=\"title\">Tiny duel</h1>\n  <p id=\"marker\"></p>\n  <p id=\"score\"></p>\n  <p id=\"status\"></p>\n  <p id=\"secret\"></p>\n  <button id=\"move\">Score a point</button>\n</main>",
+  "game.js": "(async () => {\n  await GameStudio.ready();\n  const data = await GameStudio.getData();\n  const $ = id => document.getElementById(id);\n  $('marker').textContent = data.marker;\n  let match = await GameStudio.getMatch();\n  function render(m) {\n    match = m;\n    const s = m.state || { a: 0, b: 0 };\n    $('score').textContent = m.players.a.name + ' ' + s.a + ' – ' + s.b + ' ' + m.players.b.name;\n    $('secret').textContent = m.mine ? 'My secret: ' + m.mine.secret : 'No secret yet';\n    const mine = m.turn === m.you && !m.over;\n    $('move').disabled = !mine;\n    $('status').textContent = m.over ? (m.over.winner === m.you ? 'You won' : 'You lost')\n      : mine ? 'Your turn' : 'Waiting for ' + m.players[m.turn].name;\n  }\n  GameStudio.onMatchChange(render);\n  render(match);\n  $('move').onclick = async () => {\n    const s = Object.assign({ a: 0, b: 0 }, match.state);\n    s[match.you] += 1;\n    const over = s[match.you] >= data.target ? { winner: match.you } : undefined;\n    $('move').disabled = true;\n    try { await GameStudio.makeMove({ point: match.you }, s, { mine: { secret: 'side-' + match.you }, over }); }\n    catch (e) { $('status').textContent = 'Error: ' + e.message; }\n  };\n})();"
+ },
+ "data": {
+  "target": 3,
+  "marker": "version one"
+ }
+}

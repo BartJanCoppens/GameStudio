@@ -96,3 +96,17 @@ export async function streamAs(role: E2eRole, fn: string, body: unknown): Promis
   }
   throw new Error('The stream ended without a result');
 }
+
+/** A published turn-taking game (the tiny duel), its game admin the e2e gameadmin, open to everyone. */
+export async function seedTurnGame(title: string, change?: (game: ReturnType<typeof tinyTurns>) => void): Promise<string> {
+  const game = tinyTurns();
+  game.concept.title = title;
+  change?.(game);
+  return seedGame(title, game, { publish: true });
+}
+
+export const tinyTurns = () => JSON.parse(readFileSync('e2e/fixtures/tiny-turns.json', 'utf8'));
+
+/** Calls game-match as an e2e account. */
+export const matchAs = (role: E2eRole, body: Record<string, unknown>) => callAs(role, 'game-match', body);
+
