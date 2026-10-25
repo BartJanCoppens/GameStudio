@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { disablePush } from '../game/push';
 import { byRoleOrder, type ProfileRow, type RoleRow } from '../lib/db';
 import { AuthContext, type AuthApi, type AuthState } from './useAuth';
 
@@ -74,6 +75,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return error.message;
     },
     signOut: async () => {
+      // A shared device stops notifying the person who signs out (best effort; never blocks signing out).
+      await disablePush().catch(() => null);
       await supabase.auth.signOut();
       loadedFor.current = null;
       setState({ status: 'signed-out' });

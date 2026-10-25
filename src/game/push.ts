@@ -30,7 +30,8 @@ export async function enablePush(env: PushEnv = browserPush(), publicKey: string
 
 /** Turns them off for this device. */
 export async function disablePush(): Promise<void> {
-  const reg = await navigator.serviceWorker?.getRegistration();
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.getRegistration();
   const sub = await reg?.pushManager.getSubscription();
   if (!sub) return;
   await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
@@ -60,9 +61,8 @@ export function browserPush(): PushEnv {
       return { endpoint: json.endpoint, keys: json.keys };
     },
     save: async sub => {
-      // One row per device: replace whatever this endpoint had.
-      await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
-      const { error } = await supabase.from('push_subscriptions').insert({ endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth });
+      // One row per device, for whoever turned it on last (a shared device moves to the person signed in now).
+      const { error } = await supabase.rpc('claim_push_subscription', { p_endpoint: sub.endpoint, p_p256dh: sub.keys.p256dh, p_auth: sub.keys.auth });
       if (error) throw error;
     },
   };

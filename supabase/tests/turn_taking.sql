@@ -161,6 +161,27 @@ begin
     results := array_append(results, 'FAIL u1: two open invitations for one pair');
   exception when unique_violation then results := array_append(results, 'ok u1'); end;
 
+  -- (s2) signing in on a shared device takes its notifications over from the previous person
+  perform set_config('request.jwt.claims', json_build_object('sub', pb, 'role', 'authenticated')::text, true);
+  execute as_user;
+  perform public.claim_push_subscription('https://fcm.googleapis.com/fcm/send/sqltest5', 'k2', 'a2');
+  execute 'reset role';
+  select user_id = pb and p256dh = 'k2' from public.push_subscriptions where endpoint = 'https://fcm.googleapis.com/fcm/send/sqltest5' into ok;
+  results := array_append(results, case when ok then 'ok s2' else 'FAIL s2: the device still notifies the previous person' end);
+
+  -- (lb1) the leaderboard counts finished games only: wins, draws, losses per player
+  insert into public.matches (game_key, version, way, status, player_a, player_b, a_name, b_name, winner, finished_at) values
+    (k, 1, 'async', 'finished', pa, pb, 'A', 'B', 'a', now()),
+    (k, 1, 'async', 'finished', pa, pc, 'A', 'C', null, now()),
+    (k, 1, 'async', 'cancelled', pb, pc, 'B', 'C', null, now());
+  perform set_config('request.jwt.claims', json_build_object('sub', pc, 'role', 'authenticated')::text, true);
+  execute as_user;
+  select (select wins = 1 and draws = 1 and losses = 0 from public.turn_leaderboard(k) l where l.name = 'A')
+     and (select wins = 0 and draws = 0 and losses = 1 from public.turn_leaderboard(k) l where l.name = 'B')
+     and (select wins = 0 and draws = 1 and losses = 0 from public.turn_leaderboard(k) l where l.name = 'C') into ok;
+  execute 'reset role';
+  results := array_append(results, case when ok then 'ok lb1' else 'FAIL lb1: turn leaderboard wrong' end);
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;
