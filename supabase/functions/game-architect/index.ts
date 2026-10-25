@@ -29,9 +29,9 @@ ${rules}
 Ask about what you still need, in roughly this order, skipping anything the creator already made clear:
 1. what kind of game it is and what the player actually does;
 2. who plays it (audience, level);
-3. play mode: solo, or every player contributing to a common goal;
-4. a leaderboard or not;
-5. a role for AI inside the game: none, a game master who tells the story and reacts to the player, or an opponent to play against;
+3. play mode: solo, every player contributing to a common goal, or turn-taking between two colleagues; for turn-taking also: live (both online, a timer per turn), turn by turn (players are notified when it's their turn), or both; and how players hear it's their turn (email, phone notification, or both);
+4. a leaderboard or not (for turn-taking: also whether finished games show in the game admin's results);
+5. (not for turn-taking games) a role for AI inside the game: none, a game master who tells the story and reacts to the player, or an opponent to play against;
 6. whether to ground it in the source material, and which parts;
 7. the look and tone.
 Each question: short and friendly, with 3–6 concrete choices (a few words each) the creator can click; they can always type their own answer. Set multi to true only when several choices can apply together. Offer imaginative choices, not only the obvious ones.
@@ -52,7 +52,8 @@ It will be built as one web page (HTML, CSS and plain JavaScript) running in a s
 
 The concept:
 - title (2–5 words), pitch (one or two sentences), howToPlay (2–6 short steps), winCondition, scoring.
-- mode: "solo", or "common_goal" with goal { description, target, unit } that all players' contributions add up to; goal null for solo.
+- mode: "solo", "common_goal" with goal { description, target, unit } that all players' contributions add up to, or "turns" (two colleagues take turns; one invites the other). goal null unless common_goal.
+- turns: for mode "turns" { ways: ["live" and/or "async"], turnSeconds (15–600, time per live turn), notify: ["email" and/or "push"], results: whether finished games show in the game admin's results }, else null. Turn-taking games have no AI role (aiRole null). Players may each hold secrets (a hand, hidden ships) that the other never sees.
 - leaderboard: true or false, as the creator wanted.
 - aiRole: null, or { kind: "game_master" | "opponent", description of the character and behaviour, actions: for an opponent the 2–8 moves it can make (short names the game understands), else [] }.
 - sources: the passage ids the game rests on (empty if not grounded). When grounded, the game's facts, questions and feedback must come from those passages.

@@ -29,15 +29,27 @@ export interface GameGoal {
   unit: string;
 }
 
+/** A turn-taking game between two colleagues: how it is played, how players hear it's their turn, what it counts for. */
+export interface TurnsConfig {
+  ways: ('live' | 'async')[];
+  /** Live games: the time per turn. */
+  turnSeconds: number;
+  notify: ('email' | 'push')[];
+  /** Finished games show in the game admin's results. (A leaderboard is concept.leaderboard.) */
+  results: boolean;
+}
+
 export interface GameConcept {
   title: string;
   pitch: string;
   howToPlay: string[];
   winCondition: string;
   scoring: string;
-  mode: 'solo' | 'common_goal';
+  mode: 'solo' | 'common_goal' | 'turns';
   /** Present when mode is common_goal. */
   goal: GameGoal | null;
+  /** Present when mode is turns. */
+  turns?: TurnsConfig | null;
   leaderboard: boolean;
   aiRole: AiRole | null;
   /** Ids of the source passages the game rests on (PASSAGES). */
@@ -90,6 +102,7 @@ export function normalizeConcept<T>(c: T): T {
       ? { ...ai, description: cut(ai.description, 500), actions: Array.isArray(ai.actions) ? ai.actions.slice(0, 12).map(a => cut(a, 40)) : ai.actions }
       : ai,
     look: look && typeof look === 'object' ? { ...look, name: cut(look.name, 60) } : look,
+    turns: o.mode === 'turns' ? o.turns ?? null : null,
   } as T;
 }
 
@@ -104,7 +117,16 @@ export function conceptProblems(c: unknown): string[] {
   if (!Array.isArray(o.howToPlay) || !o.howToPlay.length || o.howToPlay.length > 8 || !o.howToPlay.every(s => str(s, 200))) p.push('How to play needs 1–8 short steps');
   if (!str(o.winCondition, 300)) p.push('The concept needs a way to win');
   if (!str(o.scoring, 300)) p.push('The concept needs a scoring rule');
-  if (o.mode !== 'solo' && o.mode !== 'common_goal') p.push('The play mode must be solo or common goal');
+  if (o.mode !== 'solo' && o.mode !== 'common_goal' && o.mode !== 'turns') p.push('The play mode must be solo, common goal or turn-taking');
+  if (o.mode === 'turns') {
+    const t = o.turns as Record<string, unknown> | null | undefined;
+    const ways = t?.ways, notify = t?.notify;
+    const ok = !!t && Array.isArray(ways) && ways.length > 0 && ways.every(w => w === 'live' || w === 'async')
+      && Array.isArray(notify) && notify.length > 0 && notify.every(n => n === 'email' || n === 'push')
+      && typeof t.turnSeconds === 'number' && t.turnSeconds >= 15 && t.turnSeconds <= 600 && typeof t.results === 'boolean';
+    if (!ok) p.push('The turn-taking settings need ways to play (live, turn by turn), 15–600 seconds per turn, how players are notified (email, phone) and whether results count');
+    if (o.aiRole) p.push('Turn-taking games can’t have an AI role yet');
+  }
   const goal = o.goal as Record<string, unknown> | null;
   if (o.mode === 'common_goal' && !(goal && str(goal.description, 200) && typeof goal.target === 'number' && goal.target > 0 && str(goal.unit, 40))) p.push('A common-goal game needs a goal with a description, a target above 0 and a unit');
   if (typeof o.leaderboard !== 'boolean') p.push('Say whether the game has a leaderboard');
@@ -141,14 +163,18 @@ export const TOKENS_SCHEMA = {
 
 export const CONCEPT_FIELDS_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['title', 'pitch', 'howToPlay', 'winCondition', 'scoring', 'mode', 'goal', 'leaderboard', 'aiRole', 'sources', 'look'],
+  required: ['title', 'pitch', 'howToPlay', 'winCondition', 'scoring', 'mode', 'goal', 'turns', 'leaderboard', 'aiRole', 'sources', 'look'],
   properties: {
     title: { type: 'string' },
     pitch: { type: 'string' },
     howToPlay: { type: 'array', items: { type: 'string' } },
     winCondition: { type: 'string' },
     scoring: { type: 'string' },
-    mode: { enum: ['solo', 'common_goal'] },
+    mode: { enum: ['solo', 'common_goal', 'turns'] },
+    turns: nullable({
+      type: 'object', additionalProperties: false, required: ['ways', 'turnSeconds', 'notify', 'results'],
+      properties: { ways: { type: 'array', items: { enum: ['live', 'async'] } }, turnSeconds: { type: 'integer' }, notify: { type: 'array', items: { enum: ['email', 'push'] } }, results: { type: 'boolean' } },
+    }),
     goal: nullable({ type: 'object', additionalProperties: false, required: ['description', 'target', 'unit'], properties: { description: { type: 'string' }, target: { type: 'number' }, unit: { type: 'string' } } }),
     leaderboard: { type: 'boolean' },
     aiRole: nullable({ type: 'object', additionalProperties: false, required: ['kind', 'description', 'actions'], properties: { kind: { enum: ['game_master', 'opponent'] }, description: { type: 'string' }, actions: { type: 'array', items: { type: 'string' } } } }),
@@ -192,6 +218,13 @@ export const AI_REPLY_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['say', 'quotes', 'action', 'mood'],
   properties: { say: { type: 'string' }, quotes: { type: 'array', items: { type: 'string' } }, action: nullable({ type: 'string' }), mood: nullable({ type: 'string' }) },
 };
+
+/** Extra bridge calls for turn-taking games (mode "turns"). */
+export const BRIDGE_API_TURNS = `Turn-taking games (two players, "a" invited "b"; b moves first):
+- GameStudio.getMatch(): { you: 'a' | 'b', players: { a: { name }, b: { name } }, turn: 'a' | 'b', moveNo, state, lastMove, mine, way: 'live' | 'async', turnEndsAt, status, over }.
+  state: the shared state both players see (null before the first move). mine: your own private state, which the other player never receives (null at first). lastMove: the other player's last move.
+- GameStudio.makeMove(move, state, { mine, over }): only when it is your turn. move: a small object describing what you did; state: the new shared state; mine: your new private state (optional); over: { winner: 'a' | 'b' | null } to end the game (null winner: a draw).
+- GameStudio.onMatchChange(callback): callback(match) whenever the other player moves or the turn passes. Re-render from it.`;
 
 /** The bridge API generated games are told about (game-builder) and the platform implements (the app). */
 export const BRIDGE_API = `window.GameStudio (always available; every method returns a Promise):
