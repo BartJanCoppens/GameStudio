@@ -11,7 +11,8 @@ const plain = (s: string) => s.replace(/\b(?:https?|ftp):\/\/\S*/gi, '').replace
   .replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
 export function notificationText(kind: NotificationKind, from: string, game: string): string {
-  const f = short(plain(from) || 'A colleague', 60), g = short(plain(game) || 'a game', 80);
+  // Cut first: the filter then never sees more than a short name or title.
+  const f = short(plain(from.slice(0, 200)) || 'A colleague', 60), g = short(plain(game.slice(0, 200)) || 'a game', 80);
   switch (kind) {
     case 'turn': return `${f} made a move in ${g} · your turn`;
     case 'invite': return `${f} invites you to play ${g}`;

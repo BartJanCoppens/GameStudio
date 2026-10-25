@@ -8,6 +8,11 @@ describe('notificationText', () => {
     expect(notificationText('accepted', 'Sam V.', 'Tiny duel')).toBe('Sam V. accepted your invitation · Tiny duel has started');
     expect(notificationText('declined', 'Sam V.', 'Tiny duel')).toBe('Sam V. declined your invitation to Tiny duel');
   });
+  it('stays fast on a huge, link-like name', () => {
+    const start = performance.now();
+    notificationText('turn', 'a-'.repeat(100000) + '.', 'b.'.repeat(100000));
+    expect(performance.now() - start).toBeLessThan(50);
+  });
   it('keeps long names and titles short', () => {
     expect(notificationText('turn', 'x'.repeat(300), 'y'.repeat(300)).length).toBeLessThanOrEqual(200);
   });
