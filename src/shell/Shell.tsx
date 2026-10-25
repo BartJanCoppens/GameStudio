@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Avatar, BrandMark, LinkButton, NavItem, PillToggle, SegmentedControl, Toast } from '../ds';
+import { NotificationSettings } from './NotificationSettings';
 import { LANG_OPTIONS, NAV, NAV_GROUP, ROLE_OPTIONS, SCREEN_TITLES } from '../data/shared';
 import { useApp } from '../app/useApp';
 import { useAuth, useSignedIn } from '../auth/useAuth';
@@ -29,6 +30,7 @@ function ProfilePopup({ onClose, folded }: { onClose: () => void; folded: boolea
       <div style={row}><span style={{ color: '#6b716a' }}>Roles</span><span>{roles.map(r => r.name).join(', ')}</span></div>
       {profile.cohort ? <div style={row}><span style={{ color: '#6b716a' }}>Cohort</span><span>{profile.cohort}</span></div> : null}
       <div style={{ ...row, alignItems: 'center' }}><span style={{ color: '#6b716a' }}>Language</span><PillToggle options={LANG_OPTIONS} value={s.lang} onChange={lang => set({ lang })} size="xs" /></div>
+      <NotificationSettings />
       {folded ? <div><LinkButton size={12.5} onClick={() => void signOut()}>Sign out</LinkButton></div> : null}
     </div>
   );
