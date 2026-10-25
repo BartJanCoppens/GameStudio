@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { safeTokens } from './themeVars';
 import { buildSrcdoc, fontsCssFor } from './bridge/srcdoc';
-import { useBridgeHost } from './bridge/useBridgeHost';
+import { useBridgeHost, type BridgeContext } from './bridge/useBridgeHost';
 import type { GameContent } from './content';
 
 /** A short, cheap fingerprint of the page, so a changed game gets a fresh frame. */
@@ -20,6 +20,8 @@ interface Props {
   test: boolean;
   onFinished?: (score: number | null) => void;
   onScoreFailed?: (message: string) => void;
+  /** A real turn-taking match; without one a turn-taking game is test-played on both sides. */
+  match?: BridgeContext['match'];
   height?: number | string;
 }
 
@@ -28,12 +30,15 @@ interface Props {
  * content security policy inside, and the bridge as its only way out. If the frame navigates away from the
  * page it was given, it is stopped.
  */
-export function GameFrame({ gameKey, content, runId, test, onFinished, onScoreFailed, height = 'calc(100dvh - 190px)' }: Props) {
+export function GameFrame({ gameKey, content, runId, test, onFinished, onScoreFailed, match, height = 'calc(100dvh - 190px)' }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [fontsCss, setFontsCss] = useState<string | null>(null);
   // Which page (and run) was stopped for leaving; a new page or run starts clean.
   const [leftKey, setLeftKey] = useState<string | null>(null);
   const loads = useRef({ key: '', count: 0 });
+  // Test plays of a turn-taking game: whose side is being played (b starts).
+  const [standInSide, setStandInSide] = useState<'a' | 'b'>('b');
+  const testingBothSides = content.concept?.mode === 'turns' && !match;
   const tokens = safeTokens(content.concept?.look.tokens);
 
   useEffect(() => {
@@ -51,11 +56,13 @@ export function GameFrame({ gameKey, content, runId, test, onFinished, onScoreFa
     onLeft: () => setLeftKey(frameKey),
     onFinished: score => onFinished?.(score),
     onScoreFailed: message => onScoreFailed?.(message),
+    match,
+    onStandIn: view => setStandInSide(view.turn),
   });
 
   if (left) return <div role="alert" style={{ padding: 24, border: '1px solid var(--tc-red)', borderRadius: 8, background: 'var(--tc-red-bg-soft)', color: 'var(--tc-red-text)', fontWeight: 600 }}>{LEFT_MESSAGE}</div>;
   if (!srcDoc) return <div style={{ padding: 24, color: 'var(--tc-ink-5)' }}>{content.files ? 'Loading the game…' : 'This game has no code yet.'}</div>;
-  return (
+  const frameEl = (
     <iframe
       ref={frame}
       key={frameKey}
@@ -70,6 +77,13 @@ export function GameFrame({ gameKey, content, runId, test, onFinished, onScoreFa
       }}
       style={{ width: '100%', height, border: '1px solid var(--tc-line-soft)', borderRadius: 'var(--game-radius, 8px)', background: tokens?.surface ?? '#fff', display: 'block' }}
     />
+  );
+  if (!testingBothSides) return frameEl;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, height: typeof height === 'string' && height.endsWith('%') ? height : undefined }}>
+      <div style={{ fontSize: 12.5, color: 'var(--tc-ink-3)' }}>Testing both sides · playing as {standInSide === 'a' ? 'A (who invited)' : 'B (invited, moves first)'}</div>
+      {frameEl}
+    </div>
   );
 }
 

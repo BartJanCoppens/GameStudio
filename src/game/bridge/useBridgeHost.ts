@@ -5,7 +5,8 @@ import { PASSAGES, type GameContent } from '../content';
 import { contribute, goalTotal } from '../goal';
 import { finishRun, leaderboardOf, type RunRow } from '../runs';
 import { limitedQueue } from './limiter';
-import { firstNameInitial, parseBridgeRequest, type BridgeRequest } from './protocol';
+import { firstNameInitial, parseBridgeRequest, type BridgeRequest, type MakeMove, type MatchView } from './protocol';
+import { standInMatch } from './standInMatch';
 
 export interface BridgeContext {
   gameKey: string;
@@ -19,6 +20,10 @@ export interface BridgeContext {
   onFinished: (score: number | null) => void;
   /** Saving the score failed (the game went offline, for instance): the player is told, and stays on the game. */
   onScoreFailed: (message: string) => void;
+  /** A real turn-taking match (the match screen). Without one, a turn-taking game gets a stand-in kept in memory. */
+  match?: { view: MatchView; move: (m: MakeMove) => Promise<void> };
+  /** The stand-in's view changed (test plays show whose side is being played). */
+  onStandIn?: (view: MatchView) => void;
 }
 
 async function leaderboard(gameKey: string) {
@@ -39,7 +44,16 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
   // Contributions go one at a time, at most 50 per run (the database enforces the same).
   const contributions = useRef(limitedQueue(50));
 
-  useEffect(() => { submitted.current = null; scoreFailed.current = false; contributions.current = limitedQueue(50); }, [ctx.runId]);
+  // Test plays of a turn-taking game: one person plays both sides, in memory.
+  const standIn = useRef(standInMatch());
+
+  useEffect(() => { submitted.current = null; scoreFailed.current = false; contributions.current = limitedQueue(50); standIn.current = standInMatch(); }, [ctx.runId]);
+
+  // The other player moved (or the turn passed): the game hears it.
+  const matchView = ctx.match?.view;
+  useEffect(() => {
+    if (matchView) frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', event: 'match', value: matchView }, '*');
+  }, [frame, matchView]);
 
   useEffect(() => {
     const respond = (res: { id: number; ok: true; value: unknown } | { id: number; ok: false; error: string }) => frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', ...res }, '*');
@@ -78,6 +92,18 @@ export function useBridgeHost(frame: RefObject<HTMLIFrameElement | null>, ctx: B
           if (!concept?.aiRole) throw new Error('This game has no AI role');
           if (!c.runId) throw new Error('Start the game first');
           return callFunction('game-ai', { game_key: c.gameKey, run_id: c.runId, messages: req.messages, state: req.state });
+        case 'getMatch':
+          if (concept?.mode !== 'turns') throw new Error('This isn’t a turn-taking game');
+          return c.match ? c.match.view : standIn.current.view();
+        case 'makeMove': {
+          if (concept?.mode !== 'turns') throw new Error('This isn’t a turn-taking game');
+          const move = { move: req.move, state: req.state, mine: req.mine, over: req.over };
+          if (c.match) { await c.match.move(move); return true; }
+          const view = standIn.current.move(move);
+          c.onStandIn?.(view);
+          frame.current?.contentWindow?.postMessage({ source: 'gamestudio-host', event: 'match', value: view }, '*');
+          return true;
+        }
         case 'finish':
           // After a failed save the player stays where the message is, not on results without this game.
           if (!scoreFailed.current) c.onFinished(submitted.current);

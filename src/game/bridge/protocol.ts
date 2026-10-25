@@ -12,13 +12,35 @@ export type BridgeRequest = { id: number } & (
   | { type: 'submitScore'; score: number; details: unknown }
   | { type: 'contribute'; amount: number; note: string }
   | { type: 'askAI'; messages: { role: 'player' | 'ai'; text: string }[]; state: unknown }
+  | { type: 'getMatch' }
+  | ({ type: 'makeMove' } & MakeMove)
 );
+
+export type Side = 'a' | 'b';
+
+/** A move in a turn-taking game: what happened, the new shared state, the mover's own secrets, the end. */
+export interface MakeMove { move: unknown; state: unknown; mine?: unknown; over?: { winner: Side | null } }
+
+/** What a turn-taking game sees of its match. `mine` is only ever the viewer's own private state. */
+export interface MatchView {
+  you: Side;
+  players: { a: { name: string }; b: { name: string } };
+  turn: Side;
+  moveNo: number;
+  state: unknown;
+  lastMove: unknown;
+  mine: unknown;
+  way: 'live' | 'async';
+  turnEndsAt: string | null;
+  status: string;
+  over: { winner: Side | null } | null;
+}
 
 export type BridgeResponse = { source: 'gamestudio-host'; id: number; ok: true; value: unknown } | { source: 'gamestudio-host'; id: number; ok: false; error: string };
 
-export const LIMITS = { score: 1e9, amount: 1000, note: 140, messages: 20, messageChars: 1000, stateBytes: 4096, detailsBytes: 16384 };
+export const LIMITS = { score: 1e9, amount: 1000, note: 140, messages: 20, messageChars: 1000, stateBytes: 4096, detailsBytes: 16384, moveBytes: 4096, matchStateBytes: 32768, mineBytes: 16384 };
 
-const SIMPLE = ['ready', 'getData', 'getPlayer', 'getLeaderboard', 'getGoal', 'getSources', 'finish'] as const;
+const SIMPLE = ['ready', 'getData', 'getPlayer', 'getLeaderboard', 'getGoal', 'getSources', 'finish', 'getMatch'] as const;
 
 const jsonSize = (v: unknown) => { try { return JSON.stringify(v ?? null).length; } catch { return Infinity; } };
 
@@ -44,6 +66,12 @@ export function parseBridgeRequest(raw: unknown): BridgeRequest | null {
         && typeof (x as { text?: unknown }).text === 'string' && (x as { text: string }).text.length <= LIMITS.messageChars);
       if (!ok || jsonSize(m.state) > LIMITS.stateBytes) return null;
       return { id, type: 'askAI', messages: msgs.map(x => ({ role: x.role, text: x.text })), state: m.state ?? null };
+    }
+    case 'makeMove': {
+      if (jsonSize(m.move) > LIMITS.moveBytes || jsonSize(m.state) > LIMITS.matchStateBytes || jsonSize(m.mine) > LIMITS.mineBytes) return null;
+      const over = m.over as { winner?: unknown } | null | undefined;
+      if (over != null && (typeof over !== 'object' || (over.winner !== 'a' && over.winner !== 'b' && over.winner !== null))) return null;
+      return { id, type: 'makeMove', move: m.move ?? null, state: m.state ?? null, mine: m.mine, over: over == null ? undefined : { winner: over.winner as Side | null } };
     }
     default:
       return null;

@@ -27,3 +27,26 @@ describe('nested frames at runtime', () => {
     expect(removed).toEqual(['iframe', 'embed']);
   });
 });
+
+describe('turn-taking calls', () => {
+  it('exposes getMatch, makeMove and onMatchChange, and delivers match events', () => {
+    const posted: unknown[] = [];
+    let listener: ((e: { source: unknown; data: unknown }) => void) | null = null;
+    const parent = { postMessage: (m: unknown) => posted.push(m) };
+    const fake: Record<string, unknown> = { addEventListener: (_: string, cb: typeof listener) => { listener = cb; }, parent };
+    new Function('window', BRIDGE_SCRIPT)(fake);
+    const gs = fake.GameStudio as { getMatch: () => Promise<unknown>; makeMove: (m: unknown, s: unknown, o?: unknown) => Promise<unknown>; onMatchChange: (cb: (v: unknown) => void) => void };
+    void gs.getMatch();
+    void gs.makeMove({ shot: 'C3' }, { n: 1 }, { mine: { ships: 'B5' }, over: { winner: 'a' } });
+    expect(posted).toEqual([
+      { source: 'gamestudio', id: 1, type: 'getMatch' },
+      { source: 'gamestudio', id: 2, type: 'makeMove', move: { shot: 'C3' }, state: { n: 1 }, mine: { ships: 'B5' }, over: { winner: 'a' } },
+    ]);
+    const seen: unknown[] = [];
+    gs.onMatchChange(v => seen.push(v));
+    listener!({ source: parent, data: { source: 'gamestudio-host', event: 'match', value: { turn: 'a' } } });
+    listener!({ source: {}, data: { source: 'gamestudio-host', event: 'match', value: { turn: 'x' } } });
+    expect(seen).toEqual([{ turn: 'a' }]);
+  });
+});
+

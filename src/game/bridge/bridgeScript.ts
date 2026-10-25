@@ -4,9 +4,12 @@
 export const BRIDGE_SCRIPT = `(() => {
   let next = 1;
   const waiting = new Map();
+  const matchListeners = [];
   window.addEventListener('message', e => {
     const m = e.data;
-    if (e.source !== window.parent || !m || m.source !== 'gamestudio-host' || !waiting.has(m.id)) return;
+    if (e.source !== window.parent || !m || m.source !== 'gamestudio-host') return;
+    if (m.event === 'match') { for (const cb of matchListeners) { try { cb(m.value); } catch (_) {} } return; }
+    if (!waiting.has(m.id)) return;
     const { resolve, reject } = waiting.get(m.id);
     waiting.delete(m.id);
     m.ok ? resolve(m.value) : reject(new Error(m.error));
@@ -44,5 +47,8 @@ export const BRIDGE_SCRIPT = `(() => {
     contribute: (amount, note) => call('contribute', { amount, note }),
     askAI: ({ messages, state } = {}) => call('askAI', { messages, state }),
     finish: () => call('finish'),
+    getMatch: () => call('getMatch'),
+    makeMove: (move, state, opts) => call('makeMove', { move, state, mine: opts && opts.mine, over: opts && opts.over }),
+    onMatchChange: cb => { if (typeof cb === 'function') matchListeners.push(cb); },
   });
 })();`;
