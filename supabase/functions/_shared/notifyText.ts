@@ -5,7 +5,10 @@ export type NotificationKind = 'turn' | 'invite' | 'accepted' | 'declined';
 const short = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** Names and titles without anything that reads as a link (a notification must not carry one but ours). */
-const plain = (s: string) => s.replace(/\b(?:https?|ftp):\/\/\S*/gi, '').replace(/\bwww\.\S*/gi, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+const plain = (s: string) => s.replace(/\b(?:https?|ftp):\/\/\S*/gi, '').replace(/\bwww\.\S*/gi, '')
+  // A bare domain ("login.evil.example/reset") stops being one: its dots become dot leaders.
+  .replace(/[\w-]+(?:\.[\w-]+)+(?:\/\S*)?/g, t => t.replace(/\./g, '\u2024'))
+  .replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
 
 export function notificationText(kind: NotificationKind, from: string, game: string): string {
   const f = short(plain(from) || 'A colleague', 60), g = short(plain(game) || 'a game', 80);

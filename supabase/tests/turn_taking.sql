@@ -103,10 +103,10 @@ begin
   -- (x1–x3) invitations expire, quiet matches are cancelled
   update public.matches set status = 'invited', way = 'live', created_at = now() - interval '2 hours', last_activity_at = now() - interval '2 hours' where id = m;
   insert into public.matches (id, game_key, version, way, status, player_a, player_b, a_name, b_name, turn, created_at, last_activity_at) values
-    ('00000000-0000-4000-8000-000000000a01', k, 1, 'async', 'invited', pa, pb, 'A', 'B', 'b', now() - interval '2 hours', now() - interval '2 hours'),
-    ('00000000-0000-4000-8000-000000000a02', k, 1, 'async', 'active', pa, pb, 'A', 'B', 'b', now() - interval '5 days', now() - interval '4 days'),
-    ('00000000-0000-4000-8000-000000000a03', k, 1, 'live', 'waiting', pa, pb, 'A', 'B', 'b', now() - interval '20 minutes', now() - interval '11 minutes'),
-    ('00000000-0000-4000-8000-000000000a04', k, 1, 'live', 'active', pa, pb, 'A', 'B', 'b', now() - interval '20 minutes', now() - interval '5 minutes');
+    ('00000000-0000-4000-8000-000000000a01', k, 1, 'async', 'invited', pa, pc, 'A', 'C', 'b', now() - interval '2 hours', now() - interval '2 hours'),
+    ('00000000-0000-4000-8000-000000000a02', k, 1, 'async', 'active', pb, pc, 'B', 'C', 'b', now() - interval '5 days', now() - interval '4 days'),
+    ('00000000-0000-4000-8000-000000000a03', k, 1, 'live', 'waiting', pa, ga, 'A', 'G', 'b', now() - interval '20 minutes', now() - interval '11 minutes'),
+    ('00000000-0000-4000-8000-000000000a04', k, 1, 'live', 'active', pb, ga, 'B', 'G', 'b', now() - interval '20 minutes', now() - interval '5 minutes');
   perform private.expire_matches();
   select status = 'expired' from public.matches where id = m into ok;
   select ok and status = 'invited' from public.matches where id = '00000000-0000-4000-8000-000000000a01' into ok;
@@ -153,6 +153,13 @@ begin
   exception when others then results := array_append(results, 'ok s1'); end;
   insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/sqltest5', 'k', 'a');
   execute 'reset role';
+
+  -- (u1) one open invitation or game per pair and game, whoever invited
+  begin
+    insert into public.matches (game_key, version, way, status, player_a, player_b, a_name, b_name) values (k2, 1, 'async', 'invited', pa, pb, 'A', 'B');
+    insert into public.matches (game_key, version, way, status, player_a, player_b, a_name, b_name) values (k2, 1, 'async', 'invited', pb, pa, 'B', 'A');
+    results := array_append(results, 'FAIL u1: two open invitations for one pair');
+  exception when unique_violation then results := array_append(results, 'ok u1'); end;
 
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;

@@ -20,6 +20,11 @@ describe('no links in notifications', () => {
     expect(text).toContain('Sam');
     expect(text).toContain('Duel');
   });
+  it('breaks up bare domain names, and keeps initials', () => {
+    const text = notificationText('turn', 'Sam V. evil.example', 'Visit login.evil.example/reset now');
+    expect(text).not.toMatch(/[\w-]\.[\w-]/);
+    expect(text).toContain('Sam V.');
+  });
 });
 
 describe('isPushEndpoint', () => {

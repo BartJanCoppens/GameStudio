@@ -87,6 +87,8 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       const { data: row, error } = await admin.from('matches').insert({
         game_key: b.game_key, version: live.version, way: b.way, player_a: c.id, player_b: b.invitee, a_name: name(c.id), b_name: name(b.invitee),
       }).select('id').single();
+      // The database keeps one open game per pair and game, even when two invitations cross.
+      if (error?.code === '23505') throw new HttpError(409, 'You already have an invitation or a game with this colleague in this game');
       if (error) throw new Error(error.message);
       await notify(admin, b.invitee, 'invite', name(c.id), title, row.id, turns.notify);
       return { match_id: row.id };
