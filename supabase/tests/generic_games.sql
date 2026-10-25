@@ -6,6 +6,7 @@ declare
   creator uuid := gen_random_uuid();
   other   uuid := gen_random_uuid();
   player  uuid := gen_random_uuid();
+  ga      uuid := gen_random_uuid();
   results text[] := '{}';
   run_id  uuid;
   ok      boolean;
@@ -14,8 +15,9 @@ begin
   insert into auth.users (id, email, aud, role) values
     (creator, 'sqltest-creator@example.com', 'authenticated', 'authenticated'),
     (other, 'sqltest-other@example.com', 'authenticated', 'authenticated'),
-    (player, 'sqltest-player@example.com', 'authenticated', 'authenticated');
-  insert into public.user_roles (user_id, role_key) values (creator, 'creator'), (other, 'creator'), (player, 'player');
+    (player, 'sqltest-player@example.com', 'authenticated', 'authenticated'),
+    (ga, 'sqltest-ga@example.com', 'authenticated', 'authenticated');
+  insert into public.user_roles (user_id, role_key) values (creator, 'creator'), (other, 'creator'), (player, 'player'), (ga, 'gameadmin');
   insert into public.games (key, title) values ('sqltest-game', 'SQL test game'), ('sqltest-other', 'Other');
   -- The insert trigger stamps the signed-in user (none here) as creator.
   update public.games set created_by = creator where key = 'sqltest-game';
@@ -27,7 +29,7 @@ begin
   perform set_config('request.jwt.claims', json_build_object('sub', creator, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
   begin
-    perform public.publish_game('sqltest-game');
+    perform public.publish_game('sqltest-game', ga);
     results := array_append(results, 'FAIL a: published without a check');
   exception when others then
     results := array_append(results, case when sqlerrm like '%house-rules check%' then 'ok a' else 'FAIL a: ' || sqlerrm end);
@@ -38,7 +40,7 @@ begin
   insert into public.game_checks (game_key, fingerprint, passed, reasons) values ('sqltest-game', public.draft_fingerprint('sqltest-game'), true, '[]');
   execute 'set local role authenticated';
   begin
-    perform public.publish_game('sqltest-game');
+    perform public.publish_game('sqltest-game', ga);
     results := array_append(results, 'ok b');
   exception when others then
     results := array_append(results, ('FAIL b: ' || sqlerrm));
@@ -52,7 +54,7 @@ begin
   update public.game_content set content = '{"phase":"ready","changed":true}' where game_key = 'sqltest-game' and stage = 'draft';
   execute 'set local role authenticated';
   begin
-    perform public.publish_game('sqltest-game');
+    perform public.publish_game('sqltest-game', ga);
     results := array_append(results, 'FAIL c: published a changed draft');
   exception when others then
     results := array_append(results, case when sqlerrm like '%house-rules check%' then 'ok c' else 'FAIL c: ' || sqlerrm end);
@@ -71,6 +73,8 @@ begin
   execute 'reset role';
 
   -- (e) a player's 51st contribution to one run is refused
+  -- A published game starts closed; open it as its game admin would.
+  update public.games set access = 'everyone' where key = 'sqltest-game';
   perform set_config('request.jwt.claims', json_build_object('sub', player, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
   insert into public.game_runs (game_key, content_version) values ('sqltest-game', 1) returning id into run_id;

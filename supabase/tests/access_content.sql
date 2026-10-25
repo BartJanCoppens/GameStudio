@@ -19,7 +19,7 @@ begin
     (listed, 'sqltest3-listed@example.com', 'authenticated', 'authenticated'), (outside, 'sqltest3-outside@example.com', 'authenticated', 'authenticated');
   insert into public.user_roles (user_id, role_key) values (owner_, 'creator'), (other, 'creator'), (gadmin, 'gameadmin'), (inside, 'player'), (listed, 'player'), (outside, 'player');
   insert into public.games (key, title) values ('sqltest3-game', 'G');
-  update public.games set created_by = owner_ where key = 'sqltest3-game';
+  update public.games set created_by = owner_, game_admin = gadmin where key = 'sqltest3-game';
   insert into public.game_content (game_key, stage, content) values
     ('sqltest3-game', 'live', '{"phase":"ready","data":{"q":[1,2]}}'), ('sqltest3-game', 'draft', '{"phase":"ready","data":{"q":[1,2]}}');
   insert into public.user_groups (name) values ('SQL test analysts') returning id into grp;
@@ -28,17 +28,25 @@ begin
   -- (f) a creator who doesn't own the game can't manage its access; the owner can
   perform set_config('request.jwt.claims', json_build_object('sub', other, 'role', 'authenticated')::text, true);
   execute as_user;
-  update public.games set access = 'restricted' where key = 'sqltest3-game';
-  get diagnostics n = row_count;
+  begin perform public.set_game_access('sqltest3-game', 'restricted'); n := 1; exception when others then n := 0; end;
+
   results := array_append(results, case when n = 0 then 'ok f' else 'FAIL f: non-owner creator restricted the game' end);
   execute 'reset role';
+  -- (f2) since the assigned game admin: the owner doesn't decide who plays either; the game's game admin does
   perform set_config('request.jwt.claims', json_build_object('sub', owner_, 'role', 'authenticated')::text, true);
   execute as_user;
-  update public.games set access = 'restricted' where key = 'sqltest3-game';
-  get diagnostics n = row_count;
+  begin
+    perform public.set_game_access('sqltest3-game', 'restricted');
+    ok := false;
+  exception when others then ok := true; end;
+  execute 'reset role';
+  perform set_config('request.jwt.claims', json_build_object('sub', gadmin, 'role', 'authenticated')::text, true);
+  execute as_user;
+  perform public.set_game_access('sqltest3-game', 'restricted');
+  n := 1;
   insert into public.game_access (game_key, group_id) values ('sqltest3-game', grp);
   insert into public.game_access (game_key, user_id) values ('sqltest3-game', listed);
-  results := array_append(results, case when n = 1 then 'ok f2' else 'FAIL f2: owner could not restrict' end);
+  results := array_append(results, case when n = 1 and ok then 'ok f2' else 'FAIL f2: owner restricted, or game admin could not' end);
   execute 'reset role';
 
   -- (a) outside: no live content, no run
@@ -67,8 +75,8 @@ begin
   -- (j) a game admin sets access but can't rename or archive someone else's game
   perform set_config('request.jwt.claims', json_build_object('sub', gadmin, 'role', 'authenticated')::text, true);
   execute as_user;
-  update public.games set access = 'restricted' where key = 'sqltest3-game';
-  get diagnostics n = row_count;
+  perform public.set_game_access('sqltest3-game', 'restricted');
+  n := 1;
   begin
     update public.games set title = 'Hijacked' where key = 'sqltest3-game';
     select title = 'G' from public.games where key = 'sqltest3-game' into ok;
