@@ -2,7 +2,7 @@
 // and the player allows. Best effort: a failed notification never fails the action that caused it.
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.117.3';
 import webpush from 'npm:web-push@3.6.7';
-import { notificationText, type NotificationKind } from './notifyText.ts';
+import { isPushEndpoint, notificationText, type NotificationKind } from './notifyText.ts';
 
 const APP_URL = Deno.env.get('APP_URL') ?? 'https://game-studio-flame.vercel.app';
 export const matchUrl = (matchId: string) => `${APP_URL}/#/match?id=${matchId}`;
@@ -20,6 +20,7 @@ async function push(admin: SupabaseClient, userId: string, text: string, url: st
   if (!vapid()) { console.warn('push skipped: VAPID keys not set'); return; }
   const { data: subs } = await admin.from('push_subscriptions').select('id, endpoint, p256dh, auth').eq('user_id', userId);
   for (const s of subs ?? []) {
+    if (!isPushEndpoint(s.endpoint)) continue;
     try {
       await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: 'Game Studio', body: text, url }), { TTL: 86400 });
     } catch (e) {

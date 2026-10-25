@@ -144,6 +144,16 @@ begin
   exception when others then results := array_append(results, 'ok c2'); end;
   execute 'reset role';
 
+  -- (s1) a device subscription must point at a browser push service
+  perform set_config('request.jwt.claims', json_build_object('sub', pa, 'role', 'authenticated')::text, true);
+  execute as_user;
+  begin
+    insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://169.254.169.254/latest', 'k', 'a');
+    results := array_append(results, 'FAIL s1: stored a push endpoint outside the push services');
+  exception when others then results := array_append(results, 'ok s1'); end;
+  insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://fcm.googleapis.com/fcm/send/sqltest5', 'k', 'a');
+  execute 'reset role';
+
   raise exception 'RESULTS: %', array_to_string(results, ', ');
 end;
 $$;

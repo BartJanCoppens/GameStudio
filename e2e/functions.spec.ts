@@ -235,3 +235,10 @@ test('game-match refuses inviting someone outside the game', async () => {
   expect(r.status).toBe(403);
 });
 
+test('game-match refuses a second invitation while one is open', async () => {
+  const { key } = await invited(`Duel again ${Date.now()}`);
+  const again = await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'async' });
+  expect(again.status).toBe(409);
+  expect(String(again.body.error)).toContain('already');
+});
+

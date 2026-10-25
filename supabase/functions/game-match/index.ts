@@ -74,6 +74,14 @@ async function handle(admin: SupabaseClient, c: Caller, b: Body): Promise<unknow
       if (!live) throw new HttpError(404, 'This game isn’t published');
       const { turns, title } = await turnsOf(admin, b.game_key, live.version as number);
       if (!turns.ways.includes(b.way)) throw new HttpError(400, b.way === 'live' ? 'This game is played turn by turn only' : 'This game is played live only');
+      // One open game per pair and game, and at most 20 invitations an hour: no inviting someone into a flood.
+      const { count: open } = await admin.from('matches').select('id', { count: 'exact', head: true }).eq('game_key', b.game_key)
+        .in('status', ['invited', 'waiting', 'active'])
+        .or(`and(player_a.eq.${c.id},player_b.eq.${b.invitee}),and(player_a.eq.${b.invitee},player_b.eq.${c.id})`);
+      if (open) throw new HttpError(409, 'You already have an invitation or a game with this colleague in this game');
+      const { count: recent } = await admin.from('matches').select('id', { count: 'exact', head: true }).eq('player_a', c.id)
+        .gte('created_at', new Date(Date.now() - 3600_000).toISOString());
+      if ((recent ?? 0) >= 20) throw new HttpError(429, 'You sent a lot of invitations in the last hour. Try again later.');
       const { data: names } = await admin.from('profiles').select('id, full_name, email').in('id', [c.id, b.invitee]);
       const name = (id: string) => { const p = names?.find(x => x.id === id); return p?.full_name || 'A colleague'; };
       const { data: row, error } = await admin.from('matches').insert({
