@@ -9,6 +9,7 @@ import { headingFont } from '../../game/themeVars';
 import { useGameContent } from '../../game/useGameContent';
 import { errorMessage } from '../../lib/supabase';
 import { BackLink, Screen } from '../../shell/ui';
+import { GameMatches } from './GameMatches';
 import { InviteDialog } from './InviteDialog';
 import { card, eyebrow } from '../../shell/styles';
 
@@ -50,7 +51,7 @@ export function Play() {
           </>
         ) : (
           <div style={{ ...card, padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={eyebrow}>{concept.mode === 'common_goal' ? 'Common goal' : 'Solo'}{concept.aiRole ? ` · ${concept.aiRole.kind === 'opponent' ? 'against the AI' : 'with an AI game master'}` : ''}</div>
+            <div style={eyebrow}>{concept.mode === 'common_goal' ? 'Common goal' : concept.mode === 'turns' ? 'Turn-taking · with a colleague' : 'Solo'}{concept.aiRole ? ` · ${concept.aiRole.kind === 'opponent' ? 'against the AI' : 'with an AI game master'}` : ''}</div>
             <h1 style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.2, margin: 0, ...headingFont }}>{concept.title}</h1>
             <div style={{ color: 'var(--tc-ink-3)', fontSize: 14, lineHeight: 1.5, maxWidth: 640 }}>{concept.pitch}</div>
             <ol style={{ margin: 0, paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -66,11 +67,14 @@ export function Play() {
             ) : null}
             {error ? <Banner tone="warning">{error}</Banner> : null}
             {concept.mode === 'turns' && concept.turns ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <Button variant="primary" size="xl" onClick={() => setInviting(true)}>Invite a colleague</Button>
-                <span style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Played by two, taking turns. Your invitations and games are listed under Your games.</span>
-                {inviting ? <InviteDialog gameKey={game.key} title={concept.title} turns={concept.turns} onClose={() => setInviting(false)} /> : null}
-              </div>
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Button variant="primary" size="xl" onClick={() => setInviting(true)}>Invite a colleague</Button>
+                  <span style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Played by two, taking turns. Invitations to you appear below and under Your games.</span>
+                  {inviting ? <InviteDialog gameKey={game.key} title={concept.title} turns={concept.turns} onClose={() => setInviting(false)} /> : null}
+                </div>
+                <GameMatches gameKey={game.key} />
+              </>
             ) : (
               <div><Button variant="primary" size="xl" onClick={() => void start()} disabled={busy}>{busy ? 'Starting…' : 'Start'}</Button></div>
             )}

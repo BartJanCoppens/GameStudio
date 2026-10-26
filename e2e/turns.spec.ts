@@ -189,3 +189,31 @@ test('a game isn’t told about changes that didn’t happen', async ({ page }) 
   await expect(frameOf(page).getByText('Changes: 0')).toBeVisible();
 });
 
+test('an invited player accepts on the game’s own page and starts playing', async ({ page }) => {
+  const title = `Accept here ${Date.now()}`;
+  const key = await seedTurnGame(title);
+  await matchAs('player2', { action: 'invite', game_key: key, invitee: await idOf('player'), way: 'async' });
+  await signIn(page, 'player');
+  await page.goto(`/#/play?game=${key}`);
+  await expect(page.getByText('Turn-taking', { exact: false }).first()).toBeVisible();
+  await expect(page.getByText('Solo', { exact: true })).toHaveCount(0);
+  const invitation = page.getByRole('region', { name: 'Your games with colleagues in this game' });
+  await expect(invitation).toContainText('E2E player2 invites you');
+  await invitation.getByRole('button', { name: 'Accept' }).click();
+  // Accepting opens the game; the invited player moves first.
+  await expect(page.locator('header')).toContainText('Game with a colleague');
+  await expect(frameOf(page).getByText('Your turn')).toBeVisible();
+});
+
+test('the inviter sees the invitation on the game’s page and can withdraw it', async ({ page }) => {
+  const title = `Withdraw here ${Date.now()}`;
+  const key = await seedTurnGame(title);
+  await matchAs('player', { action: 'invite', game_key: key, invitee: await idOf('player2'), way: 'async' });
+  await signIn(page, 'player');
+  await page.goto(`/#/play?game=${key}`);
+  const mine = page.getByRole('region', { name: 'Your games with colleagues in this game' });
+  await expect(mine).toContainText('Waiting for E2E player2 to answer');
+  await mine.getByRole('button', { name: 'Withdraw' }).click();
+  await expect(mine).toHaveCount(0);
+});
+
