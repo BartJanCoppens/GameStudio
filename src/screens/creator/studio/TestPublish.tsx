@@ -34,20 +34,26 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
   }, [permissions]);
   const gameAdminName = !game.game_admin ? 'not set' : gameAdmins ? gameAdmins.find(a => a.id === game.game_admin)?.full_name ?? 'someone who can no longer look after games' : null;
 
-  // The draft's own checks: a game admin's check of added live content (fingerprint sha256:…) isn't one.
-  const loadCheck = useCallback(async () => {
-    const { data } = await supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).not('fingerprint', 'like', 'sha256:%').order('id', { ascending: false }).limit(1).maybeSingle<Check>();
-    setCheck(data ?? null);
+  // The draft's latest check (a game admin's check of added live content, fingerprint sha256:…, isn't one), and
+  // whether it was for this exact draft: the database compares fingerprints, so publishing doesn't make it look old.
+  const fetchCheck = useCallback(async () => {
+    const [{ data }, { data: current }] = await Promise.all([
+      supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).not('fingerprint', 'like', 'sha256:%').order('id', { ascending: false }).limit(1).maybeSingle<Check>(),
+      supabase.rpc('draft_check_is_current', { p_game_key: game.key }),
+    ]);
+    return { check: data ?? null, current: current === true };
   }, [game.key]);
+  const [current, setCurrent] = useState(false);
+  const loadCheck = useCallback(async () => { const r = await fetchCheck(); setCheck(r.check); setCurrent(r.current); }, [fetchCheck]);
+  // Asked again whenever the draft is saved (a change request makes the check out of date).
   useEffect(() => {
     let cancelled = false;
-    supabase.from('game_checks').select('passed, reasons, checked_at').eq('game_key', game.key).not('fingerprint', 'like', 'sha256:%').order('id', { ascending: false }).limit(1).maybeSingle<Check>()
-      .then(({ data }) => { if (!cancelled) setCheck(data ?? null); });
+    fetchCheck().then(r => { if (!cancelled) { setCheck(r.check); setCurrent(r.current); } });
     return () => { cancelled = true; };
-  }, [game.key]);
+  }, [fetchCheck, draftUpdatedAt]);
 
-  // A check belongs to the version it saw; any later save means checking again (the database enforces it).
-  const stale = !!check && !!draftUpdatedAt && new Date(draftUpdatedAt) > new Date(check.checked_at);
+  // A check belongs to the version it saw; any later change means checking again (the database enforces it).
+  const stale = !!check && !current;
   const live_ = published && live && JSON.stringify(live.content) === JSON.stringify(content);
 
   const runCheck = async () => {

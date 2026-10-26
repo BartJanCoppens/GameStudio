@@ -135,7 +135,8 @@ test('the Studio doesn’t show a game admin’s check of added content as the d
   const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
   const admin = adminClient();
   // The creator's own check failed; then a game admin's addition passed (game-content's fingerprints start with sha256:).
-  await admin.from('game_checks').insert({ game_key: key, fingerprint: 'f'.repeat(32), passed: false, reasons: ['Too violent'] });
+  const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: key });
+  await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: false, reasons: ['Too violent'] });
   await admin.from('game_checks').insert({ game_key: key, fingerprint: 'sha256:' + '0'.repeat(64), passed: true, reasons: [] });
   await signInCreator(page);
   await page.goto(`/#/studio?game=${key}`);
@@ -162,6 +163,9 @@ test('Publish to players checks the house rules first when needed', async ({ pag
   await page.getByRole('button', { name: 'Publish to players' }).click();
   await expect(page.getByText('Published · the game admin decides who may play it')).toBeVisible();
   expect(checks).toBe(1);
+  // Publishing doesn't make the check look out of date.
+  await expect(page.getByText('Passed the house-rules check')).toBeVisible();
+  await expect(page.getByText('The game changed since the last check')).toHaveCount(0);
 });
 
 test('a failed house-rules check stops publishing and says why', async ({ page }) => {
