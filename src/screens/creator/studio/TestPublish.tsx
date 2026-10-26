@@ -55,11 +55,35 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
     setMessage(null);
     try { await callFunction('game-check', { game_key: game.key }); await loadCheck(); } catch (e) { setMessage({ tone: 'warning', text: errorMessage(e) }); } finally { setBusy(null); }
   };
+  /** The house-rules check for the current draft; true when it passed (its result shows below either way). */
+  const checkNow = async (): Promise<boolean> => {
+    setBusy('checking');
+    const r = await callFunction<{ passed: boolean }>('game-check', { game_key: game.key });
+    await loadCheck();
+    return r.passed;
+  };
+  /** One click: checks the house rules first when this version hasn't passed them, then publishes. */
   const doPublish = async () => {
-    setBusy('publishing');
     setMessage(null);
     const first = !published;
-    try { await publish(first ? chosen : undefined); setMessage({ tone: 'success', text: first ? 'Published · the game admin decides who may play it' : 'Published · players get this version in their next game' }); } catch (e) { setMessage({ tone: 'warning', text: errorMessage(e) }); } finally { setBusy(null); }
+    let checked = false;
+    try {
+      if (!check || !check.passed || stale) {
+        checked = true;
+        if (!(await checkNow())) return;
+      }
+      setBusy('publishing');
+      try {
+        await publish(first ? chosen : undefined);
+      } catch (e) {
+        // The draft changed since the check this screen knew about: check this exact version, then publish once more.
+        if (checked || !errorMessage(e).startsWith('A passed house-rules check is required')) throw e;
+        if (!(await checkNow())) return;
+        setBusy('publishing');
+        await publish(first ? chosen : undefined);
+      }
+      setMessage({ tone: 'success', text: first ? 'Published · the game admin decides who may play it' : 'Published · players get this version in their next game' });
+    } catch (e) { setMessage({ tone: 'warning', text: errorMessage(e) }); } finally { setBusy(null); }
   };
 
   return (
@@ -76,7 +100,7 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
           />
         ) : null}
         <Button variant="primary" size="md" onClick={() => void doPublish()} disabled={!!busy || !permissions.has('workflow.publish') || (!published && !chosen)} title={permissions.has('workflow.publish') ? undefined : 'Needs “Approve and publish a version”'}>
-          {busy === 'publishing' ? 'Publishing…' : 'Publish to players'}
+          {busy === 'publishing' ? 'Publishing…' : busy === 'checking' ? 'Checking house rules…' : 'Publish to players'}
         </Button>
         {permissions.has('users.manage') ? <Button variant="secondary" size="md" onClick={() => exportGame(game, content)} disabled={!!busy}>Export code</Button> : null}
         {content.previous ? <Button variant="secondary" size="md" onClick={() => void onUndo()} disabled={!!busy}>Undo last change</Button> : null}
@@ -99,7 +123,7 @@ export function TestPublish({ game, content, draftUpdatedAt, onUndo }: { game: G
           : <Banner tone="warning" title="Didn’t pass the house-rules check">{check.reasons.map(r => <div key={r}>· {r}</div>)}</Banner>
       ) : null}
       {stale ? <div style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>The game changed since the last check. Check again before publishing.</div> : null}
-      {!check ? <div style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Check the game against the house rules, then publish it.</div> : null}
+      {!check ? <div style={{ fontSize: 13, color: 'var(--tc-ink-3)' }}>Publishing checks the game against the house rules first.</div> : null}
       {message ? <Banner tone={message.tone}>{message.text}</Banner> : null}
     </div>
   );

@@ -143,9 +143,58 @@ test('the Studio doesn’t show a game admin’s check of added content as the d
   await expect(page.getByText('Passed the house-rules check')).toHaveCount(0);
 });
 
-test('publishing is refused after the draft changes', async ({ page }) => {
+test('Publish to players checks the house rules first when needed', async ({ page }) => {
+  const title = `Unchecked ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  let checks = 0;
+  // The check itself (the AI review) is simulated: it records a pass for this exact draft, as game-check does.
+  await page.route('**/functions/v1/game-check', async (route: Route) => {
+    checks += 1;
+    const admin = adminClient();
+    const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: key });
+    await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: true, reasons: [] });
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ passed: true, reasons: [], fingerprint }) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await page.getByRole('combobox', { name: 'Game admin' }).selectOption({ label: 'E2E gameadmin' });
+  await page.getByRole('button', { name: 'Publish to players' }).click();
+  await expect(page.getByText('Published · the game admin decides who may play it')).toBeVisible();
+  expect(checks).toBe(1);
+});
+
+test('a failed house-rules check stops publishing and says why', async ({ page }) => {
+  const title = `Unchecked fail ${Date.now()}`;
+  const tiny = tinyGame();
+  const key = await seedGame(title, { ...tiny, concept: { ...tiny.concept, title } });
+  await page.route('**/functions/v1/game-check', async (route: Route) => {
+    const admin = adminClient();
+    const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: key });
+    await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: false, reasons: ['Too violent'] });
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ passed: false, reasons: ['Too violent'], fingerprint }) });
+  });
+  await signInCreator(page);
+  await page.goto(`/#/studio?game=${key}`);
+  await page.getByRole('combobox', { name: 'Game admin' }).selectOption({ label: 'E2E gameadmin' });
+  await page.getByRole('button', { name: 'Publish to players' }).click();
+  await expect(page.getByText('Didn’t pass the house-rules check')).toBeVisible();
+  await expect(page.getByText('Too violent')).toBeVisible();
+  const { data } = await adminClient().from('game_content').select('stage').eq('game_key', key).eq('stage', 'live');
+  expect(data).toHaveLength(0);
+});
+
+test('a draft that changed after its check is checked again before publishing', async ({ page }) => {
   const title = `Changed after check ${Date.now()}`;
   const key = await checkedGame(title);
+  let checks = 0;
+  await page.route('**/functions/v1/game-check', async (route: Route) => {
+    checks += 1;
+    const admin = adminClient();
+    const { data: fingerprint } = await admin.rpc('draft_fingerprint', { p_game_key: key });
+    await admin.from('game_checks').insert({ game_key: key, fingerprint, passed: true, reasons: [] });
+    await route.fulfill({ status: 200, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ passed: true, reasons: [], fingerprint }) });
+  });
   // The creator's draft changes after the check (here directly, as a change request would).
   const { client } = await (await import('./games')).userClient('creator');
   const { data } = await client.from('game_content').select('content').eq('game_key', key).eq('stage', 'draft').single();
@@ -155,7 +204,8 @@ test('publishing is refused after the draft changes', async ({ page }) => {
   await expect(page.getByText('The game changed since the last check')).toBeVisible();
   await page.getByRole('combobox', { name: 'Game admin' }).selectOption({ label: 'E2E gameadmin' });
   await page.getByRole('button', { name: 'Publish to players' }).click();
-  await expect(page.getByText(/The game changed since the house-rules check/)).toBeVisible();
+  await expect(page.getByText('Published · the game admin decides who may play it')).toBeVisible();
+  expect(checks).toBe(1);
 });
 
 test('game logic with a syntax error is refused and can be retried', async ({ page }) => {
